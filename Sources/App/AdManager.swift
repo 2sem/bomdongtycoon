@@ -1,19 +1,21 @@
-import GoogleMobileAds;
-import UIKit;
+import GoogleMobileAds
+import UIKit
 
 @MainActor
 final class AdManager: NSObject {
-    static let shared = AdManager();
+    static let shared = AdManager()
 
     // Test Ad Unit ID — replace before App Store submission
-    private let rewardedAdUnitID = "ca-app-pub-3940256099942544/1712485313";
-    private var rewardedAd: GADRewardedAd?;
-    private var rewardCompletion: (() -> Void)?;
+    private let rewardedAdUnitID = "ca-app-pub-3940256099942544/1712485313"
+    private var rewardedAd: GADRewardedAd?
+    private var rewardCompletion: (() -> Void)?
 
-    override init() {
-        super.init();
-        GADMobileAds.sharedInstance().start();
-        loadRewardedAd();
+    init(startSDK: Bool = true) {
+        super.init()
+        if startSDK {
+            GADMobileAds.sharedInstance().start()
+        }
+        loadRewardedAd()
     }
 
     func loadRewardedAd() {
@@ -21,10 +23,10 @@ final class AdManager: NSObject {
             withAdUnitID: rewardedAdUnitID,
             request: GADRequest()
         ) { [weak self] ad, error in
-            if error != nil { return; }
-            self?.rewardedAd = ad;
-            self?.rewardedAd?.fullScreenContentDelegate = self;
-        };
+            if error != nil { return }
+            self?.rewardedAd = ad
+            self?.rewardedAd?.fullScreenContentDelegate = self
+        }
     }
 
     func showRewardedAd(completion: @escaping () -> Void) {
@@ -33,15 +35,19 @@ final class AdManager: NSObject {
                 .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
                 .first else {
             // No ad available — reward anyway (good UX)
-            completion();
-            return;
+            completion()
+            return
         }
-        rewardCompletion = completion;
+        rewardCompletion = completion
         ad.present(fromRootViewController: rootVC) { [weak self] in
-            self?.rewardCompletion?();
-            self?.rewardCompletion = nil;
-            self?.loadRewardedAd();
-        };
+            self?.finishReward()
+        }
+    }
+
+    private func finishReward() {
+        rewardCompletion?()
+        rewardCompletion = nil
+        loadRewardedAd()
     }
 }
 
@@ -51,9 +57,7 @@ extension AdManager: GADFullScreenContentDelegate {
         didFailToPresentFullScreenContentWithError error: Error
     ) {
         Task { @MainActor [weak self] in
-            self?.rewardCompletion?();
-            self?.rewardCompletion = nil;
-            self?.loadRewardedAd();
-        };
+            self?.finishReward()
+        }
     }
 }

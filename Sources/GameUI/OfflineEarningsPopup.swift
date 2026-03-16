@@ -1,27 +1,27 @@
-import SwiftUI;
-import GameCore;
+import SwiftUI
+import GameCore
 
 public struct OfflineEarningsPopup: View {
-    @EnvironmentObject var store: GameStore;
+    @EnvironmentObject var store: GameStore
 
     public init() {}
 
     public var body: some View {
         ZStack {
-            Color.black.opacity(0.55).ignoresSafeArea();
+            Color.black.opacity(0.55).ignoresSafeArea()
             VStack(spacing: 20) {
                 Text("🥬 돌아오셨군요!")
-                    .font(.title2.bold());
+                    .font(.title2.bold())
                 Text("가게를 비운 동안 번 돈:")
-                    .foregroundStyle(.secondary);
+                    .foregroundStyle(.secondary)
                 Text("💰 \(Int(store.offlineEarnings))원")
                     .font(.system(size: 48, weight: .bold))
-                    .foregroundStyle(.orange);
+                    .foregroundStyle(.orange)
 
                 Button {
-                    // 2x ad reward — AdManager called from App layer before this
-                    store.applyOfflineEarnings(multiplier: 2.0);
-                    store.offlineEarnings = 0;
+                    // AdManager.shared.showRewardedAd called from App layer before reaching here
+                    store.applyOfflineEarnings(multiplier: 2.0)
+                    store.clearOfflineEarnings()
                 } label: {
                     Label("광고 보고 2배 받기", systemImage: "play.circle.fill")
                         .font(.headline)
@@ -29,18 +29,18 @@ public struct OfflineEarningsPopup: View {
                         .padding()
                         .background(.orange)
                         .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14));
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
 
                 Button("그냥 받기") {
-                    store.applyOfflineEarnings(multiplier: 1.0);
-                    store.offlineEarnings = 0;
+                    store.applyOfflineEarnings(multiplier: 1.0)
+                    store.clearOfflineEarnings()
                 }
-                .foregroundStyle(.secondary);
+                .foregroundStyle(.secondary)
             }
             .padding(28)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24))
-            .padding(32);
+            .padding(32)
         }
     }
 }

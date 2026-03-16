@@ -97,6 +97,10 @@ public final class GameStore: ObservableObject {
         save()
     }
 
+    public func clearOfflineEarnings() {
+        offlineEarnings = 0
+    }
+
     // MARK: Upgrades
 
     public func purchaseUpgrade(_ type: UpgradeType) {
