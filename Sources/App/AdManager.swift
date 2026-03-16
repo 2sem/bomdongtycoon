@@ -5,8 +5,7 @@ import UIKit
 final class AdManager: NSObject {
     static let shared = AdManager()
 
-    // Test Ad Unit ID — replace before App Store submission
-    private let rewardedAdUnitID = "ca-app-pub-3940256099942544/1712485313"
+    private let rewardedAdUnitID = "ca-app-pub-9684378399371172/3844454464"
     private var rewardedAd: GADRewardedAd?
     private var rewardCompletion: (() -> Void)?
 

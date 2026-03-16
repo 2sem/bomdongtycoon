@@ -38,7 +38,8 @@ let project = Project(
             infoPlist: .extendingDefault(with: [
                 "UILaunchStoryboardName": "LaunchScreen",
                 "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
-                "NSUserNotificationUsageDescription": "봄동 가게 알림을 보내드려요 🥬"
+                "NSUserNotificationUsageDescription": "봄동 가게 알림을 보내드려요 🥬",
+                "GADApplicationIdentifier": "ca-app-pub-9684378399371172~8825318408"
             ]),
             sources: ["Sources/App/**"],
             resources: ["Resources/**"],
