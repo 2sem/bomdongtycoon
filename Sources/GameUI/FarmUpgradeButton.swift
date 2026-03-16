@@ -1,36 +1,32 @@
 import SwiftUI
 import GameCore
 
-/// Floating button that sits above the farm strip.
-/// Shows the next farm upgrade and lets the player buy it with one tap.
+/// Floating [+] button that adds one more farm plot.
 public struct FarmUpgradeButton: View {
     @EnvironmentObject var store: GameStore
 
     public init() {}
 
-    private var nextTierIndex: Int { store.farm.upgradeTier + 1 }
-    private var nextDef: FarmUpgradeDefinition? {
-        guard nextTierIndex < UpgradeDefinitions.farm.count else { return nil }
-        return UpgradeDefinitions.farm[nextTierIndex]
+    private var nextCost: Double? {
+        FarmSystem.costForNextPlot(currentCount: store.farm.plots.count)
     }
 
     public var body: some View {
-        if let def = nextDef {
-            let canAfford = store.stall.coins >= def.coinCost
+        if let cost = nextCost {
+            let canAfford = store.stall.coins >= cost
             Button {
                 store.purchaseUpgrade(.farm)
             } label: {
-                HStack(spacing: 5) {
+                HStack(spacing: 6) {
                     Image(systemName: "plus.circle.fill")
                         .foregroundStyle(canAfford ? .green : .secondary)
-                    Text(def.name)
+                        .font(.body)
+                    Text("🪙\(Int(cost))")
                         .font(.caption.bold())
-                    Text("🪙\(Int(def.coinCost))")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(canAfford ? .primary : .secondary)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
                 .background(.ultraThinMaterial, in: Capsule())
             }
             .buttonStyle(.plain)

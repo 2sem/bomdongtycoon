@@ -17,10 +17,9 @@ public struct FarmPlot: Codable {
 
 public struct FarmState: Codable {
     public var plots: [FarmPlot]
-    public var upgradeTier: Int = 0
     public var farmWorkers: Int = 0
 
     public init() {
-        plots = Array(repeating: FarmPlot(), count: 5)  // max 5 slots, active count driven by tier
+        plots = Array(repeating: FarmPlot(), count: FarmSystem.startingPlots)
     }
 }

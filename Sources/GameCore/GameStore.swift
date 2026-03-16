@@ -205,17 +205,10 @@ public final class GameStore: ObservableObject {
             stall.locationTier += 1
 
         case .farm:
-            let nextTier = farm.upgradeTier + 1
-            guard nextTier < UpgradeDefinitions.farm.count else { return }
-            let cost = UpgradeDefinitions.farm[nextTier].coinCost
+            guard let cost = FarmSystem.costForNextPlot(currentCount: farm.plots.count) else { return }
             guard stall.coins >= cost else { return }
             stall.coins -= cost
-            farm.upgradeTier += 1
-            // Resize plots array if needed
-            let needed = FarmSystem.activePlotCount(for: farm)
-            while farm.plots.count < needed {
-                farm.plots.append(FarmPlot())
-            }
+            farm.plots.append(FarmPlot())
         }
         save()
     }
