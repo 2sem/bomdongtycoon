@@ -1,41 +1,60 @@
-import SpriteKit;
+import SpriteKit
 
 final class CoinBubbleNode: SKNode {
 
-    let amount: Double;
+    let amount: Double
 
     init(amount: Double) {
-        self.amount = amount;
-        super.init();
+        self.amount = amount
+        super.init()
 
-        let circle = SKShapeNode(circleOfRadius: 28);
-        circle.fillColor = .systemYellow;
-        circle.strokeColor = .orange;
-        circle.lineWidth = 2;
-        addChild(circle);
+        // Coin circle
+        let circle = SKShapeNode(circleOfRadius: 30)
+        circle.fillColor = SKColor(red: 1.0, green: 0.82, blue: 0.15, alpha: 1)
+        circle.strokeColor = SKColor(red: 0.85, green: 0.60, blue: 0.0, alpha: 1)
+        circle.lineWidth = 2.5
+        addChild(circle)
 
-        let label = SKLabelNode(text: "💰");
-        label.fontSize = 20;
-        label.verticalAlignmentMode = .center;
-        addChild(label);
+        // Shine highlight
+        let shine = SKShapeNode(circleOfRadius: 10)
+        shine.fillColor = SKColor.white.withAlphaComponent(0.45)
+        shine.strokeColor = .clear
+        shine.position = CGPoint(x: 9, y: 11)
+        addChild(shine)
 
-        let float = SKAction.repeatForever(
-            SKAction.sequence([
-                SKAction.moveBy(x: 0, y: 10, duration: 0.7),
-                SKAction.moveBy(x: 0, y: -10, duration: 0.7),
-            ])
-        );
-        run(float);
+        // Coin emoji
+        let icon = SKLabelNode(text: "🪙")
+        icon.fontSize = 22
+        icon.verticalAlignmentMode = .center
+        icon.position = CGPoint(x: 0, y: 4)
+        addChild(icon)
+
+        // Amount label
+        let amountLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Bold")
+        amountLabel.text = "+\(Int(amount))"
+        amountLabel.fontSize = 11
+        amountLabel.fontColor = SKColor(red: 0.5, green: 0.28, blue: 0.0, alpha: 1)
+        amountLabel.verticalAlignmentMode = .center
+        amountLabel.position = CGPoint(x: 0, y: -16)
+        addChild(amountLabel)
+
+        // Float animation
+        run(SKAction.repeatForever(SKAction.sequence([
+            SKAction.moveBy(x: 0, y: 10, duration: 0.65),
+            SKAction.moveBy(x: 0, y: -10, duration: 0.65),
+        ])))
     }
 
-    required init?(coder: NSCoder) { fatalError("init(coder:) not supported"); }
+    required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
 
     func pop() {
-        removeAllActions();
+        removeAllActions()
         run(SKAction.sequence([
-            SKAction.scale(to: 1.5, duration: 0.1),
-            SKAction.fadeOut(withDuration: 0.15),
+            SKAction.group([
+                SKAction.scale(to: 1.6, duration: 0.12),
+                SKAction.fadeOut(withDuration: 0.18),
+            ]),
             SKAction.removeFromParent(),
-        ]));
+        ]))
     }
 }
