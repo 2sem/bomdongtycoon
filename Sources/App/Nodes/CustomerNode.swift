@@ -104,14 +104,11 @@ final class CustomerNode: SKNode {
             ? SKColor(red: 1.0, green: 0.80, blue: 0.0, alpha: 1)
             : SKColor(red: 0.90, green: 0.20, blue: 0.15, alpha: 1)
 
-        bubbleCircle.run(SKAction.sequence([
-            SKAction.run { [weak self] in self?.bubbleCircle.fillColor = burstColor },
-            SKAction.group([
-                SKAction.scale(to: 1.5, duration: 0.10),
-                SKAction.fadeOut(withDuration: 0.20),
-            ]),
+        bubbleCircle.fillColor = burstColor
+        thoughtBubble.run(SKAction.sequence([
+            SKAction.scale(to: 1.3, duration: 0.10),
+            SKAction.fadeOut(withDuration: 0.20),
         ]))
-        menuLabel.run(SKAction.fadeOut(withDuration: 0.15))
 
         // Pop reaction emoji up from the bubble position
         let emoji = happy
