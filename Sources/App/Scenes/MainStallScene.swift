@@ -192,9 +192,16 @@ final class MainStallScene: SKScene {
         run(SKAction.repeatForever(spawn))
     }
 
+    /// Maps menuTier to the emoji menu items the shop currently sells.
+    private static func availableMenus(for menuTier: Int) -> [String] {
+        let all = ["🥬", "🥗", "🥘"]
+        return Array(all.prefix(menuTier + 1))
+    }
+
     private func spawnCustomer() {
         guard let store = store else { return }
-        let customer = CustomerNode()
+        let menus = Self.availableMenus(for: store.stall.menuTier)
+        let customer = CustomerNode(availableMenus: menus)
         customer.position = CGPoint(x: -40, y: groundY + 20)
         addChild(customer)
 
