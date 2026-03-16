@@ -23,10 +23,10 @@ final class GameStoreTests: XCTestCase {
 
     // MARK: - Tests
 
-    func test_tick_increasesPendingCoins() {
-        let before = store.stall.pendingCoins
+    func test_tick_increasesStock() {
+        let before = store.stall.stock
         store.tick(deltaTime: 1.0)
-        XCTAssertGreaterThan(store.stall.pendingCoins, before)
+        XCTAssertGreaterThan(store.stall.stock, before)
     }
 
     func test_collectCoins_movesToBalance() {

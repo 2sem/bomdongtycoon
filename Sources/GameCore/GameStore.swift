@@ -67,9 +67,10 @@ public final class GameStore: ObservableObject {
     // MARK: Tick
 
     public func tick(deltaTime: Double) {
-        let rate = EarningsSystem.coinsPerSecond(for: stall)
-        let multiplier = SeasonSystem.earningsMultiplier(for: season.currentSeason)
-        stall.pendingCoins += rate * multiplier * deltaTime
+        let rate = EarningsSystem.productionRate(for: stall)
+        let seasonMultiplier = SeasonSystem.earningsMultiplier(for: season.currentSeason)
+        let max = Double(EarningsSystem.maxStock(for: stall))
+        stall.stock = min(stall.stock + rate * seasonMultiplier * deltaTime, max)
     }
 
     // MARK: Collect

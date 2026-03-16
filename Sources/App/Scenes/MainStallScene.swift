@@ -65,6 +65,14 @@ final class MainStallScene: SKScene {
         rateLabel.position = CGPoint(x: frame.midX, y: frame.height - 104)
         rateLabel.name = "rateLabel"
         addChild(rateLabel)
+
+        // Stock HUD
+        let stockLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Regular")
+        stockLabel.fontSize = 13
+        stockLabel.fontColor = SKColor(red: 0.2, green: 0.55, blue: 0.2, alpha: 1)
+        stockLabel.position = CGPoint(x: frame.midX, y: frame.height - 124)
+        stockLabel.name = "stockLabel"
+        addChild(stockLabel)
     }
 
     // MARK: - Customer spawning
@@ -83,14 +91,22 @@ final class MainStallScene: SKScene {
         customer.position = CGPoint(x: -40, y: frame.midY - 50)
         addChild(customer)
 
-        // Walk to stall, collect coins, then walk off screen
         customer.walkTo(x: frame.midX - 60) { [weak self] in
             guard let self else { return }
-            let rate = EarningsSystem.coinsPerSecond(for: store.stall)
-            let coinAmount = rate * 3.0
-            self.spawnCoinBubble(at: customer.position, amount: coinAmount)
-            customer.walkTo(x: self.frame.width + 40) {
-                customer.removeFromParent()
+            Task { @MainActor in
+                guard store.stall.stock >= 1.0 else {
+                    // No stock — customer leaves without buying
+                    customer.walkTo(x: self.frame.width + 40) {
+                        customer.removeFromParent()
+                    }
+                    return
+                }
+                store.stall.stock -= 1.0
+                let price = EarningsSystem.pricePerItem(for: store.stall)
+                self.spawnCoinBubble(at: customer.position, amount: price)
+                customer.walkTo(x: self.frame.width + 40) {
+                    customer.removeFromParent()
+                }
             }
         }
     }
@@ -151,6 +167,11 @@ final class MainStallScene: SKScene {
             if let label = self.childNode(withName: "rateLabel") as? SKLabelNode {
                 let rate = EarningsSystem.coinsPerSecond(for: store.stall)
                 label.text = "⚡ \(String(format: "%.1f", rate))/s"
+            }
+            if let label = self.childNode(withName: "stockLabel") as? SKLabelNode {
+                let stock = Int(store.stall.stock)
+                let maxStock = EarningsSystem.maxStock(for: store.stall)
+                label.text = "🥬 \(stock)/\(maxStock)"
             }
         }
     }

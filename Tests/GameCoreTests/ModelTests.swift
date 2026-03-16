@@ -33,6 +33,6 @@ final class ModelTests: XCTestCase {
         let upgrade = UpgradeDefinitions.staff[0]
         XCTAssertEqual(upgrade.name, "알바생")
         XCTAssertEqual(upgrade.coinCost, 500)
-        XCTAssertGreaterThan(upgrade.earningsMultiplier, 1.0)
+        XCTAssertGreaterThan(upgrade.productionMultiplier, 1.0)
     }
 }

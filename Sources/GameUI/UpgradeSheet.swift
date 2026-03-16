@@ -86,9 +86,11 @@ private struct UpgradeRowView: View {
                 Text(upgrade.description)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("×\(String(format: "%.1f", upgrade.earningsMultiplier)) 수익")
-                    .font(.caption2)
-                    .foregroundStyle(.green)
+                if !upgrade.displayEffect.isEmpty {
+                    Text(upgrade.displayEffect)
+                        .font(.caption2)
+                        .foregroundStyle(.green)
+                }
             }
             Spacer()
             trailingView

@@ -2,24 +2,35 @@ import Foundation
 
 public enum EarningsSystem {
 
-    static let baseCoinsPerSecond: Double = 1.0
+    static let baseProductionRate: Double = 1.0   // items per second
+    static let basePricePerItem: Double = 10.0    // coins per item sold
 
-    public static func coinsPerSecond(for stall: StallState) -> Double {
-        var rate = baseCoinsPerSecond
-
-        if stall.menuTier > 0 {
-            rate *= UpgradeDefinitions.menu[stall.menuTier].earningsMultiplier
-        }
+    /// Items produced per second based on staff and location upgrades
+    public static func productionRate(for stall: StallState) -> Double {
+        var rate = baseProductionRate
         if stall.staffTier > 0 {
-            rate *= UpgradeDefinitions.staff[stall.staffTier - 1].earningsMultiplier
+            rate *= UpgradeDefinitions.staff[stall.staffTier - 1].productionMultiplier
         }
-        if stall.stallTier > 0 {
-            rate *= UpgradeDefinitions.stall[stall.stallTier].earningsMultiplier
-        }
-        if stall.locationTier > 0 {
-            rate *= UpgradeDefinitions.location[stall.locationTier].earningsMultiplier
-        }
+        rate *= UpgradeDefinitions.location[stall.locationTier].productionMultiplier
         return rate
+    }
+
+    /// Coins earned per item sold based on menu and location upgrades
+    public static func pricePerItem(for stall: StallState) -> Double {
+        var price = basePricePerItem
+        price *= UpgradeDefinitions.menu[stall.menuTier].priceMultiplier
+        price *= UpgradeDefinitions.location[stall.locationTier].priceMultiplier
+        return price
+    }
+
+    /// Maximum stock the stall can hold at once
+    public static func maxStock(for stall: StallState) -> Int {
+        UpgradeDefinitions.stall[stall.stallTier].maxStock
+    }
+
+    /// Derived coins per second = productionRate × pricePerItem (used for HUD and offline)
+    public static func coinsPerSecond(for stall: StallState) -> Double {
+        productionRate(for: stall) * pricePerItem(for: stall)
     }
 
     /// Returns the cheapest upgrade the player can currently afford

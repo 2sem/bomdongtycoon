@@ -8,6 +8,8 @@ public struct StallState: Codable {
     public var locationTier: Int = 0   // 0=골목, 1=시장, 2=강남
     public var autoCollectEnabled: Bool = false
     public var pendingCoins: Double = 0
+    /// Fractional stock accumulator — whole items are sold to customers
+    public var stock: Double = 0
 
     public init() {}
 }

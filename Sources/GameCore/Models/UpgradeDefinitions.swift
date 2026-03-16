@@ -3,39 +3,73 @@ import Foundation
 public struct UpgradeDefinition {
     public let name: String
     public let coinCost: Double
-    public let earningsMultiplier: Double
     public let description: String
+    /// Multiplier on items-per-second production rate (staff, location)
+    public let productionMultiplier: Double
+    /// Multiplier on coins-per-item sale price (menu, location)
+    public let priceMultiplier: Double
+    /// Maximum stock capacity (stall upgrades only; 0 = not applicable)
+    public let maxStock: Int
 
-    public init(name: String, coinCost: Double, earningsMultiplier: Double, description: String) {
+    public init(
+        name: String,
+        coinCost: Double,
+        description: String,
+        productionMultiplier: Double = 1.0,
+        priceMultiplier: Double = 1.0,
+        maxStock: Int = 0
+    ) {
         self.name = name
         self.coinCost = coinCost
-        self.earningsMultiplier = earningsMultiplier
         self.description = description
+        self.productionMultiplier = productionMultiplier
+        self.priceMultiplier = priceMultiplier
+        self.maxStock = maxStock
+    }
+
+    /// Human-readable effect summary for the upgrade sheet
+    public var displayEffect: String {
+        var parts: [String] = []
+        if productionMultiplier != 1.0 {
+            parts.append("⚡ ×\(String(format: "%.1f", productionMultiplier)) 생산속도")
+        }
+        if priceMultiplier != 1.0 {
+            parts.append("💰 ×\(String(format: "%.1f", priceMultiplier)) 판매가")
+        }
+        if maxStock > 0 {
+            parts.append("🥬 \(maxStock)개 보관")
+        }
+        return parts.joined(separator: " · ")
     }
 }
 
 public enum UpgradeDefinitions {
+
+    /// Menu upgrades — increase price per item sold
     public static let menu: [UpgradeDefinition] = [
-        .init(name: "겉절이",     coinCost: 0,      earningsMultiplier: 1.0, description: "기본 메뉴"),
-        .init(name: "봄동김치",   coinCost: 1_000,  earningsMultiplier: 2.5, description: "인기 메뉴"),
-        .init(name: "봄동비빔밥", coinCost: 10_000, earningsMultiplier: 6.0, description: "시그니처 메뉴")
+        .init(name: "겉절이",     coinCost: 0,      description: "기본 메뉴",      priceMultiplier: 1.0),
+        .init(name: "봄동김치",   coinCost: 1_000,  description: "인기 메뉴",      priceMultiplier: 2.5),
+        .init(name: "봄동비빔밥", coinCost: 10_000, description: "시그니처 메뉴",  priceMultiplier: 6.0)
     ]
 
+    /// Staff upgrades — increase items produced per second
     public static let staff: [UpgradeDefinition] = [
-        .init(name: "알바생",       coinCost: 500,    earningsMultiplier: 1.5, description: "첫 번째 직원"),
-        .init(name: "경력 아주머니", coinCost: 3_000,  earningsMultiplier: 3.0, description: "베테랑"),
-        .init(name: "봄동 요리사",  coinCost: 15_000, earningsMultiplier: 7.0, description: "전문가")
+        .init(name: "알바생",       coinCost: 500,    description: "첫 번째 직원", productionMultiplier: 1.5),
+        .init(name: "경력 아주머니", coinCost: 3_000,  description: "베테랑",       productionMultiplier: 3.0),
+        .init(name: "봄동 요리사",  coinCost: 15_000, description: "전문가",       productionMultiplier: 7.0)
     ]
 
+    /// Stall upgrades — increase maximum stock capacity
     public static let stall: [UpgradeDefinition] = [
-        .init(name: "포장마차",   coinCost: 0,      earningsMultiplier: 1.0, description: "시작 가게"),
-        .init(name: "분식집",     coinCost: 5_000,  earningsMultiplier: 2.0, description: "업그레이드"),
-        .init(name: "봄동 전문점", coinCost: 25_000, earningsMultiplier: 5.0, description: "최고급")
+        .init(name: "포장마차",    coinCost: 0,      description: "시작 가게", maxStock: 20),
+        .init(name: "분식집",      coinCost: 5_000,  description: "업그레이드", maxStock: 50),
+        .init(name: "봄동 전문점", coinCost: 25_000, description: "최고급",    maxStock: 150)
     ]
 
+    /// Location upgrades — increase both production rate and sale price
     public static let location: [UpgradeDefinition] = [
-        .init(name: "골목", coinCost: 0,      earningsMultiplier: 1.0, description: "조용한 골목"),
-        .init(name: "시장", coinCost: 8_000,  earningsMultiplier: 2.5, description: "사람 많은 시장"),
-        .init(name: "강남", coinCost: 50_000, earningsMultiplier: 8.0, description: "핫플레이스")
+        .init(name: "골목", coinCost: 0,      description: "조용한 골목",    productionMultiplier: 1.0, priceMultiplier: 1.0),
+        .init(name: "시장", coinCost: 8_000,  description: "사람 많은 시장", productionMultiplier: 2.5, priceMultiplier: 2.5),
+        .init(name: "강남", coinCost: 50_000, description: "핫플레이스",    productionMultiplier: 8.0, priceMultiplier: 8.0)
     ]
 }

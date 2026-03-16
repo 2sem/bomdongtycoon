@@ -3,6 +3,8 @@ import XCTest
 
 final class OfflineProgressSystemTests: XCTestCase {
 
+    // Base coinsPerSecond = 10.0 (1.0 items/s × 10.0 coins/item)
+
     func test_offlineEarnings_twoHours() {
         let stall = StallState()
         let twoHoursAgo = Date().addingTimeInterval(-2 * 3600)
@@ -10,7 +12,7 @@ final class OfflineProgressSystemTests: XCTestCase {
             stall: stall,
             lastActiveDate: twoHoursAgo
         )
-        XCTAssertEqual(earnings, 7200, accuracy: 1)
+        XCTAssertEqual(earnings, 10.0 * 2 * 3600, accuracy: 1)
     }
 
     func test_offlineEarnings_cappedAt8Hours() {
@@ -20,7 +22,7 @@ final class OfflineProgressSystemTests: XCTestCase {
             stall: stall,
             lastActiveDate: twentyHoursAgo
         )
-        XCTAssertEqual(earnings, 1.0 * 8 * 3600, accuracy: 1)
+        XCTAssertEqual(earnings, 10.0 * 8 * 3600, accuracy: 1)
     }
 
     func test_offlineEarnings_firstLaunch_returnsZero() {
@@ -40,7 +42,7 @@ final class OfflineProgressSystemTests: XCTestCase {
             lastActiveDate: oneHourAgo,
             multiplier: 2.0
         )
-        XCTAssertEqual(earnings, 7200, accuracy: 1)
+        XCTAssertEqual(earnings, 10.0 * 3600 * 2.0, accuracy: 1)
     }
 
     func test_offlineEarnings_withSeasonMultiplier() {
@@ -51,6 +53,6 @@ final class OfflineProgressSystemTests: XCTestCase {
             lastActiveDate: oneHourAgo,
             seasonMultiplier: 1.5
         )
-        XCTAssertEqual(earnings, 1.0 * 3600 * 1.5, accuracy: 1)
+        XCTAssertEqual(earnings, 10.0 * 3600 * 1.5, accuracy: 1)
     }
 }
