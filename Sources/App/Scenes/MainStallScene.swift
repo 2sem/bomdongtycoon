@@ -14,6 +14,7 @@ final class MainStallScene: SKScene {
     private var lastUpdateTime: TimeInterval = 0
     private var coinBubbles: [CoinBubbleNode] = []
     private var lastStallTier = -1
+    private var lastShopName = ""
 
     private static func stallEmoji(for tier: Int) -> String {
         switch tier {
@@ -272,6 +273,13 @@ final class MainStallScene: SKScene {
                 let stock = Int(store.stall.stock)
                 let maxStock = EarningsSystem.maxStock(for: store.stall)
                 label.text = "🥬 \(stock)/\(maxStock)"
+            }
+            let shopName = store.progress.shopName
+            if shopName != self.lastShopName {
+                self.lastShopName = shopName
+                if let label = self.childNode(withName: "signLabel") as? SKLabelNode {
+                    label.text = "🥬 \(shopName)"
+                }
             }
             let tier = store.stall.stallTier
             if tier != self.lastStallTier {
