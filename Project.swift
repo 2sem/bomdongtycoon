@@ -45,7 +45,7 @@ let project = Project(
             dependencies: [
                 .target(name: "GameCore"),
                 .target(name: "GameUI"),
-                .package(product: "GoogleMobileAds")
+                .xcframework(path: "Tuist/.build/artifacts/swift-package-manager-google-mobile-ads/GoogleMobileAds/GoogleMobileAds.xcframework")
             ]
         )
     ],
