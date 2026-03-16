@@ -29,6 +29,7 @@ final class CustomerNode: SKNode {
         wantedMenu   = availableMenus.randomElement() ?? "🥬"
         bubbleCircle = SKShapeNode(circleOfRadius: 18)
         super.init()
+        zPosition = 5   // walk in front of stall (z=1) and counter items (z=2)
         buildBody()
         buildThoughtBubble()
         buildReactionLabel()
