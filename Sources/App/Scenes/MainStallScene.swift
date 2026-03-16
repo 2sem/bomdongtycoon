@@ -5,7 +5,9 @@ final class MainStallScene: SKScene {
 
     // MARK: - Properties
 
-    weak var store: GameStore?
+    weak var store: GameStore? {
+        didSet { updateSignLabel() }
+    }
 
     private static let maxDelta: TimeInterval = 1.0 / 3.0
 
@@ -110,13 +112,14 @@ final class MainStallScene: SKScene {
         signBg.zPosition = 2
         addChild(signBg)
 
-        let signLabel = SKLabelNode(text: "🥬 봄동타이쿤")
+        let signLabel = SKLabelNode(text: "🥬 봄동 가게")
         signLabel.fontName = "AppleSDGothicNeo-Bold"
         signLabel.fontSize = 15
         signLabel.fontColor = .white
         signLabel.verticalAlignmentMode = .center
         signLabel.position = CGPoint(x: frame.midX, y: stallY - 34)
         signLabel.zPosition = 3
+        signLabel.name = "signLabel"
         addChild(signLabel)
 
         // Display items on counter
@@ -129,6 +132,12 @@ final class MainStallScene: SKScene {
             label.zPosition = 2
             addChild(label)
         }
+    }
+
+    private func updateSignLabel() {
+        guard let store,
+              let label = childNode(withName: "signLabel") as? SKLabelNode else { return }
+        label.text = "🥬 \(store.progress.shopName)"
     }
 
     // MARK: - HUD

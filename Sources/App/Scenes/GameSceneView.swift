@@ -1,25 +1,25 @@
-import SwiftUI;
-import SpriteKit;
-import GameCore;
+import SwiftUI
+import SpriteKit
+import GameCore
 
 struct GameSceneView: View {
-    @EnvironmentObject var store: GameStore;
+    @EnvironmentObject var store: GameStore
 
     var body: some View {
-        SpriteViewWrapper(store: store);
+        SpriteViewWrapper(store: store)
     }
 }
 
 private struct SpriteViewWrapper: View {
-    let store: GameStore;
+    let store: GameStore
     @State private var scene: MainStallScene = {
-        let s = MainStallScene();
-        s.scaleMode = .resizeFill;
-        return s;
-    }();
+        let s = MainStallScene()
+        s.scaleMode = .resizeFill
+        return s
+    }()
 
     var body: some View {
         SpriteView(scene: scene)
-            .onAppear { scene.store = store; };
+            .onAppear { scene.store = store }
     }
 }

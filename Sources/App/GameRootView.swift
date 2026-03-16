@@ -13,6 +13,8 @@ struct GameRootView: View {
                 .ignoresSafeArea()
             if store.progress.isFirstLaunch {
                 TutorialOverlay()
+            } else if !store.progress.isShopNameSet {
+                ShopNameOverlay()
             }
             if store.offlineEarnings > 0 {
                 OfflineEarningsPopup()
