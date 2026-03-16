@@ -22,6 +22,12 @@ final class MainStallScene: SKScene {
     private var lastVisualCount = -1
     private var lastMenuTierForStack = -1
 
+    private static func formatCoins(_ value: Int) -> String {
+        if value >= 1_000_000 { return String(format: "%.1fM", Double(value) / 1_000_000) }
+        if value >= 1_000     { return String(format: "%.1fK", Double(value) / 1_000) }
+        return "\(value)"
+    }
+
     private static func stallEmoji(for tier: Int) -> String {
         switch tier {
         case 0:  "⛺"   // 포장마차
@@ -214,15 +220,15 @@ final class MainStallScene: SKScene {
     private func setupHUD() {
         // Frosted pill backing for the coin display
         let pill = SKShapeNode(rectOf: CGSize(width: 160, height: 38), cornerRadius: 19)
-        pill.fillColor = SKColor(white: 0.0, alpha: 0.35)
-        pill.strokeColor = SKColor(white: 1.0, alpha: 0.18)
+        pill.fillColor = SKColor(white: 0.0, alpha: 0.55)
+        pill.strokeColor = SKColor(white: 1.0, alpha: 0.30)
         pill.lineWidth = 1
         pill.position = CGPoint(x: frame.midX, y: hudTopY + 10)
         pill.zPosition = 9
         addChild(pill)
 
         let coinLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Bold")
-        coinLabel.fontSize = 22
+        coinLabel.fontSize = 20
         coinLabel.fontColor = .white
         coinLabel.verticalAlignmentMode = .center
         coinLabel.position = CGPoint(x: frame.midX, y: hudTopY + 10)
@@ -338,7 +344,8 @@ final class MainStallScene: SKScene {
             guard let self, let store = self.store else { return }
             store.tick(deltaTime: delta)
             if let label = self.childNode(withName: "coinLabel") as? SKLabelNode {
-                label.text = "💰 \(Int(store.stall.coins))"
+                let formatted = Self.formatCoins(Int(store.stall.coins))
+                label.text = "🪙 \(formatted)"
             }
             if let label = self.childNode(withName: "rateLabel") as? SKLabelNode {
                 let rate = EarningsSystem.coinsPerSecond(for: store.stall)
