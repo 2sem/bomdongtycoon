@@ -82,12 +82,13 @@ public final class GameStore: ObservableObject {
         let rate = FarmSystem.growthRate(for: farm) * seasonMult
         let activePlots = FarmSystem.activePlotCount(for: farm)
 
+        // Grow only planted plots
         for i in 0..<min(activePlots, farm.plots.count) {
-            if !farm.plots[i].isReady {
-                farm.plots[i].growth = min(farm.plots[i].growth + rate * deltaTime, 1.0)
-            }
+            guard farm.plots[i].isPlanted, !farm.plots[i].isReady else { continue }
+            farm.plots[i].growth = min(farm.plots[i].growth + rate * deltaTime, 1.0)
         }
 
+        // Farm workers auto-harvest ready plots then auto-replant
         if farm.farmWorkers > 0 {
             let yield = FarmSystem.harvestYield(for: farm)
             let maxStock = Double(EarningsSystem.maxStock(for: stall))
@@ -95,6 +96,11 @@ public final class GameStore: ObservableObject {
                 if farm.plots[i].isReady {
                     stall.stock = min(stall.stock + Double(yield), maxStock)
                     farm.plots[i].growth = 0
+                    farm.plots[i].isPlanted = false
+                }
+                if !farm.plots[i].isPlanted, stall.coins >= FarmSystem.seedCost {
+                    stall.coins -= FarmSystem.seedCost
+                    farm.plots[i].isPlanted = true
                 }
             }
         }
@@ -111,15 +117,26 @@ public final class GameStore: ObservableObject {
 
     // MARK: Farm
 
+    /// Plant a seed in an empty plot. Costs `FarmSystem.seedCost` coins.
+    public func plantSeed(plotIndex: Int) {
+        guard plotIndex < farm.plots.count,
+              !farm.plots[plotIndex].isPlanted,
+              stall.coins >= FarmSystem.seedCost else { return }
+        stall.coins -= FarmSystem.seedCost
+        farm.plots[plotIndex].isPlanted = true
+        farm.plots[plotIndex].growth = 0
+        save()
+    }
+
+    /// Harvest a fully-grown plot. Resets to empty.
     public func harvest(plotIndex: Int) {
-        let activePlots = FarmSystem.activePlotCount(for: farm)
-        guard plotIndex < activePlots,
-              plotIndex < farm.plots.count,
+        guard plotIndex < farm.plots.count,
               farm.plots[plotIndex].isReady else { return }
         let yield = FarmSystem.harvestYield(for: farm)
         let maxStock = Double(EarningsSystem.maxStock(for: stall))
         stall.stock = min(stall.stock + Double(yield), maxStock)
         farm.plots[plotIndex].growth = 0
+        farm.plots[plotIndex].isPlanted = false
         save()
     }
 

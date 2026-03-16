@@ -9,8 +9,12 @@ final class FarmPlotNode: SKNode {
     private let workerLabel = SKLabelNode()
 
     private static let stageEmoji: [FarmPlot.Stage: String] = [
-        .empty: "🪨", .sprout: "🌱", .growing: "🌿", .ready: "🥬"
+        .empty: "", .sprout: "🌱", .growing: "🌿", .ready: "🥬"
     ]
+
+    // Shows "+" and seed cost when empty
+    private let plantHintLabel = SKLabelNode()
+    private let seedCostLabel  = SKLabelNode()
 
     private static let readyColor   = SKColor(red: 0.22, green: 0.60, blue: 0.22, alpha: 1)
     private static let soilColor    = SKColor(red: 0.50, green: 0.34, blue: 0.14, alpha: 1)
@@ -46,6 +50,23 @@ final class FarmPlotNode: SKNode {
         workerLabel.fontSize = 13
         workerLabel.position = CGPoint(x: 17, y: 18)
         addChild(workerLabel)
+
+        // Plant hint — visible only when empty
+        plantHintLabel.text = "+"
+        plantHintLabel.fontName = "AppleSDGothicNeo-Bold"
+        plantHintLabel.fontSize = 22
+        plantHintLabel.fontColor = SKColor(white: 1.0, alpha: 0.7)
+        plantHintLabel.verticalAlignmentMode = .center
+        plantHintLabel.position = CGPoint(x: 0, y: 6)
+        addChild(plantHintLabel)
+
+        seedCostLabel.fontName = "AppleSDGothicNeo-Regular"
+        seedCostLabel.fontSize = 10
+        seedCostLabel.fontColor = SKColor(white: 1.0, alpha: 0.55)
+        seedCostLabel.verticalAlignmentMode = .center
+        seedCostLabel.position = CGPoint(x: 0, y: -10)
+        seedCostLabel.text = "🪙\(Int(FarmSystem.seedCost))"
+        addChild(seedCostLabel)
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -53,10 +74,16 @@ final class FarmPlotNode: SKNode {
     private var wasReady = false
 
     func update(plot: FarmPlot) {
+        let isEmpty = !plot.isPlanted
+
+        // Plant hint visible only when empty
+        plantHintLabel.isHidden = !isEmpty
+        seedCostLabel.isHidden  = !isEmpty
+        stageLabel.isHidden     = isEmpty
+
         stageLabel.text = Self.stageEmoji[plot.stage]
 
         if plot.isReady && !wasReady {
-            // Transition to ready: green bg + pulse
             bg.fillColor = Self.readyColor
             stageLabel.removeAllActions()
             stageLabel.run(SKAction.repeatForever(SKAction.sequence([
@@ -70,12 +97,16 @@ final class FarmPlotNode: SKNode {
         }
         wasReady = plot.isReady
 
-        // Progress bar
-        let w = CGFloat(min(plot.growth, 1.0)) * 44
-        progressFill.path = CGPath(
-            roundedRect: CGRect(x: 0, y: -2, width: max(w, 0), height: 5),
-            cornerWidth: 2, cornerHeight: 2, transform: nil
-        )
+        // Progress bar hidden when empty or ready
+        let showBar = plot.isPlanted && !plot.isReady
+        progressFill.isHidden = !showBar
+        if showBar {
+            let w = CGFloat(min(plot.growth, 1.0)) * 44
+            progressFill.path = CGPath(
+                roundedRect: CGRect(x: 0, y: -2, width: max(w, 0), height: 5),
+                cornerWidth: 2, cornerHeight: 2, transform: nil
+            )
+        }
 
         workerLabel.text = plot.hasWorker ? "👷" : ""
     }

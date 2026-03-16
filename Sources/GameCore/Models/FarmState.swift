@@ -1,13 +1,15 @@
 import Foundation
 
 public struct FarmPlot: Codable {
-    public var growth: Double = 0.0   // 0.0 = empty, 1.0 = ready
+    public var growth: Double = 0.0
+    public var isPlanted: Bool = false
     public var hasWorker: Bool = false
-    public var isReady: Bool { growth >= 1.0 }
+
+    public var isReady: Bool { isPlanted && growth >= 1.0 }
 
     public enum Stage: Codable { case empty, sprout, growing, ready }
     public var stage: Stage {
-        if growth <= 0   { return .empty }
+        guard isPlanted else { return .empty }
         if growth < 0.35 { return .sprout }
         if growth < 1.0  { return .growing }
         return .ready

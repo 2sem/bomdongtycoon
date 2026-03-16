@@ -389,15 +389,18 @@ final class MainStallScene: SKScene {
             return
         }
 
-        // Farm plot tap
+        // Farm plot tap — plant seed on empty, harvest when ready
         let activePlots = FarmSystem.activePlotCount(for: store.farm)
+        let nodeLocation = farmNode.convert(location, from: self)
         for i in 0..<min(activePlots, farmPlotNodes.count) {
-            let nodeLocation = farmNode.convert(location, from: self)
             guard farmPlotNodes[i].contains(nodeLocation) else { continue }
-            Task { @MainActor in
-                store.harvest(plotIndex: i)
+            let plot = store.farm.plots[i]
+            if plot.isReady {
+                Task { @MainActor in store.harvest(plotIndex: i) }
+                farmPlotNodes[i].animateHarvest()
+            } else if !plot.isPlanted {
+                Task { @MainActor in store.plantSeed(plotIndex: i) }
             }
-            farmPlotNodes[i].animateHarvest()
             return
         }
     }

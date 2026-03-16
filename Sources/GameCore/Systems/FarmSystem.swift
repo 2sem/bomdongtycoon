@@ -3,6 +3,7 @@ import Foundation
 public enum FarmSystem {
     public static let baseGrowthDuration: Double = 12.0
     public static let harvestYield: Int = 1
+    public static let seedCost: Double = 10
     public static let startingPlots: Int = 2
     public static let maxPlots: Int = 8
 
