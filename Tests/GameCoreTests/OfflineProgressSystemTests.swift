@@ -42,4 +42,15 @@ final class OfflineProgressSystemTests: XCTestCase {
         )
         XCTAssertEqual(earnings, 7200, accuracy: 1)
     }
+
+    func test_offlineEarnings_withSeasonMultiplier() {
+        let stall = StallState()
+        let oneHourAgo = Date().addingTimeInterval(-3600)
+        let earnings = OfflineProgressSystem.calculateOfflineEarnings(
+            stall: stall,
+            lastActiveDate: oneHourAgo,
+            seasonMultiplier: 1.5
+        )
+        XCTAssertEqual(earnings, 1.0 * 3600 * 1.5, accuracy: 1)
+    }
 }

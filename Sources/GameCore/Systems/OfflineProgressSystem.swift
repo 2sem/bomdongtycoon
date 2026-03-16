@@ -7,13 +7,14 @@ public enum OfflineProgressSystem {
     public static func calculateOfflineEarnings(
         stall: StallState,
         lastActiveDate: Date?,
-        multiplier: Double = 1.0
+        multiplier: Double = 1.0,
+        seasonMultiplier: Double = 1.0
     ) -> Double {
         guard let lastActive = lastActiveDate else { return 0 }
         let elapsed = min(
             Date().timeIntervalSince(lastActive),
             maxOfflineHours * 3600
         )
-        return EarningsSystem.coinsPerSecond(for: stall) * elapsed * multiplier
+        return EarningsSystem.coinsPerSecond(for: stall) * elapsed * multiplier * seasonMultiplier
     }
 }
