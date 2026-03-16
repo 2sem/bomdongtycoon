@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "axiom-ios-games": {
+      "source": "charleswiltgen/axiom",
+      "sourceType": "github",
+      "computedHash": "f060eb60ed85a3db6060f9b05d8e2b46038607791fcd8a9e7cd1ca1f4492acc9"
+    }
+  }
+}
