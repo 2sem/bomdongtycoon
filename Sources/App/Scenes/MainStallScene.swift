@@ -13,6 +13,15 @@ final class MainStallScene: SKScene {
 
     private var lastUpdateTime: TimeInterval = 0
     private var coinBubbles: [CoinBubbleNode] = []
+    private var lastStallTier = -1
+
+    private static func stallEmoji(for tier: Int) -> String {
+        switch tier {
+        case 0:  "⛺"   // 포장마차
+        case 1:  "🏪"   // 분식집
+        default: "🏬"   // 봄동 전문점
+        }
+    }
 
     // Layout anchors — proportional for all iPhone sizes
     private var groundY:  CGFloat { frame.height * 0.22 }
@@ -101,6 +110,7 @@ final class MainStallScene: SKScene {
         stallEmoji.verticalAlignmentMode = .center
         stallEmoji.position = CGPoint(x: frame.midX, y: stallY + 10)
         stallEmoji.zPosition = 1
+        stallEmoji.name = "stallEmoji"
         addChild(stallEmoji)
 
         // Sign board under the tent
@@ -262,6 +272,17 @@ final class MainStallScene: SKScene {
                 let stock = Int(store.stall.stock)
                 let maxStock = EarningsSystem.maxStock(for: store.stall)
                 label.text = "🥬 \(stock)/\(maxStock)"
+            }
+            let tier = store.stall.stallTier
+            if tier != self.lastStallTier {
+                self.lastStallTier = tier
+                if let label = self.childNode(withName: "stallEmoji") as? SKLabelNode {
+                    label.text = Self.stallEmoji(for: tier)
+                    label.run(SKAction.sequence([
+                        SKAction.scale(to: 1.25, duration: 0.15),
+                        SKAction.scale(to: 1.0,  duration: 0.15),
+                    ]))
+                }
             }
         }
     }
