@@ -51,7 +51,7 @@ public struct UpgradeDefinition {
             parts.append("⚡ ×\(String(format: "%.1f", productionMultiplier)) 생산속도")
         }
         if priceMultiplier != 1.0 {
-            parts.append("💰 ×\(String(format: "%.1f", priceMultiplier)) 판매가")
+            parts.append("₩ ×\(String(format: "%.1f", priceMultiplier)) 판매가")
         }
         if maxStock > 0 {
             parts.append("🥬 \(maxStock)개 보관")

@@ -45,7 +45,7 @@ final class MainStallScene: SKScene {
     // Layout anchors — proportional for all iPhone sizes
     private var groundY:  CGFloat { frame.height * 0.30 }
     private var stallY:   CGFloat { groundY + 58 }   // tent base sits on grass
-    private var hudTopY:  CGFloat { frame.height - 140 }
+    private var hudTopY:  CGFloat { frame.height - 180 }
 
     // MARK: - Scene lifecycle
 

@@ -38,7 +38,7 @@ public struct UpgradeSheet: View {
                     currentTier: store.stall.locationTier + 1
                 )
             }
-            .navigationTitle("💰 업그레이드")
+            .navigationTitle("업그레이드")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -71,31 +71,40 @@ public struct UpgradeSheet: View {
 
     private var workerSection: some View {
         Section("직원 배치") {
-            HStack {
-                Label("농장", systemImage: "leaf")
-                Spacer()
-                Button("-") { store.assignWorkerToShop() }
-                    .disabled(store.stall.farmWorkers == 0)
-                Text("\(store.stall.farmWorkers)")
-                    .frame(width: 28)
-                Button("+") { store.assignWorkerToFarm() }
-                    .disabled(store.stall.shopWorkers == 0)
-            }
-            HStack {
-                Label("가게", systemImage: "storefront")
-                Spacer()
-                Button("-") { store.assignWorkerToFarm() }
-                    .disabled(store.stall.shopWorkers == 0)
-                Text("\(store.stall.shopWorkers)")
-                    .frame(width: 28)
-                Button("+") { store.assignWorkerToShop() }
-                    .disabled(store.stall.farmWorkers == 0)
-            }
+            workerRow(label: "농장", icon: "leaf",
+                      count: store.stall.farmWorkers,
+                      onMinus: { store.assignWorkerToShop() },
+                      minusDisabled: store.stall.farmWorkers == 0,
+                      onPlus:  { store.assignWorkerToFarm() },
+                      plusDisabled:  store.stall.shopWorkers == 0)
+            workerRow(label: "가게", icon: "storefront",
+                      count: store.stall.shopWorkers,
+                      onMinus: { store.assignWorkerToFarm() },
+                      minusDisabled: store.stall.shopWorkers == 0,
+                      onPlus:  { store.assignWorkerToShop() },
+                      plusDisabled:  store.stall.farmWorkers == 0)
             if store.stall.staffTier == 0 {
                 Text("직원을 고용하면 배치할 수 있어요")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    private func workerRow(label: String, icon: String,
+                           count: Int,
+                           onMinus: @escaping () -> Void, minusDisabled: Bool,
+                           onPlus:  @escaping () -> Void, plusDisabled: Bool) -> some View {
+        HStack {
+            Label(label, systemImage: icon)
+            Spacer()
+            Button("-", action: onMinus)
+                .disabled(minusDisabled)
+                .sensoryFeedback(.impact(weight: .light), trigger: count)
+            Text("\(count)").frame(width: 28)
+            Button("+", action: onPlus)
+                .disabled(plusDisabled)
+                .sensoryFeedback(.impact(weight: .light), trigger: count)
         }
     }
 }
@@ -141,7 +150,7 @@ private struct UpgradeRowView: View {
             Button {
                 onPurchase()
             } label: {
-                Text("💰 \(Int(upgrade.coinCost))")
+                Text("₩\(Int(upgrade.coinCost))")
                     .font(.subheadline.bold())
             }
             .buttonStyle(.borderedProminent)
