@@ -26,11 +26,17 @@ final class MainStallScene: SKScene {
     // MARK: - Setup
 
     private func setupStall() {
+        // Layout anchors — proportional so it works on all iPhone sizes
+        let groundY   = frame.height * 0.22
+        let stallY    = frame.height * 0.34
+        // HUD starts below SeasonBanner (~100pt from top) + safe area
+        let hudTopY   = frame.height - 140
+
         // Ground bar
         let ground = SKShapeNode(rectOf: CGSize(width: frame.width, height: 60))
         ground.fillColor = SKColor(red: 0.85, green: 0.75, blue: 0.6, alpha: 1)
         ground.strokeColor = .clear
-        ground.position = CGPoint(x: frame.midX, y: 80)
+        ground.position = CGPoint(x: frame.midX, y: groundY)
         addChild(ground)
 
         // Stall body
@@ -38,7 +44,7 @@ final class MainStallScene: SKScene {
         stall.fillColor = SKColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 1)
         stall.strokeColor = SKColor(red: 0.9, green: 0.7, blue: 0.1, alpha: 1)
         stall.lineWidth = 3
-        stall.position = CGPoint(x: frame.midX, y: frame.midY)
+        stall.position = CGPoint(x: frame.midX, y: stallY)
         stall.name = "stall"
         addChild(stall)
 
@@ -46,15 +52,15 @@ final class MainStallScene: SKScene {
         let nameLabel = SKLabelNode(text: "🥬 봄동 가게")
         nameLabel.fontSize = 20
         nameLabel.fontColor = .black
-        nameLabel.position = CGPoint(x: frame.midX, y: frame.midY)
+        nameLabel.position = CGPoint(x: frame.midX, y: stallY)
         nameLabel.verticalAlignmentMode = .center
         addChild(nameLabel)
 
-        // Coin counter HUD
+        // Coin counter HUD — below SeasonBanner
         let coinLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Bold")
         coinLabel.fontSize = 18
         coinLabel.fontColor = SKColor(red: 0.6, green: 0.4, blue: 0.0, alpha: 1)
-        coinLabel.position = CGPoint(x: frame.midX, y: frame.height - 80)
+        coinLabel.position = CGPoint(x: frame.midX, y: hudTopY)
         coinLabel.name = "coinLabel"
         addChild(coinLabel)
 
@@ -62,7 +68,7 @@ final class MainStallScene: SKScene {
         let rateLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Regular")
         rateLabel.fontSize = 13
         rateLabel.fontColor = SKColor(red: 0.3, green: 0.6, blue: 0.3, alpha: 1)
-        rateLabel.position = CGPoint(x: frame.midX, y: frame.height - 104)
+        rateLabel.position = CGPoint(x: frame.midX, y: hudTopY - 24)
         rateLabel.name = "rateLabel"
         addChild(rateLabel)
 
@@ -70,7 +76,7 @@ final class MainStallScene: SKScene {
         let stockLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Regular")
         stockLabel.fontSize = 13
         stockLabel.fontColor = SKColor(red: 0.2, green: 0.55, blue: 0.2, alpha: 1)
-        stockLabel.position = CGPoint(x: frame.midX, y: frame.height - 124)
+        stockLabel.position = CGPoint(x: frame.midX, y: hudTopY - 44)
         stockLabel.name = "stockLabel"
         addChild(stockLabel)
     }
@@ -88,7 +94,7 @@ final class MainStallScene: SKScene {
     private func spawnCustomer() {
         guard let store = store else { return }
         let customer = CustomerNode()
-        customer.position = CGPoint(x: -40, y: frame.midY - 50)
+        customer.position = CGPoint(x: -40, y: frame.height * 0.30)
         addChild(customer)
 
         customer.walkTo(x: frame.midX - 60) { [weak self] in
@@ -114,7 +120,7 @@ final class MainStallScene: SKScene {
     private func spawnCoinBubble(at position: CGPoint, amount: Double) {
         guard let store = store else { return }
         let bubble = CoinBubbleNode(amount: amount)
-        bubble.position = CGPoint(x: position.x, y: position.y + 60)
+        bubble.position = CGPoint(x: position.x, y: position.y + 80)
         addChild(bubble)
         coinBubbles.append(bubble)
 
