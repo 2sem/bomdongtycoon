@@ -25,8 +25,8 @@ final class MainStallScene: SKScene {
     }
 
     // Layout anchors — proportional for all iPhone sizes
-    private var groundY:  CGFloat { frame.height * 0.22 }
-    private var stallY:   CGFloat { frame.height * 0.34 }
+    private var groundY:  CGFloat { frame.height * 0.30 }
+    private var stallY:   CGFloat { frame.height * 0.46 }
     private var hudTopY:  CGFloat { frame.height - 140 }
 
     // MARK: - Scene lifecycle
@@ -45,9 +45,9 @@ final class MainStallScene: SKScene {
         // Pavement
         let pavement = SKSpriteNode(
             color: SKColor(red: 0.76, green: 0.78, blue: 0.74, alpha: 1),
-            size: CGSize(width: frame.width, height: frame.height * 0.28)
+            size: CGSize(width: frame.width, height: frame.height * 0.36)
         )
-        pavement.position = CGPoint(x: frame.midX, y: frame.height * 0.14)
+        pavement.position = CGPoint(x: frame.midX, y: frame.height * 0.18)
         pavement.zPosition = -5
         addChild(pavement)
 
@@ -74,9 +74,9 @@ final class MainStallScene: SKScene {
         }
 
         // Clouds
-        addCloud(at: CGPoint(x: frame.width * 0.18, y: frame.height * 0.80), scale: 1.0)
-        addCloud(at: CGPoint(x: frame.width * 0.70, y: frame.height * 0.87), scale: 0.65)
-        addCloud(at: CGPoint(x: frame.width * 0.48, y: frame.height * 0.92), scale: 0.8)
+        addCloud(at: CGPoint(x: frame.width * 0.18, y: frame.height * 0.82), scale: 1.0)
+        addCloud(at: CGPoint(x: frame.width * 0.72, y: frame.height * 0.88), scale: 0.65)
+        addCloud(at: CGPoint(x: frame.width * 0.48, y: frame.height * 0.93), scale: 0.8)
     }
 
     private func addCloud(at position: CGPoint, scale: CGFloat) {
@@ -192,7 +192,7 @@ final class MainStallScene: SKScene {
     private func spawnCustomer() {
         guard let store = store else { return }
         let customer = CustomerNode()
-        customer.position = CGPoint(x: -40, y: frame.height * 0.30)
+        customer.position = CGPoint(x: -40, y: frame.height * 0.38)
         addChild(customer)
 
         customer.walkTo(x: frame.midX - 60) { [weak self] in
