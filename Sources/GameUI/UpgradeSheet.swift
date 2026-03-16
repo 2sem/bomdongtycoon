@@ -16,7 +16,7 @@ public struct UpgradeSheet: View {
                     title: "메뉴 업그레이드",
                     type: .menu,
                     definitions: UpgradeDefinitions.menu,
-                    currentTier: store.stall.menuTier
+                    currentTier: store.stall.menuTier + 1
                 )
                 upgradeSection(
                     title: "직원 고용",
@@ -28,13 +28,13 @@ public struct UpgradeSheet: View {
                     title: "가게 업그레이드",
                     type: .stall,
                     definitions: UpgradeDefinitions.stall,
-                    currentTier: store.stall.stallTier
+                    currentTier: store.stall.stallTier + 1
                 )
                 upgradeSection(
                     title: "위치 이전",
                     type: .location,
                     definitions: UpgradeDefinitions.location,
-                    currentTier: store.stall.locationTier
+                    currentTier: store.stall.locationTier + 1
                 )
             }
             .navigationTitle("💰 업그레이드")
