@@ -17,17 +17,25 @@ final class AddPlotCellNode: SKNode {
         bg.fillColor = SKColor(white: 1.0, alpha: 0.10)
         addChild(bg)
 
+        // "밭 추가" label at top — unambiguous farm expansion
+        let titleLabel = SKLabelNode(text: "밭 추가")
+        titleLabel.fontName = "AppleSDGothicNeo-Bold"
+        titleLabel.fontSize = 11
+        titleLabel.verticalAlignmentMode = .center
+        titleLabel.position = CGPoint(x: 0, y: 18)
+        addChild(titleLabel)
+
         plusLabel.text = "+"
         plusLabel.fontName = "AppleSDGothicNeo-Bold"
-        plusLabel.fontSize = 24
+        plusLabel.fontSize = 22
         plusLabel.verticalAlignmentMode = .center
-        plusLabel.position = CGPoint(x: 0, y: 6)
+        plusLabel.position = CGPoint(x: 0, y: 2)
         addChild(plusLabel)
 
         costLabel.fontName = "AppleSDGothicNeo-Regular"
         costLabel.fontSize = 10
         costLabel.verticalAlignmentMode = .center
-        costLabel.position = CGPoint(x: 0, y: -12)
+        costLabel.position = CGPoint(x: 0, y: -16)
         addChild(costLabel)
     }
 
@@ -37,8 +45,7 @@ final class AddPlotCellNode: SKNode {
         let color: SKColor = canAfford
             ? SKColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 1)
             : SKColor(white: 1.0, alpha: 0.40)
-        plusLabel.fontColor = color
-        costLabel.fontColor = color
+        children.compactMap { $0 as? SKLabelNode }.forEach { $0.fontColor = color }
         costLabel.text = "₩\(Int(cost))"
         bg.strokeColor = canAfford
             ? SKColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 0.6)

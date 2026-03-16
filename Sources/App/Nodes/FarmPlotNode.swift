@@ -57,11 +57,9 @@ final class FarmPlotNode: SKNode {
         workerLabel.position = CGPoint(x: 20, y: 22)
         addChild(workerLabel)
 
-        // Empty-state hint: "+" above, "₩10" below
-        hintPlus.text      = "+"
-        hintPlus.fontName  = "AppleSDGothicNeo-Bold"
-        hintPlus.fontSize  = 26
-        hintPlus.fontColor = SKColor(white: 1.0, alpha: 0.75)
+        // Empty-state hint: seed emoji above, cost below
+        hintPlus.text      = "🌰"   // seed — clearly "plant here"
+        hintPlus.fontSize  = 24
         hintPlus.verticalAlignmentMode = .center
         hintPlus.position  = CGPoint(x: 0, y: 8)
         addChild(hintPlus)
