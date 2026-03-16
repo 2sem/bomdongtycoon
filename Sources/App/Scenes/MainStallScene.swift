@@ -179,14 +179,14 @@ final class MainStallScene: SKScene {
             guard let self else { return }
             Task { @MainActor in
                 guard store.stall.stock >= 1.0 else {
-                    customer.showReaction(["🤦‍♀️", "🤦‍♂️", "🙅‍♀️", "🙅‍♂️", "😭"].randomElement()!)
+                    customer.showReaction(happy: false)
                     customer.walkTo(x: self.frame.width + 40) { customer.removeFromParent() }
                     return
                 }
                 store.stall.stock -= 1.0
                 let price = EarningsSystem.pricePerItem(for: store.stall)
                 self.spawnCoinBubble(at: customer.position, amount: price)
-                customer.showReaction(["🕺", "💃", "🙆‍♀️", "🙆‍♂️", "🤸‍♀️", "🤸‍♂️", "🥳"].randomElement()!)
+                customer.showReaction(happy: true)
                 customer.walkTo(x: self.frame.width + 40) { customer.removeFromParent() }
             }
         }
