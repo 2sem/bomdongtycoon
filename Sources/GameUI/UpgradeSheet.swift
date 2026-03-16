@@ -37,7 +37,6 @@ public struct UpgradeSheet: View {
                     definitions: UpgradeDefinitions.location,
                     currentTier: store.stall.locationTier + 1
                 )
-                farmUpgradeSection()
             }
             .navigationTitle("💰 업그레이드")
             .navigationBarTitleDisplayMode(.inline)
@@ -65,30 +64,6 @@ public struct UpgradeSheet: View {
                     isNext: index == currentTier,
                     canAfford: coins >= definitions[index].coinCost,
                     onPurchase: { store.purchaseUpgrade(type) }
-                )
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func farmUpgradeSection() -> some View {
-        let coins = store.stall.coins
-        Section("농장 업그레이드") {
-            ForEach(UpgradeDefinitions.farm.indices, id: \.self) { index in
-                let def = UpgradeDefinitions.farm[index]
-                let isOwned = index < store.farm.upgradeTier + 1
-                let isNext  = index == store.farm.upgradeTier + 1
-                UpgradeRowView(
-                    upgrade: UpgradeDefinition(
-                        name: def.name,
-                        coinCost: def.coinCost,
-                        description: def.description
-                    ),
-                    displayEffect: def.displayEffect,
-                    isOwned: isOwned,
-                    isNext: isNext,
-                    canAfford: coins >= def.coinCost,
-                    onPurchase: { store.purchaseUpgrade(.farm) }
                 )
             }
         }

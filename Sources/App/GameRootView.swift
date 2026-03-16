@@ -19,6 +19,13 @@ struct GameRootView: View {
             if store.offlineEarnings > 0 {
                 OfflineEarningsPopup()
             }
+            // Farm upgrade button — floats just above the farm soil strip
+            VStack {
+                Spacer()
+                FarmUpgradeButton()
+                    .environmentObject(store)
+                    .padding(.bottom, 78)  // clears the ~70pt soil strip
+            }
         }
         .safeAreaInset(edge: .top) {
             HStack(alignment: .center) {
