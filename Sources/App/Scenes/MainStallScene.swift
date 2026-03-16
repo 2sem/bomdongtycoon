@@ -16,6 +16,12 @@ final class MainStallScene: SKScene {
     private var lastStallTier = -1
     private var lastShopName = ""
 
+    // Product stack
+    private let productStackNode = SKNode()
+    private var stackItems: [SKLabelNode] = []
+    private var lastVisualCount = -1
+    private var lastMenuTierForStack = -1
+
     private static func stallEmoji(for tier: Int) -> String {
         switch tier {
         case 0:  "⛺"   // 포장마차
@@ -35,6 +41,7 @@ final class MainStallScene: SKScene {
         backgroundColor = SKColor(red: 0.62, green: 0.85, blue: 1.0, alpha: 1)
         setupBackground()
         setupStall()
+        setupProductStack()
         setupHUD()
         startCustomerSpawning()
     }
@@ -135,23 +142,71 @@ final class MainStallScene: SKScene {
         signLabel.name = "signLabel"
         addChild(signLabel)
 
-        // Display items on counter
-        // Display items on the counter (ground level, in front of stall)
-        let items = ["🥬", "🥗", "🥘"]
-        for (i, item) in items.enumerated() {
-            let label = SKLabelNode(text: item)
-            label.fontSize = 20
-            label.verticalAlignmentMode = .center
-            label.position = CGPoint(x: frame.midX + CGFloat(i - 1) * 36, y: groundY + 18)
-            label.zPosition = 2
-            addChild(label)
-        }
     }
 
     private func updateSignLabel() {
         guard let store,
               let label = childNode(withName: "signLabel") as? SKLabelNode else { return }
         label.text = "🥬 \(store.progress.shopName)"
+    }
+
+    // MARK: - Product stack
+
+    private func setupProductStack() {
+        // Stack sits above the sign (stallY + 80), items grow upward
+        productStackNode.position = CGPoint(x: frame.midX, y: stallY + 100)
+        productStackNode.zPosition = 3
+        addChild(productStackNode)
+    }
+
+    private func syncProductStack(stock: Int, menuTier: Int) {
+        let visualCount = min(stock, 6)
+        let emoji = Self.availableMenus(for: menuTier).last ?? "🥬"
+
+        // Rebuild entirely when menu tier changes (new emoji)
+        if menuTier != lastMenuTierForStack {
+            stackItems.forEach { $0.removeFromParent() }
+            stackItems.removeAll()
+            lastVisualCount = 0
+            lastMenuTierForStack = menuTier
+        }
+
+        guard visualCount != lastVisualCount else { return }
+
+        if visualCount > lastVisualCount {
+            // New item produced — pop in on top
+            for i in lastVisualCount..<visualCount {
+                let label = SKLabelNode(text: emoji)
+                label.fontSize = 20
+                label.verticalAlignmentMode = .center
+                label.position = CGPoint(x: CGFloat.random(in: -5...5), y: CGFloat(i) * 22)
+                label.alpha = 0
+                label.setScale(0.3)
+                productStackNode.addChild(label)
+                stackItems.append(label)
+                label.run(SKAction.group([
+                    SKAction.fadeIn(withDuration: 0.18),
+                    SKAction.scale(to: 1.0, duration: 0.18),
+                ]))
+            }
+        } else {
+            // Item sold — pop top item off with a little bounce
+            for _ in visualCount..<lastVisualCount {
+                guard let top = stackItems.popLast() else { break }
+                top.run(SKAction.sequence([
+                    SKAction.group([
+                        SKAction.scale(to: 1.4, duration: 0.08),
+                        SKAction.moveBy(x: CGFloat.random(in: -10...10), y: 10, duration: 0.08),
+                    ]),
+                    SKAction.group([
+                        SKAction.fadeOut(withDuration: 0.18),
+                        SKAction.moveBy(x: 0, y: 10, duration: 0.18),
+                    ]),
+                    SKAction.removeFromParent(),
+                ]))
+            }
+        }
+        lastVisualCount = visualCount
     }
 
     // MARK: - HUD
@@ -284,6 +339,7 @@ final class MainStallScene: SKScene {
                 let maxStock = EarningsSystem.maxStock(for: store.stall)
                 label.text = "🥬 \(stock)/\(maxStock)"
             }
+            self.syncProductStack(stock: Int(store.stall.stock), menuTier: store.stall.menuTier)
             let shopName = store.progress.shopName
             if shopName != self.lastShopName {
                 self.lastShopName = shopName
