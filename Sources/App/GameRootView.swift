@@ -24,7 +24,7 @@ struct GameRootView: View {
                 Spacer()
                 FarmUpgradeButton()
                     .environmentObject(store)
-                    .padding(.bottom, 78)  // clears the ~70pt soil strip
+                    .padding(.bottom, 82)  // clears soil strip + sits above safe area
             }
         }
         .safeAreaInset(edge: .top) {

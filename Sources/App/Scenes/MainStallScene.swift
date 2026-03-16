@@ -123,10 +123,25 @@ final class MainStallScene: SKScene {
 
     // MARK: - Farm
 
+    /// Bottom of the usable area — above home indicator on Face ID iPhones.
+    private var safeBottom: CGFloat {
+        view?.safeAreaInsets.bottom ?? 0
+    }
+
     private func setupFarm() {
-        // Soil strip at the very bottom of the pavement area
-        let soilHeight: CGFloat = 70
-        let soilY = soilHeight / 2
+        let safeBase  = safeBottom          // e.g. 34 pt on iPhone with home indicator
+        let soilHeight: CGFloat = 72
+        let soilY = safeBase + soilHeight / 2
+
+        // Fill below safe area with matching soil colour so no gap shows
+        let underSoil = SKSpriteNode(
+            color: SKColor(red: 0.42, green: 0.28, blue: 0.10, alpha: 1),
+            size: CGSize(width: frame.width, height: safeBase + 4)
+        )
+        underSoil.position = CGPoint(x: frame.midX, y: (safeBase + 4) / 2)
+        underSoil.zPosition = -3
+        addChild(underSoil)
+
         let soil = SKSpriteNode(
             color: SKColor(red: 0.42, green: 0.28, blue: 0.10, alpha: 1),
             size: CGSize(width: frame.width, height: soilHeight)
@@ -140,7 +155,7 @@ final class MainStallScene: SKScene {
             color: SKColor(red: 0.35, green: 0.55, blue: 0.20, alpha: 1),
             size: CGSize(width: frame.width, height: 4)
         )
-        divider.position = CGPoint(x: frame.midX, y: soilHeight)
+        divider.position = CGPoint(x: frame.midX, y: safeBase + soilHeight)
         divider.zPosition = -3
         addChild(divider)
 
