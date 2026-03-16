@@ -90,7 +90,7 @@ public final class GameStore: ObservableObject {
 
         // Farm workers auto-harvest ready plots then auto-replant
         if farm.farmWorkers > 0 {
-            let yield = FarmSystem.harvestYield(for: farm)
+            let yield = FarmSystem.harvestYield
             let maxStock = Double(EarningsSystem.maxStock(for: stall))
             for i in 0..<min(activePlots, farm.plots.count) {
                 if farm.plots[i].isReady {
@@ -132,7 +132,7 @@ public final class GameStore: ObservableObject {
     public func harvest(plotIndex: Int) {
         guard plotIndex < farm.plots.count,
               farm.plots[plotIndex].isReady else { return }
-        let yield = FarmSystem.harvestYield(for: farm)
+        let yield = FarmSystem.harvestYield
         let maxStock = Double(EarningsSystem.maxStock(for: stall))
         stall.stock = min(stall.stock + Double(yield), maxStock)
         farm.plots[plotIndex].growth = 0
