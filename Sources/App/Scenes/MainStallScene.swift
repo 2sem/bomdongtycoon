@@ -212,26 +212,36 @@ final class MainStallScene: SKScene {
     // MARK: - HUD
 
     private func setupHUD() {
+        // Frosted pill backing for the coin display
+        let pill = SKShapeNode(rectOf: CGSize(width: 160, height: 38), cornerRadius: 19)
+        pill.fillColor = SKColor(white: 0.0, alpha: 0.35)
+        pill.strokeColor = SKColor(white: 1.0, alpha: 0.18)
+        pill.lineWidth = 1
+        pill.position = CGPoint(x: frame.midX, y: hudTopY + 10)
+        pill.zPosition = 9
+        addChild(pill)
+
         let coinLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Bold")
-        coinLabel.fontSize = 18
-        coinLabel.fontColor = SKColor(red: 0.55, green: 0.35, blue: 0.0, alpha: 1)
-        coinLabel.position = CGPoint(x: frame.midX, y: hudTopY)
+        coinLabel.fontSize = 22
+        coinLabel.fontColor = .white
+        coinLabel.verticalAlignmentMode = .center
+        coinLabel.position = CGPoint(x: frame.midX, y: hudTopY + 10)
         coinLabel.zPosition = 10
         coinLabel.name = "coinLabel"
         addChild(coinLabel)
 
         let rateLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Regular")
-        rateLabel.fontSize = 13
-        rateLabel.fontColor = SKColor(red: 0.2, green: 0.55, blue: 0.2, alpha: 1)
-        rateLabel.position = CGPoint(x: frame.midX, y: hudTopY - 24)
+        rateLabel.fontSize = 12
+        rateLabel.fontColor = SKColor(white: 1.0, alpha: 0.80)
+        rateLabel.position = CGPoint(x: frame.midX, y: hudTopY - 18)
         rateLabel.zPosition = 10
         rateLabel.name = "rateLabel"
         addChild(rateLabel)
 
         let stockLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Regular")
-        stockLabel.fontSize = 13
-        stockLabel.fontColor = SKColor(red: 0.15, green: 0.50, blue: 0.15, alpha: 1)
-        stockLabel.position = CGPoint(x: frame.midX, y: hudTopY - 44)
+        stockLabel.fontSize = 12
+        stockLabel.fontColor = SKColor(white: 1.0, alpha: 0.80)
+        stockLabel.position = CGPoint(x: frame.midX, y: hudTopY - 34)
         stockLabel.zPosition = 10
         stockLabel.name = "stockLabel"
         addChild(stockLabel)
