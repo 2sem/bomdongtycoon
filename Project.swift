@@ -48,5 +48,11 @@ let project = Project(
                 .package(product: "GoogleMobileAds")
             ]
         )
+    ],
+    schemes: [
+        .scheme(
+            name: "GameCoreTests",
+            testAction: .targets(["GameCoreTests"])
+        )
     ]
 )
