@@ -26,7 +26,7 @@ final class MainStallScene: SKScene {
 
     // Layout anchors — proportional for all iPhone sizes
     private var groundY:  CGFloat { frame.height * 0.30 }
-    private var stallY:   CGFloat { frame.height * 0.46 }
+    private var stallY:   CGFloat { groundY + 58 }   // tent base sits on grass
     private var hudTopY:  CGFloat { frame.height - 140 }
 
     // MARK: - Scene lifecycle
@@ -45,9 +45,9 @@ final class MainStallScene: SKScene {
         // Pavement
         let pavement = SKSpriteNode(
             color: SKColor(red: 0.76, green: 0.78, blue: 0.74, alpha: 1),
-            size: CGSize(width: frame.width, height: frame.height * 0.36)
+            size: CGSize(width: frame.width, height: groundY * 2)
         )
-        pavement.position = CGPoint(x: frame.midX, y: frame.height * 0.18)
+        pavement.position = CGPoint(x: frame.midX, y: groundY * 0.5)
         pavement.zPosition = -5
         addChild(pavement)
 
@@ -115,11 +115,13 @@ final class MainStallScene: SKScene {
         addChild(stallEmoji)
 
         // Sign board under the tent
+        // Sign board — hangs ABOVE the tent so it never overlaps customers or emotions
+        let signY = stallY + 80
         let signBg = SKShapeNode(rectOf: CGSize(width: 170, height: 32), cornerRadius: 8)
         signBg.fillColor = SKColor(red: 0.12, green: 0.48, blue: 0.22, alpha: 1)
         signBg.strokeColor = SKColor(red: 0.08, green: 0.32, blue: 0.15, alpha: 1)
         signBg.lineWidth = 2
-        signBg.position = CGPoint(x: frame.midX, y: stallY - 34)
+        signBg.position = CGPoint(x: frame.midX, y: signY)
         signBg.zPosition = 2
         addChild(signBg)
 
@@ -128,18 +130,19 @@ final class MainStallScene: SKScene {
         signLabel.fontSize = 15
         signLabel.fontColor = .white
         signLabel.verticalAlignmentMode = .center
-        signLabel.position = CGPoint(x: frame.midX, y: stallY - 34)
+        signLabel.position = CGPoint(x: frame.midX, y: signY)
         signLabel.zPosition = 3
         signLabel.name = "signLabel"
         addChild(signLabel)
 
         // Display items on counter
+        // Display items on the counter (ground level, in front of stall)
         let items = ["🥬", "🥗", "🥘"]
         for (i, item) in items.enumerated() {
             let label = SKLabelNode(text: item)
             label.fontSize = 20
             label.verticalAlignmentMode = .center
-            label.position = CGPoint(x: frame.midX + CGFloat(i - 1) * 36, y: stallY - 8)
+            label.position = CGPoint(x: frame.midX + CGFloat(i - 1) * 36, y: groundY + 18)
             label.zPosition = 2
             addChild(label)
         }
@@ -192,10 +195,10 @@ final class MainStallScene: SKScene {
     private func spawnCustomer() {
         guard let store = store else { return }
         let customer = CustomerNode()
-        customer.position = CGPoint(x: -40, y: frame.height * 0.38)
+        customer.position = CGPoint(x: -40, y: groundY + 20)
         addChild(customer)
 
-        customer.walkTo(x: frame.midX - 60) { [weak self] in
+        customer.walkTo(x: frame.midX - 70) { [weak self] in
             guard let self else { return }
             Task { @MainActor in
                 guard store.stall.stock >= 1.0 else {
