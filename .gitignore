@@ -16,3 +16,7 @@ ProjectDescriptionHelpers/
 
 # macOS
 .DS_Store
+
+# Claude / agent session files
+.agents/
+.claude/
