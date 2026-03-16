@@ -21,17 +21,13 @@ struct GameRootView: View {
             }
         }
         .safeAreaInset(edge: .top) {
-            HStack {
-                Spacer()
+            HStack(alignment: .center) {
                 SeasonBanner()
                 Spacer()
+                GoalProgressBar(showUpgrades: $showUpgrades)
             }
+            .padding(.horizontal, 12)
             .padding(.top, 4)
-        }
-        .safeAreaInset(edge: .bottom) {
-            GoalProgressBar(showUpgrades: $showUpgrades)
-                .padding(.horizontal)
-                .padding(.bottom, 8)
         }
         .sheet(isPresented: $showUpgrades) {
             UpgradeSheet(isPresented: $showUpgrades)
