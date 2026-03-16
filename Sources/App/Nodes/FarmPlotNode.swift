@@ -65,7 +65,7 @@ final class FarmPlotNode: SKNode {
         seedCostLabel.fontColor = SKColor(white: 1.0, alpha: 0.55)
         seedCostLabel.verticalAlignmentMode = .center
         seedCostLabel.position = CGPoint(x: 0, y: -10)
-        seedCostLabel.text = "🪙\(Int(FarmSystem.seedCost))"
+        seedCostLabel.text = "₩\(Int(FarmSystem.seedCost))"
         addChild(seedCostLabel)
     }
 

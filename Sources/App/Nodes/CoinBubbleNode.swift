@@ -22,9 +22,11 @@ final class CoinBubbleNode: SKNode {
         shine.position = CGPoint(x: 9, y: 11)
         addChild(shine)
 
-        // Coin emoji
-        let icon = SKLabelNode(text: "🪙")
-        icon.fontSize = 22
+        // ₩ label — gold, clearly money
+        let icon = SKLabelNode(text: "₩")
+        icon.fontName = "AppleSDGothicNeo-Bold"
+        icon.fontSize = 20
+        icon.fontColor = SKColor(red: 0.55, green: 0.28, blue: 0.0, alpha: 1)
         icon.verticalAlignmentMode = .center
         icon.position = CGPoint(x: 0, y: 4)
         addChild(icon)

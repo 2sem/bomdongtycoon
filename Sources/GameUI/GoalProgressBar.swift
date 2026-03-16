@@ -29,16 +29,17 @@ public struct GoalProgressBar: View {
         if let next = EarningsSystem.nextGoalUpgrade(for: store.stall) {
             let ready = store.stall.coins >= next.coinCost
             HStack(spacing: 4) {
-                Text(ready ? "✅" : "🎯")
+                Image(systemName: ready ? "checkmark.circle.fill" : "arrow.up.circle")
+                    .foregroundStyle(ready ? .green : .primary)
                     .font(.caption)
-                Text(next.name)
+                Text("업그레이드")
                     .font(.caption.bold())
-                    .lineLimit(1)
             }
         } else {
-            Text("🎉 완료")
-                .font(.caption.bold())
-                .foregroundStyle(.green)
+            HStack(spacing: 4) {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                Text("완료").font(.caption.bold()).foregroundStyle(.green)
+            }
         }
     }
 }

@@ -18,6 +18,7 @@ final class MainStallScene: SKScene {
 
     // Farm
     private var farmPlotNodes: [FarmPlotNode] = []
+    private var addPlotCell: AddPlotCellNode?
     private let farmNode = SKNode()
     private var lastFarmUpgradeTier = -1
 
@@ -172,11 +173,17 @@ final class MainStallScene: SKScene {
             farmPlotNodes.append(node)
         }
 
-        // Reposition all active plots evenly
+        let nextCost = FarmSystem.costForNextPlot(currentCount: activePlots)
+        // Total cells = plots + optional add-cell
+        let totalCells = activePlots + (nextCost != nil ? 1 : 0)
+
         let spacing: CGFloat = 60
-        let totalWidth = CGFloat(activePlots - 1) * spacing
+        let totalWidth = CGFloat(totalCells - 1) * spacing
+        let originX = -totalWidth / 2
+
+        // Position and update plot cells
         for i in 0..<activePlots {
-            farmPlotNodes[i].position = CGPoint(x: -totalWidth / 2 + CGFloat(i) * spacing, y: 0)
+            farmPlotNodes[i].position = CGPoint(x: originX + CGFloat(i) * spacing, y: 0)
             farmPlotNodes[i].isHidden = false
             if i < farm.plots.count {
                 farmPlotNodes[i].update(plot: farm.plots[i])
@@ -184,6 +191,21 @@ final class MainStallScene: SKScene {
         }
         for i in activePlots..<farmPlotNodes.count {
             farmPlotNodes[i].isHidden = true
+        }
+
+        // Add-plot cell at the end
+        if let cost = nextCost {
+            if addPlotCell == nil {
+                let cell = AddPlotCellNode()
+                farmNode.addChild(cell)
+                addPlotCell = cell
+            }
+            let cellX = originX + CGFloat(activePlots) * spacing
+            addPlotCell?.position = CGPoint(x: cellX, y: 0)
+            addPlotCell?.isHidden = false
+            addPlotCell?.update(cost: cost, canAfford: (store?.stall.coins ?? 0) >= cost)
+        } else {
+            addPlotCell?.isHidden = true
         }
     }
 
@@ -404,9 +426,17 @@ final class MainStallScene: SKScene {
             return
         }
 
-        // Farm plot tap — plant seed on empty, harvest when ready
+        // Farm interactions
         let activePlots = FarmSystem.activePlotCount(for: store.farm)
         let nodeLocation = farmNode.convert(location, from: self)
+
+        // Add-plot cell
+        if let cell = addPlotCell, !cell.isHidden, cell.contains(nodeLocation) {
+            Task { @MainActor in store.purchaseUpgrade(.farm) }
+            return
+        }
+
+        // Plot cells — plant seed on empty, harvest when ready
         for i in 0..<min(activePlots, farmPlotNodes.count) {
             guard farmPlotNodes[i].contains(nodeLocation) else { continue }
             let plot = store.farm.plots[i]
@@ -432,7 +462,7 @@ final class MainStallScene: SKScene {
             store.tick(deltaTime: delta)
             if let label = self.childNode(withName: "coinLabel") as? SKLabelNode {
                 let formatted = Self.formatCoins(Int(store.stall.coins))
-                label.text = "🪙 \(formatted)"
+                label.text = "₩\(formatted)"
             }
             if let label = self.childNode(withName: "rateLabel") as? SKLabelNode {
                 let rate = EarningsSystem.coinsPerSecond(for: store.stall)
