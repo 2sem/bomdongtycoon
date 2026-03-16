@@ -22,6 +22,9 @@ public struct FarmState: Codable {
     public var farmWorkers: Int = 0
 
     public init() {
-        plots = Array(repeating: FarmPlot(), count: FarmSystem.startingPlots)
+        var starter = FarmPlot()
+        starter.isPlanted = true
+        starter.growth = 0.0
+        plots = Array(repeating: starter, count: FarmSystem.startingPlots)
     }
 }
