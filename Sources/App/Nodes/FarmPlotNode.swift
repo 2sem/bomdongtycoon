@@ -3,108 +3,136 @@ import GameCore
 
 final class FarmPlotNode: SKNode {
 
-    private let bg: SKShapeNode
-    private let stageLabel = SKLabelNode()
-    private let progressFill: SKShapeNode
-    private let workerLabel = SKLabelNode()
+    // MARK: - Layout constants
+    static let size = CGSize(width: 62, height: 62)
+    private static let barWidth:  CGFloat = 52
+    private static let barHeight: CGFloat = 7
 
-    private static let stageEmoji: [FarmPlot.Stage: String] = [
-        .empty: "", .sprout: "🌱", .growing: "🌿", .ready: "🥬"
-    ]
+    // MARK: - Colours
+    private static let soilColor    = SKColor(red: 0.46, green: 0.30, blue: 0.11, alpha: 1)
+    private static let readyColor   = SKColor(red: 0.18, green: 0.58, blue: 0.18, alpha: 1)
+    private static let barFillColor = SKColor(red: 0.28, green: 0.85, blue: 0.28, alpha: 1)
+    private static let barBgColor   = SKColor(white: 0.0, alpha: 0.30)
 
-    // Shows "+" and seed cost when empty
-    private let plantHintLabel = SKLabelNode()
-    private let seedCostLabel  = SKLabelNode()
+    // MARK: - Nodes
+    private let bg           = SKShapeNode(rectOf: size, cornerRadius: 10)
+    private let stageLabel   = SKLabelNode()
+    private let barBg        = SKShapeNode(rectOf: CGSize(width: barWidth, height: barHeight), cornerRadius: 3)
+    private let barFill      = SKShapeNode()
+    private let workerLabel  = SKLabelNode()
+    private let hintPlus     = SKLabelNode()
+    private let hintCost     = SKLabelNode()
 
-    private static let readyColor   = SKColor(red: 0.22, green: 0.60, blue: 0.22, alpha: 1)
-    private static let soilColor    = SKColor(red: 0.50, green: 0.34, blue: 0.14, alpha: 1)
-    private static let barBgColor   = SKColor(white: 0.2, alpha: 0.5)
-    private static let barFillColor = SKColor(red: 0.3, green: 0.82, blue: 0.3, alpha: 1)
+    // MARK: - Init
 
     override init() {
-        bg = SKShapeNode(rectOf: CGSize(width: 52, height: 52), cornerRadius: 8)
-        let barBg = SKShapeNode(rectOf: CGSize(width: 44, height: 5), cornerRadius: 2)
-        progressFill = SKShapeNode()
         super.init()
 
-        bg.fillColor = Self.soilColor
-        bg.strokeColor = SKColor(red: 0.32, green: 0.20, blue: 0.06, alpha: 1)
-        bg.lineWidth = 2
+        // Background
+        bg.fillColor   = Self.soilColor
+        bg.strokeColor = SKColor(red: 0.28, green: 0.17, blue: 0.04, alpha: 1)
+        bg.lineWidth   = 2
         addChild(bg)
 
-        stageLabel.fontSize = 26
+        // Stage emoji
+        stageLabel.fontSize = 30
         stageLabel.verticalAlignmentMode = .center
-        stageLabel.position = CGPoint(x: 0, y: 5)
+        stageLabel.position = CGPoint(x: 0, y: 6)
         addChild(stageLabel)
 
-        barBg.fillColor = Self.barBgColor
+        // Progress bar background
+        barBg.fillColor   = Self.barBgColor
         barBg.strokeColor = .clear
-        barBg.position = CGPoint(x: 0, y: -17)
+        barBg.position    = CGPoint(x: 0, y: -20)
         addChild(barBg)
 
-        progressFill.fillColor = Self.barFillColor
-        progressFill.strokeColor = .clear
-        progressFill.position = CGPoint(x: -22, y: -17)
-        addChild(progressFill)
+        // Progress bar fill (positioned at left edge of barBg)
+        barFill.fillColor   = Self.barFillColor
+        barFill.strokeColor = .clear
+        barFill.position    = CGPoint(x: -Self.barWidth / 2, y: -20)
+        addChild(barFill)
 
+        // Worker badge
         workerLabel.fontSize = 13
-        workerLabel.position = CGPoint(x: 17, y: 18)
+        workerLabel.position = CGPoint(x: 20, y: 22)
         addChild(workerLabel)
 
-        // Plant hint — visible only when empty
-        plantHintLabel.text = "+"
-        plantHintLabel.fontName = "AppleSDGothicNeo-Bold"
-        plantHintLabel.fontSize = 22
-        plantHintLabel.fontColor = SKColor(white: 1.0, alpha: 0.7)
-        plantHintLabel.verticalAlignmentMode = .center
-        plantHintLabel.position = CGPoint(x: 0, y: 6)
-        addChild(plantHintLabel)
+        // Empty-state hint: "+" above, "₩10" below
+        hintPlus.text      = "+"
+        hintPlus.fontName  = "AppleSDGothicNeo-Bold"
+        hintPlus.fontSize  = 26
+        hintPlus.fontColor = SKColor(white: 1.0, alpha: 0.75)
+        hintPlus.verticalAlignmentMode = .center
+        hintPlus.position  = CGPoint(x: 0, y: 8)
+        addChild(hintPlus)
 
-        seedCostLabel.fontName = "AppleSDGothicNeo-Regular"
-        seedCostLabel.fontSize = 10
-        seedCostLabel.fontColor = SKColor(white: 1.0, alpha: 0.55)
-        seedCostLabel.verticalAlignmentMode = .center
-        seedCostLabel.position = CGPoint(x: 0, y: -10)
-        seedCostLabel.text = "₩\(Int(FarmSystem.seedCost))"
-        addChild(seedCostLabel)
+        hintCost.text      = "₩\(Int(FarmSystem.seedCost))"
+        hintCost.fontName  = "AppleSDGothicNeo-Regular"
+        hintCost.fontSize  = 11
+        hintCost.fontColor = SKColor(white: 1.0, alpha: 0.50)
+        hintCost.verticalAlignmentMode = .center
+        hintCost.position  = CGPoint(x: 0, y: -10)
+        addChild(hintCost)
     }
 
     required init?(coder: NSCoder) { fatalError() }
 
-    private var wasReady = false
+    // MARK: - State
+
+    private var wasReady    = false
+    private var wasPlanted  = false
 
     func update(plot: FarmPlot) {
         let isEmpty = !plot.isPlanted
 
-        // Plant hint visible only when empty
-        plantHintLabel.isHidden = !isEmpty
-        seedCostLabel.isHidden  = !isEmpty
-        stageLabel.isHidden     = isEmpty
+        // Show/hide hint vs emoji
+        hintPlus.isHidden   = !isEmpty
+        hintCost.isHidden   = !isEmpty
+        stageLabel.isHidden =  isEmpty
 
-        stageLabel.text = Self.stageEmoji[plot.stage]
+        stageLabel.text = stageEmoji(for: plot.stage)
 
+        // Background colour transitions
         if plot.isReady && !wasReady {
             bg.fillColor = Self.readyColor
             stageLabel.removeAllActions()
-            stageLabel.run(SKAction.repeatForever(SKAction.sequence([
-                SKAction.scale(to: 1.20, duration: 0.45),
-                SKAction.scale(to: 1.0,  duration: 0.45),
-            ])))
+            // One-shot burst then gentle pulse
+            stageLabel.run(SKAction.sequence([
+                SKAction.scale(to: 1.4, duration: 0.10),
+                SKAction.scale(to: 1.0, duration: 0.12),
+                SKAction.repeatForever(SKAction.sequence([
+                    SKAction.scale(to: 1.12, duration: 0.5),
+                    SKAction.scale(to: 1.0,  duration: 0.5),
+                ])),
+            ]))
         } else if !plot.isReady && wasReady {
             bg.fillColor = Self.soilColor
             stageLabel.removeAllActions()
             stageLabel.setScale(1.0)
         }
-        wasReady = plot.isReady
 
-        // Progress bar hidden when empty or ready
+        // Dashed border on empty slot
+        if isEmpty && wasPlanted {
+            bg.strokeColor = SKColor(white: 1.0, alpha: 0.30)
+            bg.lineWidth   = 1.5
+        } else if !isEmpty && !wasPlanted {
+            bg.strokeColor = SKColor(red: 0.28, green: 0.17, blue: 0.04, alpha: 1)
+            bg.lineWidth   = 2
+        }
+
+        wasReady   = plot.isReady
+        wasPlanted = plot.isPlanted
+
+        // Progress bar — only while growing
         let showBar = plot.isPlanted && !plot.isReady
-        progressFill.isHidden = !showBar
+        barBg.isHidden   = !showBar
+        barFill.isHidden = !showBar
         if showBar {
-            let w = CGFloat(min(plot.growth, 1.0)) * 44
-            progressFill.path = CGPath(
-                roundedRect: CGRect(x: 0, y: -2, width: max(w, 0), height: 5),
-                cornerWidth: 2, cornerHeight: 2, transform: nil
+            let w = CGFloat(min(plot.growth, 1.0)) * Self.barWidth
+            barFill.path = CGPath(
+                roundedRect: CGRect(x: 0, y: -Self.barHeight / 2,
+                                    width: max(w, 0), height: Self.barHeight),
+                cornerWidth: 3, cornerHeight: 3, transform: nil
             )
         }
 
@@ -113,8 +141,19 @@ final class FarmPlotNode: SKNode {
 
     func animateHarvest() {
         run(SKAction.sequence([
-            SKAction.scale(to: 1.35, duration: 0.08),
-            SKAction.scale(to: 1.0,  duration: 0.10),
+            SKAction.scale(to: 1.4, duration: 0.07),
+            SKAction.scale(to: 1.0, duration: 0.10),
         ]))
+    }
+
+    // MARK: - Helpers
+
+    private func stageEmoji(for stage: FarmPlot.Stage) -> String {
+        switch stage {
+        case .empty:   return ""
+        case .sprout:  return "🌱"
+        case .growing: return "🌿"
+        case .ready:   return "🥬"
+        }
     }
 }

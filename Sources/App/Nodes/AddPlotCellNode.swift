@@ -9,7 +9,7 @@ final class AddPlotCellNode: SKNode {
     private let costLabel  = SKLabelNode()
 
     override init() {
-        bg = SKShapeNode(rectOf: CGSize(width: 52, height: 52), cornerRadius: 8)
+        bg = SKShapeNode(rectOf: FarmPlotNode.size, cornerRadius: 10)
         super.init()
 
         bg.strokeColor = SKColor(white: 1.0, alpha: 0.35)

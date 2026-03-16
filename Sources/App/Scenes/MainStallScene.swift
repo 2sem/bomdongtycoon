@@ -177,7 +177,7 @@ final class MainStallScene: SKScene {
         // Total cells = plots + optional add-cell
         let totalCells = activePlots + (nextCost != nil ? 1 : 0)
 
-        let spacing: CGFloat = 60
+        let spacing: CGFloat = 70   // 62pt cell + 8pt gap
         let totalWidth = CGFloat(totalCells - 1) * spacing
         let originX = -totalWidth / 2
 
