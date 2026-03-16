@@ -24,6 +24,7 @@ public struct UpgradeSheet: View {
                     definitions: UpgradeDefinitions.staff,
                     currentTier: store.stall.staffTier
                 )
+                workerSection
                 upgradeSection(
                     title: "가게 업그레이드",
                     type: .stall,
@@ -36,6 +37,7 @@ public struct UpgradeSheet: View {
                     definitions: UpgradeDefinitions.location,
                     currentTier: store.stall.locationTier + 1
                 )
+                farmUpgradeSection()
             }
             .navigationTitle("💰 업그레이드")
             .navigationBarTitleDisplayMode(.inline)
@@ -67,16 +69,73 @@ public struct UpgradeSheet: View {
             }
         }
     }
+
+    @ViewBuilder
+    private func farmUpgradeSection() -> some View {
+        let coins = store.stall.coins
+        Section("농장 업그레이드") {
+            ForEach(UpgradeDefinitions.farm.indices, id: \.self) { index in
+                let def = UpgradeDefinitions.farm[index]
+                let isOwned = index < store.farm.upgradeTier + 1
+                let isNext  = index == store.farm.upgradeTier + 1
+                UpgradeRowView(
+                    upgrade: UpgradeDefinition(
+                        name: def.name,
+                        coinCost: def.coinCost,
+                        description: def.description
+                    ),
+                    displayEffect: def.displayEffect,
+                    isOwned: isOwned,
+                    isNext: isNext,
+                    canAfford: coins >= def.coinCost,
+                    onPurchase: { store.purchaseUpgrade(.farm) }
+                )
+            }
+        }
+    }
+
+    private var workerSection: some View {
+        Section("직원 배치") {
+            HStack {
+                Label("농장", systemImage: "leaf")
+                Spacer()
+                Button("-") { store.assignWorkerToShop() }
+                    .disabled(store.stall.farmWorkers == 0)
+                Text("\(store.stall.farmWorkers)")
+                    .frame(width: 28)
+                Button("+") { store.assignWorkerToFarm() }
+                    .disabled(store.stall.shopWorkers == 0)
+            }
+            HStack {
+                Label("가게", systemImage: "storefront")
+                Spacer()
+                Button("-") { store.assignWorkerToFarm() }
+                    .disabled(store.stall.shopWorkers == 0)
+                Text("\(store.stall.shopWorkers)")
+                    .frame(width: 28)
+                Button("+") { store.assignWorkerToShop() }
+                    .disabled(store.stall.farmWorkers == 0)
+            }
+            if store.stall.staffTier == 0 {
+                Text("직원을 고용하면 배치할 수 있어요")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
 }
 
 // MARK: - UpgradeRowView
 
 private struct UpgradeRowView: View {
     let upgrade: UpgradeDefinition
+    var displayEffect: String? = nil
     let isOwned: Bool
     let isNext: Bool
     let canAfford: Bool
     let onPurchase: () -> Void
+
+    private var effectText: String { displayEffect ?? upgrade.displayEffect }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -86,8 +145,8 @@ private struct UpgradeRowView: View {
                 Text(upgrade.description)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if !upgrade.displayEffect.isEmpty {
-                    Text(upgrade.displayEffect)
+                if !effectText.isEmpty {
+                    Text(effectText)
                         .font(.caption2)
                         .foregroundStyle(.green)
                 }

@@ -23,10 +23,25 @@ final class GameStoreTests: XCTestCase {
 
     // MARK: - Tests
 
-    func test_tick_increasesStock() {
-        let before = store.stall.stock
+    func test_tick_growsFarmPlots() {
+        // Tick no longer auto-produces stock; it advances farm plot growth instead
+        let activePlots = FarmSystem.activePlotCount(for: store.farm)
+        let before = store.farm.plots[0].growth
         store.tick(deltaTime: 1.0)
-        XCTAssertGreaterThan(store.stall.stock, before)
+        // At least the first active plot should have grown
+        XCTAssertGreaterThan(store.farm.plots[0].growth, before)
+        XCTAssertGreaterThan(activePlots, 0)
+    }
+
+    func test_tick_workerAutoHarvestsReadyPlot() {
+        // Seed a plot as ready and assign a worker — tick should harvest it
+        store.farm.plots[0].growth = 1.0
+        store.stall.farmWorkers = 1
+        store.farm.farmWorkers = 1
+        let stockBefore = store.stall.stock
+        store.tick(deltaTime: 0.0)  // deltaTime irrelevant — worker harvests on every tick
+        XCTAssertGreaterThan(store.stall.stock, stockBefore)
+        XCTAssertEqual(store.farm.plots[0].growth, 0, accuracy: 0.001)
     }
 
     func test_collectCoins_movesToBalance() {

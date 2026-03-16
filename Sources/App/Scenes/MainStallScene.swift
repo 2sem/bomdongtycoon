@@ -16,6 +16,11 @@ final class MainStallScene: SKScene {
     private var lastStallTier = -1
     private var lastShopName = ""
 
+    // Farm
+    private var farmPlotNodes: [FarmPlotNode] = []
+    private let farmNode = SKNode()
+    private var lastFarmUpgradeTier = -1
+
     // Product stack
     private let productStackNode = SKNode()
     private var stackItems: [SKLabelNode] = []
@@ -46,6 +51,7 @@ final class MainStallScene: SKScene {
     override func didMove(to view: SKView) {
         backgroundColor = SKColor(red: 0.62, green: 0.85, blue: 1.0, alpha: 1)
         setupBackground()
+        setupFarm()
         setupStall()
         setupProductStack()
         setupHUD()
@@ -113,6 +119,57 @@ final class MainStallScene: SKScene {
             SKAction.moveBy(x: 25, y: 0, duration: 7),
             SKAction.moveBy(x: -25, y: 0, duration: 7)
         ])))
+    }
+
+    // MARK: - Farm
+
+    private func setupFarm() {
+        // Soil strip at the very bottom of the pavement area
+        let soilHeight: CGFloat = 70
+        let soilY = soilHeight / 2
+        let soil = SKSpriteNode(
+            color: SKColor(red: 0.42, green: 0.28, blue: 0.10, alpha: 1),
+            size: CGSize(width: frame.width, height: soilHeight)
+        )
+        soil.position = CGPoint(x: frame.midX, y: soilY)
+        soil.zPosition = -3
+        addChild(soil)
+
+        // Thin divider line between pavement and soil
+        let divider = SKSpriteNode(
+            color: SKColor(red: 0.35, green: 0.55, blue: 0.20, alpha: 1),
+            size: CGSize(width: frame.width, height: 4)
+        )
+        divider.position = CGPoint(x: frame.midX, y: soilHeight)
+        divider.zPosition = -3
+        addChild(divider)
+
+        farmNode.position = CGPoint(x: frame.midX, y: soilY)
+        farmNode.zPosition = 2
+        addChild(farmNode)
+    }
+
+    private func syncFarmPlots(farm: FarmState, activePlots: Int) {
+        // Add new plot nodes as farm expands
+        while farmPlotNodes.count < activePlots {
+            let node = FarmPlotNode()
+            farmNode.addChild(node)
+            farmPlotNodes.append(node)
+        }
+
+        // Reposition all active plots evenly
+        let spacing: CGFloat = 60
+        let totalWidth = CGFloat(activePlots - 1) * spacing
+        for i in 0..<activePlots {
+            farmPlotNodes[i].position = CGPoint(x: -totalWidth / 2 + CGFloat(i) * spacing, y: 0)
+            farmPlotNodes[i].isHidden = false
+            if i < farm.plots.count {
+                farmPlotNodes[i].update(plot: farm.plots[i])
+            }
+        }
+        for i in activePlots..<farmPlotNodes.count {
+            farmPlotNodes[i].isHidden = true
+        }
     }
 
     // MARK: - Stall
@@ -331,6 +388,18 @@ final class MainStallScene: SKScene {
             coinBubbles.removeAll { $0 === bubble }
             return
         }
+
+        // Farm plot tap
+        let activePlots = FarmSystem.activePlotCount(for: store.farm)
+        for i in 0..<min(activePlots, farmPlotNodes.count) {
+            let nodeLocation = farmNode.convert(location, from: self)
+            guard farmPlotNodes[i].contains(nodeLocation) else { continue }
+            Task { @MainActor in
+                store.harvest(plotIndex: i)
+            }
+            farmPlotNodes[i].animateHarvest()
+            return
+        }
     }
 
     // MARK: - Game loop
@@ -357,6 +426,8 @@ final class MainStallScene: SKScene {
                 label.text = "🥬 \(stock)/\(maxStock)"
             }
             self.syncProductStack(stock: Int(store.stall.stock), menuTier: store.stall.menuTier)
+            let activePlots = FarmSystem.activePlotCount(for: store.farm)
+            self.syncFarmPlots(farm: store.farm, activePlots: activePlots)
             let shopName = store.progress.shopName
             if shopName != self.lastShopName {
                 self.lastShopName = shopName
