@@ -73,6 +73,7 @@ final class MainStallScene: SKScene {
         backgroundColor = SKColor(red: 0.62, green: 0.85, blue: 1.0, alpha: 1)
         setupBackground()
         setupFarm()
+        setupFence()
         setupWarehouse()
         setupStall()
         setupCookButtons()
@@ -227,6 +228,41 @@ final class MainStallScene: SKScene {
             addPlotCell?.update(cost: cost, canAfford: (store?.stall.coins ?? 0) >= cost)
         } else {
             addPlotCell?.isHidden = true
+        }
+    }
+
+    // MARK: - Fence
+
+    private func setupFence() {
+        let fenceY  = safeBottom + 150   // top edge of the soil strip
+        let postW:  CGFloat = 8
+        let postH:  CGFloat = 24
+        let railH:  CGFloat = 4
+        let postColor = SKColor(red: 0.42, green: 0.24, blue: 0.09, alpha: 1)
+        let railColor = SKColor(red: 0.58, green: 0.36, blue: 0.14, alpha: 1)
+
+        // Two horizontal rails spanning full width
+        for offsetY in [-4.0, 8.0] as [CGFloat] {
+            let rail = SKSpriteNode(
+                color: railColor,
+                size: CGSize(width: frame.width, height: railH)
+            )
+            rail.position  = CGPoint(x: frame.midX, y: fenceY + offsetY)
+            rail.zPosition = 1
+            addChild(rail)
+        }
+
+        // Vertical posts every 20pt
+        let spacing: CGFloat = 20
+        let count = Int(frame.width / spacing) + 1
+        for i in 0...count {
+            let post = SKSpriteNode(
+                color: postColor,
+                size: CGSize(width: postW, height: postH)
+            )
+            post.position  = CGPoint(x: CGFloat(i) * spacing - postW / 2, y: fenceY + 2)
+            post.zPosition = 1
+            addChild(post)
         }
     }
 
