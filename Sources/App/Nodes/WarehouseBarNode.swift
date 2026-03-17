@@ -129,8 +129,8 @@ final class WarehouseNode: SKNode {
         expandIcon.position = CGPoint(x: Self.spacing / 2, y: 2)
         addChild(expandIcon)
 
-        expandCost.fontName = "AppleSDGothicNeo-Regular"
-        expandCost.fontSize = 10
+        expandCost.fontName = "AppleSDGothicNeo-Bold"
+        expandCost.fontSize = 13
         expandCost.verticalAlignmentMode   = .center
         expandCost.horizontalAlignmentMode = .center
         expandCost.position = CGPoint(x: Self.spacing / 2, y: -16)
