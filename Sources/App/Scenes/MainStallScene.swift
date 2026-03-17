@@ -295,8 +295,8 @@ final class MainStallScene: SKScene {
     // MARK: - Cook slots (staff area)
 
     private static let cookSlotSpacing: CGFloat = 68
-    // Y position: between tent body and sign
-    private var cookSlotsY: CGFloat { stallY + 42 }
+    // Y position: in the sky above the sign (signY = stallY+80), below the HUD
+    private var cookSlotsY: CGFloat { stallY + 130 }
 
     private func setupCookSlots() {}   // slots are built lazily in syncCookSlots
 
