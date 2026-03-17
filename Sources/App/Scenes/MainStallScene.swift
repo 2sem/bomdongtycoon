@@ -356,13 +356,23 @@ final class MainStallScene: SKScene {
         signLabel.name = "signLabel"
         addChild(signLabel)
 
-        // Gear icon — tap to open staff management sheet
+        // Gear icon — attached to the right end of the shop sign
+        let gearBg = SKShapeNode(circleOfRadius: 13)
+        gearBg.fillColor   = SKColor(red: 0.08, green: 0.32, blue: 0.15, alpha: 1)
+        gearBg.strokeColor = SKColor(white: 1.0, alpha: 0.25)
+        gearBg.lineWidth   = 1
+        gearBg.position    = CGPoint(x: frame.midX + 93, y: signY)
+        gearBg.zPosition   = 3
+        gearBg.name        = "gearIcon"
+        addChild(gearBg)
+
         let gear = SKLabelNode(text: "⚙️")
-        gear.fontSize = 22
+        gear.fontSize = 16
         gear.verticalAlignmentMode = .center
-        gear.position  = CGPoint(x: frame.midX + 95, y: stallY + 55)
+        gear.horizontalAlignmentMode = .center
+        gear.position  = CGPoint(x: frame.midX + 93, y: signY)
         gear.zPosition = 4
-        gear.name = "gearIcon"
+        gear.name      = "gearIcon"
         addChild(gear)
     }
 
@@ -597,7 +607,8 @@ final class MainStallScene: SKScene {
             return
         }
 
-        if let gear = childNode(withName: "gearIcon"), gear.contains(location) {
+        let gearCenter = CGPoint(x: frame.midX + 93, y: stallY + 80)
+        if hypot(location.x - gearCenter.x, location.y - gearCenter.y) <= 22 {
             NotificationCenter.default.post(name: .openStaffSheet, object: nil)
             return
         }
