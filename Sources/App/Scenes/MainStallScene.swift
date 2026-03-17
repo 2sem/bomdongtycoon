@@ -471,8 +471,7 @@ final class MainStallScene: SKScene {
     // MARK: - HUD
 
     private func setupHUD() {
-        // Taller pill holds both coin amount + stats on one info line
-        let pill = SKShapeNode(rectOf: CGSize(width: 170, height: 54), cornerRadius: 27)
+        let pill = SKShapeNode(rectOf: CGSize(width: 150, height: 40), cornerRadius: 20)
         pill.fillColor   = SKColor(white: 0.0, alpha: 0.55)
         pill.strokeColor = SKColor(white: 1.0, alpha: 0.30)
         pill.lineWidth   = 1
@@ -481,24 +480,13 @@ final class MainStallScene: SKScene {
         addChild(pill)
 
         let coinLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Bold")
-        coinLabel.fontSize = 20
+        coinLabel.fontSize = 22
         coinLabel.fontColor = .white
         coinLabel.verticalAlignmentMode = .center
-        coinLabel.position  = CGPoint(x: frame.midX, y: hudTopY + 12)
+        coinLabel.position  = CGPoint(x: frame.midX, y: hudTopY)
         coinLabel.zPosition = 10
         coinLabel.name = "coinLabel"
         addChild(coinLabel)
-
-        // Single info line: rate · stock — saves vertical space vs two separate labels
-        let infoLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Regular")
-        infoLabel.fontSize = 11
-        infoLabel.fontColor = SKColor(white: 1.0, alpha: 0.75)
-        infoLabel.verticalAlignmentMode   = .center
-        infoLabel.horizontalAlignmentMode = .center
-        infoLabel.position  = CGPoint(x: frame.midX, y: hudTopY - 12)
-        infoLabel.zPosition = 10
-        infoLabel.name = "infoLabel"
-        addChild(infoLabel)
     }
 
     // MARK: - Customer spawning
@@ -633,10 +621,6 @@ final class MainStallScene: SKScene {
             store.tick(deltaTime: delta)
             if let label = self.childNode(withName: "coinLabel") as? SKLabelNode {
                 label.text = "₩\(Self.formatCoins(Int(store.stall.coins)))"
-            }
-            if let label = self.childNode(withName: "infoLabel") as? SKLabelNode {
-                let rate = EarningsSystem.coinsPerSecond(for: store.stall)
-                label.text = "⚡ \(String(format: "%.1f", rate))/s · 📦 \(store.stall.warehouse)/\(store.stall.warehouseCapacity)"
             }
             self.syncProductStack(menuStock: store.stall.menuStock, menuTier: store.stall.menuTier)
             let activePlots = FarmSystem.activePlotCount(for: store.farm)
