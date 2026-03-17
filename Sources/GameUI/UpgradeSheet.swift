@@ -19,13 +19,6 @@ public struct UpgradeSheet: View {
                     currentTier: store.stall.menuTier + 1
                 )
                 upgradeSection(
-                    title: "직원 고용",
-                    type: .staff,
-                    definitions: UpgradeDefinitions.staff,
-                    currentTier: store.stall.staffTier
-                )
-                hireSection
-                upgradeSection(
                     title: "가게 업그레이드",
                     type: .stall,
                     definitions: UpgradeDefinitions.stall,
@@ -69,42 +62,6 @@ public struct UpgradeSheet: View {
         }
     }
 
-    // hireSection uses a Group wrapper to avoid @ViewBuilder if/let rendering bug
-    private var hireSection: some View {
-        Group {
-            if store.stall.staffTier > 0 {
-                Section("직원 추가 고용") {
-                    hireRow
-                }
-            }
-        }
-    }
-
-    private var hireRow: some View {
-        let idx      = store.stall.staffTier - 1
-        let tierName = UpgradeDefinitions.staff[idx].name
-        let cost     = UpgradeDefinitions.staff[idx].coinCost
-        let canAfford = store.stall.coins >= cost
-        let farmNote = store.stall.staffTier == 1 ? " (밭 가능)" : ""
-        return HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(tierName + farmNote).font(.headline)
-                Text("알바생 \(store.stall.tier1Count)명 · 이모님 \(store.stall.tier2Count)명 · 요리사 \(store.stall.tier3Count)명")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("여유 \(max(0, store.availableWorkers))명")
-                    .font(.caption2)
-                    .foregroundStyle(.orange)
-            }
-            Spacer()
-            Button { store.hireWorker() } label: {
-                Text("₩\(Int(cost))").font(.subheadline.bold())
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(canAfford ? .orange : .gray)
-            .disabled(!canAfford)
-        }
-    }
 }
 
 // MARK: - UpgradeRowView

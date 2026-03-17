@@ -333,6 +333,21 @@ public final class GameStore: ObservableObject {
         save()
     }
 
+    public func hireWorker(tier: Int) {
+        guard tier >= 1, tier <= UpgradeDefinitions.staff.count else { return }
+        let cost = UpgradeDefinitions.staff[tier - 1].coinCost
+        guard stall.coins >= cost else { return }
+        stall.coins -= cost
+        switch tier {
+        case 1: stall.tier1Count += 1
+        case 2: stall.tier2Count += 1
+        case 3: stall.tier3Count += 1
+        default: break
+        }
+        stall.staffTier = max(stall.staffTier, tier)
+        save()
+    }
+
     // MARK: - Offline
 
     public func applyOfflineEarnings(multiplier: Double = 1.0) {

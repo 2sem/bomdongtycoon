@@ -11,20 +11,11 @@ public struct StaffSheet: View {
 
     public var body: some View {
         NavigationStack {
-            Group {
-                if store.stall.staffCount == 0 {
-                    ContentUnavailableView(
-                        "아직 직원이 없어요",
-                        systemImage: "person.2.slash",
-                        description: Text("업그레이드 탭에서 직원을 먼저 고용하세요")
-                    )
-                } else {
-                    List {
-                        availableSection
-                        cashierSection
-                        cookSection
-                    }
-                }
+            List {
+                hireSection
+                availableSection
+                cashierSection
+                cookSection
             }
             .navigationTitle("직원 관리")
             .navigationBarTitleDisplayMode(.inline)
@@ -33,6 +24,20 @@ public struct StaffSheet: View {
                     Button("닫기") { isPresented = false }
                 }
             }
+        }
+    }
+
+    // MARK: - Hire Section
+
+    private var hireSection: some View {
+        Section {
+            ForEach(1...3, id: \.self) { tier in
+                HireTierRow(tier: tier)
+                    .environmentObject(store)
+            }
+        } header: {
+            Text("직원 고용")
+                .foregroundStyle(Color.deepAmber)
         }
     }
 
@@ -221,6 +226,101 @@ private struct StaffPositionRow: View {
 
     private func haptic() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+}
+
+// MARK: - HireTierRow
+
+private struct HireTierRow: View {
+    @EnvironmentObject var store: GameStore
+    let tier: Int
+
+    private var def: UpgradeDefinition { UpgradeDefinitions.staff[tier - 1] }
+
+    private var count: Int {
+        switch tier {
+        case 1: return store.stall.tier1Count
+        case 2: return store.stall.tier2Count
+        case 3: return store.stall.tier3Count
+        default: return 0
+        }
+    }
+
+    private var isUnlocked: Bool {
+        switch tier {
+        case 1: return true
+        case 2: return store.stall.stallTier >= 1
+        case 3: return store.stall.stallTier >= 2
+        default: return false
+        }
+    }
+
+    private var unlockHint: String {
+        switch tier {
+        case 2: return "분식집 업그레이드 필요"
+        case 3: return "봄동 전문점 업그레이드 필요"
+        default: return ""
+        }
+    }
+
+    private var tierEmoji: String {
+        switch tier {
+        case 1: return "👨"
+        case 2: return "👩"
+        case 3: return "👨‍🍳"
+        default: return ""
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isUnlocked ? Color.warmAmber : Color.gray.opacity(0.3))
+                    .frame(width: 36, height: 36)
+                Text(tierEmoji)
+                    .font(.system(size: 20))
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(def.name)
+                    .font(.headline)
+                    .foregroundStyle(isUnlocked ? Color.primary : Color.secondary)
+                if isUnlocked {
+                    Text(def.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("현재 \(count)명")
+                        .font(.caption2)
+                        .foregroundStyle(Color.deepAmber)
+                } else {
+                    Text(unlockHint)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            if isUnlocked {
+                let canAfford = store.stall.coins >= def.coinCost
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    store.hireWorker(tier: tier)
+                } label: {
+                    Text("₩\(Int(def.coinCost))")
+                        .font(.caption.bold())
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(canAfford ? Color.deepAmber : .gray)
+                .disabled(!canAfford)
+                .controlSize(.small)
+            } else {
+                Image(systemName: "lock.fill")
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 
