@@ -519,10 +519,9 @@ final class MainStallScene: SKScene {
                     customer.walkTo(x: self.frame.width + 40) { customer.removeFromParent() }
                     return
                 }
-                if store.stall.autoCollectEnabled {
-                    store.stall.pendingCoins += price
-                    store.collectCoins()
-                } else {
+                // sellItem() already added price to pendingCoins.
+                // Cashier tick handles auto-collect; without cashier spawn a bubble.
+                if !store.stall.autoCollectEnabled {
                     self.spawnCoinBubble(at: customer.position, amount: price)
                 }
                 customer.showReaction(happy: true)
@@ -532,26 +531,10 @@ final class MainStallScene: SKScene {
     }
 
     private func spawnCoinBubble(at position: CGPoint, amount: Double) {
-        guard let store else { return }
         let bubble = CoinBubbleNode(amount: amount)
         bubble.position = CGPoint(x: position.x, y: position.y + 80)
         addChild(bubble)
         coinBubbles.append(bubble)
-
-        if store.stall.autoCollectEnabled {
-            bubble.run(SKAction.sequence([
-                SKAction.wait(forDuration: 0.8),
-                SKAction.run { [weak self] in
-                    guard let self else { return }
-                    Task { @MainActor in
-                        store.stall.pendingCoins += amount
-                        store.collectCoins()
-                    }
-                    bubble.pop()
-                    self.coinBubbles.removeAll { $0 === bubble }
-                },
-            ]))
-        }
     }
 
     // MARK: - Touch handling
@@ -561,10 +544,7 @@ final class MainStallScene: SKScene {
         let location = touch.location(in: self)
 
         for bubble in coinBubbles where bubble.contains(location) {
-            Task { @MainActor in
-                store.stall.pendingCoins += bubble.amount
-                store.collectCoins()
-            }
+            Task { @MainActor in store.collectCoins() }
             bubble.pop()
             coinBubbles.removeAll { $0 === bubble }
             return
