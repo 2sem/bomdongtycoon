@@ -520,21 +520,30 @@ final class MainStallScene: SKScene {
                     return
                 }
                 // sellItem() already added price to pendingCoins.
-                // Cashier tick handles auto-collect; without cashier spawn a bubble.
-                if !store.stall.autoCollectEnabled {
-                    self.spawnCoinBubble(at: customer.position, amount: price)
-                }
+                // Always show a bubble; cashier auto-pops it, player taps without one.
+                self.spawnCoinBubble(at: customer.position, amount: price,
+                                     autoPop: store.stall.autoCollectEnabled)
                 customer.showReaction(happy: true)
                 customer.walkTo(x: self.frame.width + 40) { customer.removeFromParent() }
             }
         }
     }
 
-    private func spawnCoinBubble(at position: CGPoint, amount: Double) {
+    private func spawnCoinBubble(at position: CGPoint, amount: Double, autoPop: Bool = false) {
         let bubble = CoinBubbleNode(amount: amount)
         bubble.position = CGPoint(x: position.x, y: position.y + 80)
         addChild(bubble)
         coinBubbles.append(bubble)
+
+        if autoPop {
+            bubble.run(SKAction.sequence([
+                SKAction.wait(forDuration: 0.7),
+                SKAction.run { [weak self] in
+                    bubble.pop()
+                    self?.coinBubbles.removeAll { $0 === bubble }
+                },
+            ]))
+        }
     }
 
     // MARK: - Touch handling
