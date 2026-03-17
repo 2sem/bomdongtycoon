@@ -108,8 +108,8 @@ final class WarehouseNode: SKNode {
 
     private func buildExpandCell() {
         // Dashed-style border (simulate with low-alpha solid — SpriteKit doesn't support native dash on SKShapeNode easily)
-        expandBg.fillColor   = .clear
-        expandBg.strokeColor = SKColor(white: 1.0, alpha: 0.20)
+        expandBg.fillColor   = SKColor(white: 1.0, alpha: 0.08)
+        expandBg.strokeColor = SKColor(white: 1.0, alpha: 0.55)
         expandBg.lineWidth   = 1.5
         expandBg.position    = CGPoint(x: Self.spacing / 2, y: 0)
         addChild(expandBg)
@@ -120,9 +120,9 @@ final class WarehouseNode: SKNode {
         expandIcon.position = CGPoint(x: Self.spacing / 2, y: 6)
         addChild(expandIcon)
 
-        expandCost.fontName = "AppleSDGothicNeo-Regular"
+        expandCost.fontName = "AppleSDGothicNeo-Bold"
         expandCost.fontSize = 11
-        expandCost.fontColor = SKColor(white: 1.0, alpha: 0.35)
+        expandCost.fontColor = SKColor(white: 1.0, alpha: 0.70)
         expandCost.verticalAlignmentMode   = .center
         expandCost.horizontalAlignmentMode = .center
         expandCost.position = CGPoint(x: Self.spacing / 2, y: -12)
@@ -204,8 +204,8 @@ final class WarehouseNode: SKNode {
                     SKAction.scale(to: 1.0,  duration: 0.15),
                 ]))
             } else if !canAfford {
-                expandBg.strokeColor = SKColor(white: 1.0, alpha: 0.20)
-                expandCost.fontColor = SKColor(white: 1.0, alpha: 0.35)
+                expandBg.strokeColor = SKColor(white: 1.0, alpha: 0.55)
+                expandCost.fontColor = SKColor(white: 1.0, alpha: 0.70)
             }
             lastCanAfford = canAfford
         } else {
