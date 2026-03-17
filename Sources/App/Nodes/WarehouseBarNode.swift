@@ -31,6 +31,7 @@ final class WarehouseNode: SKNode {
 
     // MARK: - Expand cell nodes
     private let expandBg      = SKShapeNode(rectOf: cellSize, cornerRadius: radius)
+    private let expandTitle   = SKLabelNode()
     private let expandIcon    = SKLabelNode()
     private let expandCost    = SKLabelNode()
 
@@ -107,25 +108,32 @@ final class WarehouseNode: SKNode {
     }
 
     private func buildExpandCell() {
-        // Dashed-style border (simulate with low-alpha solid — SpriteKit doesn't support native dash on SKShapeNode easily)
-        expandBg.fillColor   = SKColor(red: 0.24, green: 0.16, blue: 0.06, alpha: 1)
-        expandBg.strokeColor = SKColor(white: 1.0, alpha: 0.55)
-        expandBg.lineWidth   = 1.5
+        expandBg.fillColor   = SKColor(white: 1.0, alpha: 0.10)
+        expandBg.strokeColor = SKColor(white: 1.0, alpha: 0.25)
+        expandBg.lineWidth   = 2
         expandBg.position    = CGPoint(x: Self.spacing / 2, y: 0)
         addChild(expandBg)
 
+        expandTitle.text     = "창고 추가"
+        expandTitle.fontName = "AppleSDGothicNeo-Bold"
+        expandTitle.fontSize = 11
+        expandTitle.verticalAlignmentMode = .center
+        expandTitle.position = CGPoint(x: Self.spacing / 2, y: 18)
+        addChild(expandTitle)
+
+        expandIcon.text     = "+"
+        expandIcon.fontName = "AppleSDGothicNeo-Bold"
         expandIcon.fontSize = 22
         expandIcon.verticalAlignmentMode   = .center
         expandIcon.horizontalAlignmentMode = .center
-        expandIcon.position = CGPoint(x: Self.spacing / 2, y: 4)
+        expandIcon.position = CGPoint(x: Self.spacing / 2, y: 2)
         addChild(expandIcon)
 
-        expandCost.fontName = "AppleSDGothicNeo-Bold"
-        expandCost.fontSize = 13
-        expandCost.fontColor = SKColor(white: 0.65, alpha: 1)   // default: can't afford gray
+        expandCost.fontName = "AppleSDGothicNeo-Regular"
+        expandCost.fontSize = 10
         expandCost.verticalAlignmentMode   = .center
         expandCost.horizontalAlignmentMode = .center
-        expandCost.position = CGPoint(x: Self.spacing / 2, y: -12)
+        expandCost.position = CGPoint(x: Self.spacing / 2, y: -16)
         addChild(expandCost)
     }
 
@@ -189,30 +197,33 @@ final class WarehouseNode: SKNode {
 
         // Expand cell
         if let cost = expandCostValue {
-            expandBg.isHidden   = false
-            expandIcon.isHidden = false
-            expandCost.isHidden = false
-            expandIcon.text     = "📦+"
-            expandCost.text     = "₩\(Int(cost))"
+            expandBg.isHidden    = false
+            expandTitle.isHidden = false
+            expandIcon.isHidden  = false
+            expandCost.isHidden  = false
+            expandCost.text      = "₩\(Int(cost))"
 
-            if canAfford {
-                expandBg.strokeColor = SKColor(red: 0.95, green: 0.70, blue: 0.20, alpha: 0.85)
-                expandCost.fontColor = SKColor(red: 1.0, green: 0.80, blue: 0.20, alpha: 1)  // gold
-                if !lastCanAfford {
-                    expandIcon.run(SKAction.sequence([
-                        SKAction.scale(to: 1.15, duration: 0.15),
-                        SKAction.scale(to: 1.0,  duration: 0.15),
-                    ]))
-                }
-            } else {
-                expandBg.strokeColor = SKColor(white: 1.0, alpha: 0.55)
-                expandCost.fontColor = SKColor(white: 0.65, alpha: 1)  // gray
+            let color: SKColor = canAfford
+                ? SKColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 1)
+                : SKColor(white: 1.0, alpha: 0.40)
+            expandBg.strokeColor = canAfford
+                ? SKColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 0.6)
+                : SKColor(white: 1.0, alpha: 0.25)
+            expandTitle.fontColor = color
+            expandIcon.fontColor  = color
+            expandCost.fontColor  = color
+            if canAfford && !lastCanAfford {
+                expandIcon.run(SKAction.sequence([
+                    SKAction.scale(to: 1.15, duration: 0.15),
+                    SKAction.scale(to: 1.0,  duration: 0.15),
+                ]))
             }
             lastCanAfford = canAfford
         } else {
-            expandBg.isHidden   = true
-            expandIcon.isHidden = true
-            expandCost.isHidden = true
+            expandBg.isHidden    = true
+            expandTitle.isHidden = true
+            expandIcon.isHidden  = true
+            expandCost.isHidden  = true
         }
     }
 
