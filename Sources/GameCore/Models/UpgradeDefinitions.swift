@@ -71,7 +71,7 @@ public enum UpgradeDefinitions {
 
     /// Staff upgrades — increase items produced per batch cook
     public static let staff: [UpgradeDefinition] = [
-        .init(name: "알바생",      coinCost: 500,    description: "팜·계산대·주방 모두 가능", productionMultiplier: 2.0),
+        .init(name: "알바생",      coinCost: 500,    description: "밭·계산대·주방 모두 가능", productionMultiplier: 2.0),
         .init(name: "이모님",      coinCost: 3_000,  description: "계산대·주방 배치 가능",     productionMultiplier: 4.0),
         .init(name: "봄동 요리사", coinCost: 15_000, description: "주방 전담, 최고 속도",       productionMultiplier: 7.0)
     ]
