@@ -190,7 +190,22 @@ public final class GameStore: ObservableObject {
         save()
     }
 
-    // MARK: - Manual cook (for menus without a dedicated cook)
+    // MARK: - Manual cook
+
+    /// Auto-cook accumulators exposed for progress bar display (0.0–1.0 each).
+    public var cookProgress: [Double] { cookAccumulators }
+
+    /// Manually cook 1 item for the given menu (regardless of cook assignment).
+    public func manualCook(menuIndex: Int) {
+        let maxStock = EarningsSystem.maxStock(for: stall)
+        guard menuIndex <= stall.menuTier,
+              menuIndex < stall.menuStock.count,
+              stall.warehouse > 0,
+              stall.menuStock[menuIndex] < maxStock else { return }
+        stall.warehouse    -= 1
+        stall.menuStock[menuIndex] += 1
+        save()
+    }
 
     /// Cooks 1 item for each menu that has no dedicated cook assigned.
     public func batchCook() {

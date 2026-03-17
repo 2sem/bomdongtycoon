@@ -37,10 +37,9 @@ final class MainStallScene: SKScene {
     private var lastWarehouse = -1
     private var lastWarehouseCapacity = -1
 
-    // Cook button (single batch-cook)
-    private var cookButton: CookButtonNode?
+    // Per-menu cook slots (staff area between tent and sign)
+    private var menuCookSlots: [MenuCookSlotNode] = []
     private var lastCookMenuTier = -1
-    private var lastCookBatchSize = -1
 
     private static func formatCoins(_ value: Int) -> String {
         if value >= 1_000_000 { return String(format: "%.1fM", Double(value) / 1_000_000) }
@@ -76,7 +75,7 @@ final class MainStallScene: SKScene {
         setupFence()
         setupWarehouse()
         setupStall()
-        setupCookButtons()
+        setupCookSlots()
         setupProductStack()
         setupHUD()
         startCustomerSpawning()
@@ -293,36 +292,47 @@ final class MainStallScene: SKScene {
         lastWarehouseCapacity = cap
     }
 
-    // MARK: - Cook buttons
+    // MARK: - Cook slots (staff area)
 
-    private func setupCookButtons() {}
+    private static let cookSlotSpacing: CGFloat = 68
+    // Y position: between tent body and sign
+    private var cookSlotsY: CGFloat { stallY + 42 }
 
-    private func syncCookButtons(store: GameStore) {
+    private func setupCookSlots() {}   // slots are built lazily in syncCookSlots
+
+    private func syncCookSlots(store: GameStore) {
         let tier = store.stall.menuTier
 
+        // Rebuild row when menu count changes
         if tier != lastCookMenuTier {
-            cookButton?.removeFromParent()
-            let btn = CookButtonNode()
-            btn.position = CGPoint(x: frame.midX + 95, y: stallY + 20)
-            btn.zPosition = 4
-            addChild(btn)
-            cookButton = btn
+            menuCookSlots.forEach { $0.removeFromParent() }
+            menuCookSlots.removeAll()
+
+            let count  = tier + 1
+            let originX = frame.midX - CGFloat(count - 1) * Self.cookSlotSpacing / 2
+            for i in 0...tier {
+                let slot = MenuCookSlotNode()
+                slot.setup(menuEmoji: Self.menuEmoji(for: i))
+                slot.position = CGPoint(x: originX + CGFloat(i) * Self.cookSlotSpacing,
+                                        y: cookSlotsY)
+                slot.zPosition = 4
+                addChild(slot)
+                menuCookSlots.append(slot)
+            }
             lastCookMenuTier = tier
-            lastCookBatchSize = -1
         }
 
-        // Only show button for menus without a dedicated cook
-        let maxStock = EarningsSystem.maxStock(for: store.stall)
-        let manualEmojis = (0...tier).compactMap { i -> String? in
-            guard i < store.stall.menuCooks.count,
-                  store.stall.menuCooks[i] == 0 else { return nil }
-            return Self.menuEmoji(for: i)
+        // Update each slot
+        let maxStock  = EarningsSystem.maxStock(for: store.stall)
+        let progress  = store.cookProgress
+        for i in 0...tier {
+            guard i < menuCookSlots.count else { continue }
+            let cookTier = i < store.stall.menuCooks.count ? store.stall.menuCooks[i] : 0
+            let stock    = i < store.stall.menuStock.count ? store.stall.menuStock[i] : 0
+            let prog     = i < progress.count ? progress[i] : 0
+            menuCookSlots[i].update(cookTier: cookTier, progress: prog,
+                                    stock: stock, maxStock: maxStock)
         }
-        let canCook = store.stall.warehouse > 0 && manualEmojis.contains { emoji in
-            let i = ["🥬", "🥗", "🥘"].firstIndex(of: emoji) ?? 0
-            return i < store.stall.menuStock.count && store.stall.menuStock[i] < maxStock
-        }
-        cookButton?.update(manualMenuEmojis: manualEmojis, canCook: canCook)
     }
 
     // MARK: - Stall
@@ -590,9 +600,12 @@ final class MainStallScene: SKScene {
             }
         }
 
-        if let btn = cookButton, btn.contains(location) {
-            Task { @MainActor in store.batchCook() }
-            return
+        for (i, slot) in menuCookSlots.enumerated() {
+            if slot.contains(location) {
+                slot.animateCook()
+                Task { @MainActor in store.manualCook(menuIndex: i) }
+                return
+            }
         }
 
         let gearCenter = CGPoint(x: frame.midX + 93, y: stallY + 80)
@@ -626,7 +639,7 @@ final class MainStallScene: SKScene {
             let activePlots = FarmSystem.activePlotCount(for: store.farm)
             self.syncFarmPlots(farm: store.farm, activePlots: activePlots)
             self.syncWarehouse(store: store)
-            self.syncCookButtons(store: store)
+            self.syncCookSlots(store: store)
             let shopName = store.progress.shopName
             if shopName != self.lastShopName {
                 self.lastShopName = shopName
