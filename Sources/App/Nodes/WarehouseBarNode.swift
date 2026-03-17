@@ -108,7 +108,7 @@ final class WarehouseNode: SKNode {
     }
 
     private func buildExpandCell() {
-        expandBg.fillColor   = SKColor(white: 1.0, alpha: 0.10)
+        expandBg.fillColor   = SKColor(red: 0.24, green: 0.16, blue: 0.06, alpha: 1)
         expandBg.strokeColor = SKColor(white: 1.0, alpha: 0.25)
         expandBg.lineWidth   = 2
         expandBg.position    = CGPoint(x: Self.spacing / 2, y: 0)
