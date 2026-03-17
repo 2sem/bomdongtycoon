@@ -85,21 +85,20 @@ public struct UpgradeSheet: View {
         let tierName = UpgradeDefinitions.staff[idx].name
         let cost     = UpgradeDefinitions.staff[idx].coinCost
         let canAfford = store.stall.coins >= cost
-        let assigned  = store.stall.shopWorkers + store.stall.farmWorkers
-        let available = store.stall.staffCount - assigned
+        let farmNote = store.stall.staffTier == 1 ? " (밭 가능)" : ""
         return HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(tierName).font(.headline)
-                Text("현재 \(store.stall.staffCount)명 · 여유 \(max(0, available))명")
+                Text(tierName + farmNote).font(.headline)
+                Text("알바생 \(store.stall.tier1Count)명 · 이모님 \(store.stall.tier2Count)명 · 요리사 \(store.stall.tier3Count)명")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Text("여유 \(max(0, store.availableWorkers))명")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
             }
             Spacer()
-            Button {
-                store.hireWorker()
-            } label: {
-                Text("₩\(Int(cost))")
-                    .font(.subheadline.bold())
+            Button { store.hireWorker() } label: {
+                Text("₩\(Int(cost))").font(.subheadline.bold())
             }
             .buttonStyle(.borderedProminent)
             .tint(canAfford ? .orange : .gray)

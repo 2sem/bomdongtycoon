@@ -15,13 +15,14 @@ public final class GameStore: ObservableObject {
     @Published public var offlineEarnings: Double = 0
 
     private enum DefaultsKey {
-        static let stall = "gameStore.stall"
-        static let farm  = "gameStore.farm"
+        static let stall    = "gameStore.stall"
+        static let farm     = "gameStore.farm"
         static let progress = "gameStore.progress"
     }
 
     private let defaults: UserDefaults
-    private var cookAccumulator: Double = 0
+    private var cookAccumulators: [Double] = [0, 0, 0]   // per-menu
+    private var cashierAccumulator: Double = 0
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -50,13 +51,31 @@ public final class GameStore: ObservableObject {
         if loadedProgress.seasonStartDate == nil {
             loadedProgress.seasonStartDate = Date()
         }
-        let seasonStart = loadedProgress.seasonStartDate!
         self.progress = loadedProgress
-        self.season = SeasonSystem.currentState(seasonStart: seasonStart)
+        self.season   = SeasonSystem.currentState(seasonStart: loadedProgress.seasonStartDate!)
 
-        // Migration: old saves have staffCount == 0 but staffTier > 0
-        if self.stall.staffCount == 0 && self.stall.staffTier > 0 {
-            self.stall.staffCount = self.stall.staffTier
+        // Migration from old save format
+        migrate()
+    }
+
+    private func migrate() {
+        // Old save had staffCount (stored) — distribute into tierXCount
+        // Detect by checking if all tier counts are 0 but staffTier > 0
+        if stall.tier1Count == 0 && stall.tier2Count == 0 && stall.tier3Count == 0 && stall.staffTier > 0 {
+            // We lost staffCount from old format; best estimate: staffTier workers hired
+            switch stall.staffTier {
+            case 1: stall.tier1Count = 1
+            case 2: stall.tier1Count = 1; stall.tier2Count = 1
+            case 3: stall.tier1Count = 1; stall.tier2Count = 1; stall.tier3Count = 1
+            default: break
+            }
+        }
+        // Old shopWorkers → cashierCount
+        // shopWorkers was stored but is now computed; if cashierCount == 0 and farmWorkers < staffCount
+        // use a heuristic: put all non-farm workers as cashiers
+        if stall.cashierCount == 0 && stall.shopWorkers == 0 && stall.staffCount > 0 {
+            let farmAssigned = farm.plots.filter { $0.hasWorker }.count
+            stall.cashierCount = max(0, stall.staffCount - farmAssigned)
         }
     }
 
@@ -64,21 +83,22 @@ public final class GameStore: ObservableObject {
 
     public func tick(deltaTime: Double) {
         let seasonMult = SeasonSystem.earningsMultiplier(for: season.currentSeason)
-        let rate = FarmSystem.growthRate(for: farm) * seasonMult
+        let growRate   = FarmSystem.growthRate(for: farm) * seasonMult
         let activePlots = FarmSystem.activePlotCount(for: farm)
 
+        // Grow planted plots
         for i in 0..<min(activePlots, farm.plots.count) {
             guard farm.plots[i].isPlanted, !farm.plots[i].isReady else { continue }
-            farm.plots[i].growth = min(farm.plots[i].growth + rate * deltaTime, 1.0)
+            farm.plots[i].growth = min(farm.plots[i].growth + growRate * deltaTime, 1.0)
         }
 
-        // Per-plot workers auto-harvest and auto-replant
+        // Farm workers (tier1 only) auto-harvest and replant
         for i in 0..<min(activePlots, farm.plots.count) {
             guard farm.plots[i].hasWorker else { continue }
             if farm.plots[i].isReady {
                 guard stall.warehouse < stall.warehouseCapacity else { continue }
                 stall.warehouse += FarmSystem.harvestYield
-                farm.plots[i].growth = 0
+                farm.plots[i].growth   = 0
                 farm.plots[i].isPlanted = false
             }
             if !farm.plots[i].isPlanted, stall.coins >= FarmSystem.seedCost {
@@ -87,26 +107,30 @@ public final class GameStore: ObservableObject {
             }
         }
 
-        // Shop workers auto-cook: warehouse → menuStock
-        if stall.shopWorkers > 0, stall.warehouse > 0 {
-            let rate = EarningsSystem.productionRate(for: stall) * Double(stall.shopWorkers)
-            cookAccumulator += rate * deltaTime
-            while cookAccumulator >= 1.0, stall.warehouse > 0 {
-                cookAccumulator -= 1.0
-                let menus = stall.menuTier + 1
-                let maxStock = EarningsSystem.maxStock(for: stall)
-                // Find menu with least stock to distribute evenly
-                var distributed = false
-                for i in 0..<menus {
-                    guard i < stall.menuStock.count,
-                          stall.menuStock[i] < maxStock,
-                          stall.warehouse > 0 else { continue }
-                    stall.menuStock[i] += 1
-                    stall.warehouse -= 1
-                    distributed = true
-                    break
-                }
-                if !distributed { cookAccumulator = 0 }
+        // Per-menu auto-cook: each assigned cook contributes at production rate
+        let baseRate = EarningsSystem.productionRate(for: stall)
+        let maxStock = EarningsSystem.maxStock(for: stall)
+        for i in 0..<stall.menuCooks.count {
+            let cooks = stall.menuCooks[i]
+            guard cooks > 0, stall.warehouse > 0, i <= stall.menuTier else { continue }
+            guard i < stall.menuStock.count, stall.menuStock[i] < maxStock else { continue }
+            cookAccumulators[i] += baseRate * Double(cooks) * deltaTime
+            while cookAccumulators[i] >= 1.0,
+                  stall.warehouse > 0,
+                  stall.menuStock[i] < maxStock {
+                cookAccumulators[i] -= 1.0
+                stall.warehouse    -= 1
+                stall.menuStock[i] += 1
+            }
+        }
+
+        // Cashier auto-collect pendingCoins
+        if stall.cashierCount > 0, stall.pendingCoins > 0 {
+            let collectRate = baseRate * Double(stall.cashierCount)
+            cashierAccumulator += collectRate * deltaTime
+            if cashierAccumulator >= 1.0 {
+                cashierAccumulator = 0
+                collectCoins()
             }
         }
     }
@@ -122,7 +146,6 @@ public final class GameStore: ObservableObject {
 
     // MARK: - Sell
 
-    /// Called by CustomerNode. Returns sale price or nil if out of stock.
     public func sellItem(menuIndex: Int) -> Double? {
         guard menuIndex < stall.menuStock.count,
               stall.menuStock[menuIndex] > 0 else { return nil }
@@ -140,7 +163,7 @@ public final class GameStore: ObservableObject {
               stall.coins >= FarmSystem.seedCost else { return }
         stall.coins -= FarmSystem.seedCost
         farm.plots[plotIndex].isPlanted = true
-        farm.plots[plotIndex].growth = 0
+        farm.plots[plotIndex].growth    = 0
         save()
     }
 
@@ -149,7 +172,7 @@ public final class GameStore: ObservableObject {
               farm.plots[plotIndex].isReady,
               stall.warehouse < stall.warehouseCapacity else { return }
         stall.warehouse += FarmSystem.harvestYield
-        farm.plots[plotIndex].growth = 0
+        farm.plots[plotIndex].growth    = 0
         farm.plots[plotIndex].isPlanted = false
         save()
     }
@@ -168,12 +191,13 @@ public final class GameStore: ObservableObject {
 
     public func batchCook() {
         guard stall.warehouse > 0 else { return }
-        let menus = stall.menuTier + 1
+        let menus    = stall.menuTier + 1
         let maxStock = EarningsSystem.maxStock(for: stall)
         let perWorker = stall.staffTier > 0
             ? max(1, Int(round(UpgradeDefinitions.staff[stall.staffTier - 1].productionMultiplier)))
             : 1
-        let batchTotal = min(perWorker * max(1, stall.shopWorkers), stall.warehouse)
+        let totalWorkers = max(1, stall.shopWorkers)
+        let batchTotal = min(perWorker * totalWorkers, stall.warehouse)
         let base = batchTotal / menus
         let rem  = batchTotal % menus
         var changed = false
@@ -189,11 +213,18 @@ public final class GameStore: ObservableObject {
         if changed { save() }
     }
 
-    // MARK: - Workers
+    // MARK: - Staff workers
 
-    private var availableWorkers: Int {
-        let assignedToPlots = farm.plots.filter { $0.hasWorker }.count
-        return stall.staffCount - stall.shopWorkers - assignedToPlots
+    private var farmAssigned: Int { farm.plots.filter { $0.hasWorker }.count }
+
+    /// Workers not yet placed anywhere
+    public var availableWorkers: Int {
+        stall.staffCount - farmAssigned - stall.cashierCount - stall.menuCooks.reduce(0, +)
+    }
+
+    /// Only tier1 workers can be on farm
+    public var availableForFarm: Int {
+        stall.tier1Count - farmAssigned
     }
 
     public func toggleWorker(plotIndex: Int) {
@@ -201,32 +232,56 @@ public final class GameStore: ObservableObject {
         if farm.plots[plotIndex].hasWorker {
             farm.plots[plotIndex].hasWorker = false
         } else {
-            guard availableWorkers > 0 else { return }
+            guard availableForFarm > 0 else { return }
             farm.plots[plotIndex].hasWorker = true
         }
-        stall.farmWorkers = farm.plots.filter { $0.hasWorker }.count
+        stall.farmWorkers = farmAssigned
         save()
     }
 
-    public func assignWorkerToShop() {
+    public func assignToCashier() {
         guard availableWorkers > 0 else { return }
-        stall.shopWorkers += 1
+        stall.cashierCount += 1
         save()
     }
 
-    public func removeWorkerFromShop() {
-        guard stall.shopWorkers > 0 else { return }
-        stall.shopWorkers -= 1
+    public func removeFromCashier() {
+        guard stall.cashierCount > 0 else { return }
+        stall.cashierCount -= 1
         save()
     }
+
+    public func assignMenuCook(menuIndex: Int) {
+        guard menuIndex <= stall.menuTier,
+              menuIndex < stall.menuCooks.count,
+              availableWorkers > 0 else { return }
+        stall.menuCooks[menuIndex] += 1
+        save()
+    }
+
+    public func removeMenuCook(menuIndex: Int) {
+        guard menuIndex < stall.menuCooks.count,
+              stall.menuCooks[menuIndex] > 0 else { return }
+        stall.menuCooks[menuIndex] -= 1
+        save()
+    }
+
+    /// Legacy: kept so old call sites compile
+    public func assignWorkerToShop() { assignToCashier() }
+    public func removeWorkerFromShop() { removeFromCashier() }
 
     public func hireWorker() {
         guard stall.staffTier > 0 else { return }
-        let idx = stall.staffTier - 1
+        let idx  = stall.staffTier - 1
         let cost = UpgradeDefinitions.staff[idx].coinCost
         guard stall.coins >= cost else { return }
         stall.coins -= cost
-        stall.staffCount += 1
+        switch stall.staffTier {
+        case 1: stall.tier1Count += 1
+        case 2: stall.tier2Count += 1
+        case 3: stall.tier3Count += 1
+        default: break
+        }
         save()
     }
 
@@ -240,7 +295,7 @@ public final class GameStore: ObservableObject {
             seasonMultiplier: SeasonSystem.earningsMultiplier(for: season.currentSeason)
         )
         offlineEarnings = earned
-        stall.coins += earned
+        stall.coins    += earned
         progress.totalEarned += earned
         progress.lastActiveDate = Date()
         save()
@@ -257,10 +312,16 @@ public final class GameStore: ObservableObject {
             guard nextTier < UpgradeDefinitions.staff.count else { return }
             let cost = UpgradeDefinitions.staff[nextTier].coinCost
             guard stall.coins >= cost else { return }
-            stall.coins -= cost
+            stall.coins    -= cost
             stall.staffTier += 1
-            stall.staffCount += 1
-            stall.shopWorkers += 1
+            switch stall.staffTier {
+            case 1: stall.tier1Count += 1
+            case 2: stall.tier2Count += 1
+            case 3: stall.tier3Count += 1
+            default: break
+            }
+            // New hire defaults to cashier
+            stall.cashierCount += 1
 
         case .menu:
             let nextTier = stall.menuTier + 1
@@ -297,10 +358,7 @@ public final class GameStore: ObservableObject {
 
     // MARK: - Lifecycle
 
-    public func markFirstLaunchComplete() {
-        progress.isFirstLaunch = false
-        save()
-    }
+    public func markFirstLaunchComplete() { progress.isFirstLaunch = false; save() }
 
     public func setShopName(_ name: String) {
         progress.shopName = name.trimmingCharacters(in: .whitespaces).isEmpty ? "봄동 가게" : name
@@ -308,10 +366,7 @@ public final class GameStore: ObservableObject {
         save()
     }
 
-    public func recordBackground() {
-        progress.lastActiveDate = Date()
-        save()
-    }
+    public func recordBackground() { progress.lastActiveDate = Date(); save() }
 
     private func save() {
         if let d = try? JSONEncoder().encode(stall)    { defaults.set(d, forKey: DefaultsKey.stall) }
