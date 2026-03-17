@@ -15,13 +15,14 @@ final class FarmPlotNode: SKNode {
     private static let barBgColor   = SKColor(white: 0.0, alpha: 0.30)
 
     // MARK: - Nodes
-    private let bg           = SKShapeNode(rectOf: size, cornerRadius: 10)
-    private let stageLabel   = SKLabelNode()
-    private let barBg        = SKShapeNode(rectOf: CGSize(width: barWidth, height: barHeight), cornerRadius: 3)
-    private let barFill      = SKShapeNode()
-    private let workerLabel  = SKLabelNode()
-    private let hintPlus     = SKLabelNode()
-    private let hintCost     = SKLabelNode()
+    private let bg              = SKShapeNode(rectOf: size, cornerRadius: 10);
+    private let stageLabel      = SKLabelNode();
+    private let barBg           = SKShapeNode(rectOf: CGSize(width: barWidth, height: barHeight), cornerRadius: 3);
+    private let barFill         = SKShapeNode();
+    private let workerLabel     = SKLabelNode();
+    private let workerEnergyBar = SKShapeNode();
+    private let hintPlus        = SKLabelNode();
+    private let hintCost        = SKLabelNode();
 
     // MARK: - Init
 
@@ -53,9 +54,15 @@ final class FarmPlotNode: SKNode {
         addChild(barFill)
 
         // Worker badge
-        workerLabel.fontSize = 13
-        workerLabel.position = CGPoint(x: 20, y: 22)
-        addChild(workerLabel)
+        workerLabel.fontSize = 13;
+        workerLabel.position = CGPoint(x: 20, y: 22);
+        addChild(workerLabel);
+
+        // Worker energy bar (20×3pt strip below worker badge)
+        workerEnergyBar.strokeColor = .clear;
+        workerEnergyBar.position = CGPoint(x: 20, y: 13);
+        workerEnergyBar.isHidden = true;
+        addChild(workerEnergyBar);
 
         // Empty-state hint: seed emoji above, cost below
         hintPlus.text      = "🌰"   // seed — clearly "plant here"
@@ -80,7 +87,7 @@ final class FarmPlotNode: SKNode {
     private var wasReady    = false
     private var wasPlanted  = false
 
-    func update(plot: FarmPlot, warehouseFull: Bool, assignedEmoji: String?, workerAvailable: Bool) {
+    func update(plot: FarmPlot, warehouseFull: Bool, assignedEmoji: String?, workerAvailable: Bool, workerEnergy: Double) {
         let isEmpty = !plot.isPlanted
 
         hintPlus.isHidden   = !isEmpty
@@ -138,14 +145,31 @@ final class FarmPlotNode: SKNode {
 
         // Worker badge: solid when assigned, dim hint when worker available
         if plot.hasWorker, let emoji = assignedEmoji {
-            workerLabel.text  = emoji
-            workerLabel.alpha = 1.0
+            workerLabel.text  = emoji;
+            workerLabel.alpha = 1.0;
         } else if workerAvailable {
-            workerLabel.text  = "👷"
-            workerLabel.alpha = 0.25
+            workerLabel.text  = "👷";
+            workerLabel.alpha = 0.25;
         } else {
-            workerLabel.text  = ""
-            workerLabel.alpha = 1.0
+            workerLabel.text  = "";
+            workerLabel.alpha = 1.0;
+        }
+
+        // Worker energy bar
+        workerEnergyBar.isHidden = !plot.hasWorker;
+        if plot.hasWorker {
+            let fillW = CGFloat(20) * CGFloat(max(0, min(1, workerEnergy)));
+            workerEnergyBar.path = CGPath(
+                roundedRect: CGRect(x: -10, y: -1.5, width: max(fillW, 0), height: 3),
+                cornerWidth: 1.5, cornerHeight: 1.5, transform: nil
+            );
+            if workerEnergy > 0.6 {
+                workerEnergyBar.fillColor = SKColor(red: 0.2, green: 0.8, blue: 0.3, alpha: 1);
+            } else if workerEnergy > 0.3 {
+                workerEnergyBar.fillColor = SKColor(red: 0.95, green: 0.75, blue: 0.1, alpha: 1);
+            } else {
+                workerEnergyBar.fillColor = SKColor(red: 0.9, green: 0.25, blue: 0.2, alpha: 1);
+            }
         }
     }
 

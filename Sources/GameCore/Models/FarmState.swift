@@ -1,9 +1,10 @@
 import Foundation
 
 public struct FarmPlot: Codable {
-    public var growth: Double = 0.0
-    public var isPlanted: Bool = false
-    public var hasWorker: Bool = false
+    public var growth: Double = 0.0;
+    public var isPlanted: Bool = false;
+    public var hasWorker: Bool = false;
+    public var workerEnergy: Double = 1.0;
 
     public var isReady: Bool { isPlanted && growth >= 1.0 }
 
@@ -14,6 +15,11 @@ public struct FarmPlot: Codable {
         if growth < 1.0  { return .growing }
         return .ready
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case growth, isPlanted, hasWorker, workerEnergy
+    }
+
     public init() {}
 }
 

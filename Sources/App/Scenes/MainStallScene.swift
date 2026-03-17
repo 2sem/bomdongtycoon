@@ -243,7 +243,8 @@ final class MainStallScene: SKScene {
                     : nil
                 if plot.hasWorker { farmWorkerIdx += 1 }
                 farmPlotNodes[i].update(plot: plot, warehouseFull: warehouseFull,
-                                        assignedEmoji: assignedEmoji, workerAvailable: workerAvailable)
+                                        assignedEmoji: assignedEmoji, workerAvailable: workerAvailable,
+                                        workerEnergy: plot.workerEnergy);
             }
         }
         for i in activePlots..<farmPlotNodes.count {

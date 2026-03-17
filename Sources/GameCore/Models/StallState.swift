@@ -13,8 +13,12 @@ public struct StallState: Codable {
     public var tier3Count: Int = 0      // 봄동 요리사 — cashier + cook only
 
     // Position assignments
-    public var cashierCount: Int = 0
-    public var menuCooks: [Int] = [0, 0, 0]   // one slot per menu
+    public var cashierCount: Int = 0;
+    public var menuCooks: [Int] = [0, 0, 0];   // one slot per menu
+
+    // Worker energy (0.0–1.0)
+    public var menuCookEnergy: [Double] = [1.0, 1.0, 1.0];
+    public var cashierEnergy: Double = 1.0;
 
     // Warehouse
     public var warehouse: Int = 0
@@ -35,6 +39,7 @@ public struct StallState: Codable {
         case coins, menuTier, staffTier, stallTier, pendingCoins
         case tier1Count, tier2Count, tier3Count
         case cashierCount, menuCooks
+        case menuCookEnergy, cashierEnergy
         case warehouse, warehouseCapacity, menuStock
         case farmWorkers
     }

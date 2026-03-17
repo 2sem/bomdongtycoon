@@ -20,8 +20,12 @@ public final class GameStore: ObservableObject {
     }
 
     private let defaults: UserDefaults
-    private var cookAccumulators: [Double] = [0, 0, 0]   // per-menu
-    private var cashierAccumulator: Double = 0
+    private var cookAccumulators: [Double] = [0, 0, 0];   // per-menu
+    private var cashierAccumulator: Double = 0;
+
+    // MARK: - Energy constants
+    private static let energyDepletionRate: Double = 1.0 / 180.0;  // empties in 3 min
+    private static let energyRestoreRate:   Double = 1.0 / 90.0;   // full in 1.5 min
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -48,47 +52,46 @@ public final class GameStore: ObservableObject {
             loadedProgress = PlayerProgress()
         }
         self.progress = loadedProgress
-
-        // Migration from old save format
-        migrate()
     }
 
-    private func migrate() {
-        // Old save had staffCount (stored) — distribute into tierXCount
-        // Detect by checking if all tier counts are 0 but staffTier > 0
-        if stall.tier1Count == 0 && stall.tier2Count == 0 && stall.tier3Count == 0 && stall.staffTier > 0 {
-            // We lost staffCount from old format; best estimate: staffTier workers hired
-            switch stall.staffTier {
-            case 1: stall.tier1Count = 1
-            case 2: stall.tier1Count = 1; stall.tier2Count = 1
-            case 3: stall.tier1Count = 1; stall.tier2Count = 1; stall.tier3Count = 1
-            default: break
-            }
-        }
-        // Old shopWorkers → cashierCount
-        if stall.cashierCount == 0 && stall.shopWorkers == 0 && stall.staffCount > 0 {
-            let farmAssigned = farm.plots.filter { $0.hasWorker }.count
-            stall.cashierCount = max(0, stall.staffCount - farmAssigned)
-        }
+    // MARK: - Energy
 
-        // menuCooks migration: old format stored count (could be > 3); new format stores tier (0-3).
-        if stall.menuCooks.contains(where: { $0 > 3 }) {
-            for i in 0..<stall.menuCooks.count {
-                stall.menuCooks[i] = stall.menuCooks[i] > 0 ? max(1, min(stall.staffTier, 3)) : 0
-            }
-        }
+    private func energyMultiplier(_ energy: Double) -> Double {
+        max(0.2, energy);   // minimum 20% speed when exhausted
     }
 
     // MARK: - Tick
 
     public func tick(deltaTime: Double) {
-        let growRate   = FarmSystem.growthRate(for: farm)
-        let activePlots = FarmSystem.activePlotCount(for: farm)
+        let growRate   = FarmSystem.growthRate(for: farm);
+        let activePlots = FarmSystem.activePlotCount(for: farm);
+
+        // Energy: deplete while working, restore while resting
+        for i in 0..<stall.menuCookEnergy.count {
+            if i < stall.menuCooks.count, stall.menuCooks[i] > 0 {
+                stall.menuCookEnergy[i] = max(0, stall.menuCookEnergy[i] - Self.energyDepletionRate * deltaTime);
+            } else {
+                stall.menuCookEnergy[i] = min(1, stall.menuCookEnergy[i] + Self.energyRestoreRate * deltaTime);
+            }
+        }
+        if stall.cashierCount > 0 {
+            stall.cashierEnergy = max(0, stall.cashierEnergy - Self.energyDepletionRate * deltaTime);
+        } else {
+            stall.cashierEnergy = min(1, stall.cashierEnergy + Self.energyRestoreRate * deltaTime);
+        }
+        for i in 0..<farm.plots.count {
+            if farm.plots[i].hasWorker {
+                farm.plots[i].workerEnergy = max(0, farm.plots[i].workerEnergy - Self.energyDepletionRate * deltaTime);
+            } else {
+                farm.plots[i].workerEnergy = min(1, farm.plots[i].workerEnergy + Self.energyRestoreRate * deltaTime);
+            }
+        }
 
         // Grow planted plots
         for i in 0..<min(activePlots, farm.plots.count) {
             guard farm.plots[i].isPlanted, !farm.plots[i].isReady else { continue }
-            farm.plots[i].growth = min(farm.plots[i].growth + growRate * deltaTime, 1.0)
+            let boost = farm.plots[i].hasWorker ? (0.5 + 0.5 * farm.plots[i].workerEnergy) : 1.0;
+            farm.plots[i].growth = min(farm.plots[i].growth + growRate * boost * deltaTime, 1.0);
         }
 
         // Farm workers (tier1 only) auto-harvest and replant
@@ -112,7 +115,8 @@ public final class GameStore: ObservableObject {
             let tier = stall.menuCooks[i]
             guard tier > 0, stall.warehouse > 0, i <= stall.menuTier else { continue }
             guard i < stall.menuStock.count, stall.menuStock[i] < maxStock else { continue }
-            cookAccumulators[i] += cookRate(forTier: tier) * deltaTime
+            let energy = i < stall.menuCookEnergy.count ? stall.menuCookEnergy[i] : 1.0;
+            cookAccumulators[i] += cookRate(forTier: tier) * energyMultiplier(energy) * deltaTime;
             while cookAccumulators[i] >= 1.0,
                   stall.warehouse > 0,
                   stall.menuStock[i] < maxStock {
@@ -188,6 +192,12 @@ public final class GameStore: ObservableObject {
 
     /// Auto-cook accumulators exposed for progress bar display (0.0–1.0 each).
     public var cookProgress: [Double] { cookAccumulators }
+
+    /// Energy levels for each menu cook slot (0.0–1.0).
+    public var menuCookEnergies: [Double] { stall.menuCookEnergy }
+
+    /// Energy level for the cashier worker (0.0–1.0).
+    public var cashierEnergy: Double { stall.cashierEnergy }
 
     /// Manually cook 1 item for the given menu (regardless of cook assignment).
     public func manualCook(menuIndex: Int) {
@@ -266,7 +276,7 @@ public final class GameStore: ObservableObject {
     }
 
     public func assignToCashier() {
-        guard availableWorkers > 0 else { return }
+        guard availableWorkers > 0, stall.cashierCount == 0 else { return }
         stall.cashierCount += 1
         save()
     }
@@ -284,6 +294,27 @@ public final class GameStore: ObservableObject {
               availableWorkers > 0 else { return }
         stall.menuCooks[menuIndex] = highestAvailableTier()
         save()
+    }
+
+    /// Assign a worker of a specific tier directly to a menu slot.
+    public func assignMenuCook(menuIndex: Int, tier: Int) {
+        guard menuIndex <= stall.menuTier,
+              menuIndex < stall.menuCooks.count,
+              stall.menuCooks[menuIndex] == 0 else { return }
+        let total = tierCount(for: tier)
+        let used  = stall.menuCooks.filter { $0 == tier }.count
+        guard total > used else { return }
+        stall.menuCooks[menuIndex] = tier
+        save()
+    }
+
+    private func tierCount(for tier: Int) -> Int {
+        switch tier {
+        case 1: stall.tier1Count
+        case 2: stall.tier2Count
+        case 3: stall.tier3Count
+        default: 0
+        }
     }
 
     public func removeMenuCook(menuIndex: Int) {

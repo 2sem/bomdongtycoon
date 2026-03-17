@@ -4,10 +4,11 @@ import GameCore
 // MARK: - WorkerItem
 
 private struct WorkerItem: Identifiable {
-    let id: Int
-    let indexInTier: Int
-    let tier: Int
-    var assignment: Assignment
+    let id: Int;
+    let indexInTier: Int;
+    let tier: Int;
+    var assignment: Assignment;
+    var energy: Double;
 
     enum Assignment: Hashable {
         case unassigned, farm, cashier, menu(Int)
@@ -95,6 +96,7 @@ public struct StaffSheet: View {
                             worker: worker,
                             menuTier: store.stall.menuTier,
                             menuCooks: store.stall.menuCooks,
+                            cashierCount: store.stall.cashierCount,
                             activeFarmPlots: FarmSystem.activePlotCount(for: store.farm),
                             farmPlots: store.farm.plots,
                             onReassign: { reassign(worker: worker, to: $0) }
@@ -114,7 +116,8 @@ public struct StaffSheet: View {
         List {
             Section {
                 ForEach(1...3, id: \.self) { tier in
-                    HireTierRow(tier: tier, menuCount: store.stall.menuTier + 1)
+                    HireTierRow(tier: tier, menuCount: store.stall.menuTier + 1,
+                                onHired: { withAnimation { tab = 0 } })
                         .environmentObject(store)
                 }
             } header: {
@@ -144,51 +147,83 @@ public struct StaffSheet: View {
     // MARK: - Build worker items from store state
 
     private func buildWorkers() -> [WorkerItem] {
-        var items: [WorkerItem] = []
-        var idCounter = 0
-        var remainingCashiers = store.stall.cashierCount
+        var items: [WorkerItem] = [];
+        var idCounter = 0;
+        var remainingCashiers = store.stall.cashierCount;
 
         func menuSlots(for tier: Int) -> ArraySlice<Int> {
-            let slots = (0..<store.stall.menuCooks.count).filter { store.stall.menuCooks[$0] == tier }
-            return slots[...]
+            let slots = (0..<store.stall.menuCooks.count).filter { store.stall.menuCooks[$0] == tier };
+            return slots[...];
+        }
+
+        // Farm energy cursor: map kth farm-assigned worker to kth plot with hasWorker
+        var farmPlotCursor = 0;
+        func nextFarmWorkerEnergy() -> Double {
+            while farmPlotCursor < store.farm.plots.count {
+                if store.farm.plots[farmPlotCursor].hasWorker {
+                    let e = store.farm.plots[farmPlotCursor].workerEnergy;
+                    farmPlotCursor += 1;
+                    return e;
+                }
+                farmPlotCursor += 1;
+            }
+            return 1.0;
         }
 
         // Tier 3 (봄동 요리사): menus only
-        var t3 = menuSlots(for: 3)
-        var tier3Idx = 0
+        var t3 = menuSlots(for: 3);
+        var tier3Idx = 0;
         for _ in 0..<store.stall.tier3Count {
-            let a: WorkerItem.Assignment = t3.isEmpty ? .unassigned : .menu(t3.removeFirst())
-            items.append(WorkerItem(id: idCounter, indexInTier: tier3Idx, tier: 3, assignment: a))
-            idCounter += 1; tier3Idx += 1
+            let a: WorkerItem.Assignment = t3.isEmpty ? .unassigned : .menu(t3.removeFirst());
+            let e: Double;
+            switch a {
+            case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0
+            default:           e = 1.0
+            }
+            items.append(WorkerItem(id: idCounter, indexInTier: tier3Idx, tier: 3, assignment: a, energy: e));
+            idCounter += 1; tier3Idx += 1;
         }
 
         // Tier 2 (이모님): menus → cashier → unassigned
-        var t2 = menuSlots(for: 2)
-        var tier2Idx = 0
+        var t2 = menuSlots(for: 2);
+        var tier2Idx = 0;
         for _ in 0..<store.stall.tier2Count {
-            let a: WorkerItem.Assignment
+            let a: WorkerItem.Assignment;
             if !t2.isEmpty               { a = .menu(t2.removeFirst()) }
             else if remainingCashiers > 0 { remainingCashiers -= 1; a = .cashier }
             else                          { a = .unassigned }
-            items.append(WorkerItem(id: idCounter, indexInTier: tier2Idx, tier: 2, assignment: a))
-            idCounter += 1; tier2Idx += 1
+            let e: Double;
+            switch a {
+            case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0
+            case .cashier:     e = store.stall.cashierEnergy
+            default:           e = 1.0
+            }
+            items.append(WorkerItem(id: idCounter, indexInTier: tier2Idx, tier: 2, assignment: a, energy: e));
+            idCounter += 1; tier2Idx += 1;
         }
 
         // Tier 1 (알바생): menus → farm → cashier → unassigned
-        var t1 = menuSlots(for: 1)
-        var farmWorkers = store.farm.plots.filter { $0.hasWorker }.count
-        var tier1Idx = 0
+        var t1 = menuSlots(for: 1);
+        var farmWorkers = store.farm.plots.filter { $0.hasWorker }.count;
+        var tier1Idx = 0;
         for _ in 0..<store.stall.tier1Count {
-            let a: WorkerItem.Assignment
+            let a: WorkerItem.Assignment;
             if !t1.isEmpty               { a = .menu(t1.removeFirst()) }
             else if farmWorkers > 0       { farmWorkers -= 1; a = .farm }
             else if remainingCashiers > 0 { remainingCashiers -= 1; a = .cashier }
             else                          { a = .unassigned }
-            items.append(WorkerItem(id: idCounter, indexInTier: tier1Idx, tier: 1, assignment: a))
-            idCounter += 1; tier1Idx += 1
+            let e: Double;
+            switch a {
+            case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0
+            case .cashier:     e = store.stall.cashierEnergy
+            case .farm:        e = nextFarmWorkerEnergy()
+            default:           e = 1.0
+            }
+            items.append(WorkerItem(id: idCounter, indexInTier: tier1Idx, tier: 1, assignment: a, energy: e));
+            idCounter += 1; tier1Idx += 1;
         }
 
-        return items
+        return items;
     }
 
     // MARK: - Reassign
@@ -224,14 +259,15 @@ public struct StaffSheet: View {
 // MARK: - WorkerRow
 
 private struct WorkerRow: View {
-    let worker: WorkerItem
-    let menuTier: Int
-    let menuCooks: [Int]
-    let activeFarmPlots: Int
-    let farmPlots: [FarmPlot]
-    let onReassign: (WorkerItem.Assignment) -> Void
+    let worker: WorkerItem;
+    let menuTier: Int;
+    let menuCooks: [Int];
+    let cashierCount: Int;
+    let activeFarmPlots: Int;
+    let farmPlots: [FarmPlot];
+    let onReassign: (WorkerItem.Assignment) -> Void;
 
-    private static let name  = ["", "알바생", "이모님", "봄동 요리사"]
+    private static let name  = ["", "알바생", "이모님", "봄동 요리사"];
 
     private static let tier1Emojis = ["🧑", "👦", "👧", "👱‍♂️", "👱‍♀️", "🧑‍💼"]
     private static let tier3Emojis = ["👨‍🍳", "👩‍🍳"]
@@ -253,9 +289,10 @@ private struct WorkerRow: View {
             opts.append((.farm, freeSlots > 0 || worker.assignment == .farm))
         }
 
-        // Cashier: tier 1 and 2 only (not 요리사)
+        // Cashier: tier 1 and 2 only, single slot
         if worker.tier <= 2 {
-            opts.append((.cashier, true))
+            let cashierFree = cashierCount == 0 || worker.assignment == .cashier
+            opts.append((.cashier, cashierFree))
         }
 
         for i in 0...menuTier {
@@ -265,11 +302,18 @@ private struct WorkerRow: View {
         return opts
     }
 
-    private func assignmentLabel(_ a: WorkerItem.Assignment) -> String {
+    private func assignmentLabel(_ a: WorkerItem.Assignment, energy: Double = 1.0) -> String {
+        if case .unassigned = a, energy < 0.99 { return "💤 휴식 중" }
         switch a {
         case .menu(let i): return UpgradeDefinitions.menu[safe: i]?.name ?? "메뉴 \(i + 1)"
         default:           return a.label
         }
+    }
+
+    private func energyColor(_ e: Double) -> Color {
+        if e > 0.6 { return Color(red: 0.2, green: 0.8, blue: 0.3) }
+        if e > 0.3 { return Color(red: 0.95, green: 0.75, blue: 0.1) }
+        return Color(red: 0.9, green: 0.25, blue: 0.2);
     }
 
     var body: some View {
@@ -282,11 +326,22 @@ private struct WorkerRow: View {
                     .font(.system(size: 22))
             }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(Self.name[worker.tier]).font(.headline)
-                Text(assignmentLabel(worker.assignment))
+                Text(assignmentLabel(worker.assignment, energy: worker.energy))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 4)
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(energyColor(worker.energy))
+                            .frame(width: geo.size.width * CGFloat(worker.energy), height: 4)
+                    }
+                }
+                .frame(height: 4)
             }
 
             Spacer()
@@ -307,7 +362,7 @@ private struct WorkerRow: View {
                 }
             } label: {
                 HStack(spacing: 4) {
-                    Text(assignmentLabel(worker.assignment)).font(.caption.bold())
+                    Text(assignmentLabel(worker.assignment, energy: worker.energy)).font(.caption.bold())
                     Image(systemName: "chevron.up.chevron.down").font(.caption2)
                 }
                 .padding(.horizontal, 10)
@@ -335,6 +390,7 @@ private struct HireTierRow: View {
     @EnvironmentObject var store: GameStore
     let tier: Int
     let menuCount: Int
+    let onHired: () -> Void
 
     private var def: UpgradeDefinition { UpgradeDefinitions.staff[tier - 1] }
 
@@ -406,6 +462,7 @@ private struct HireTierRow: View {
                     Button {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         store.hireWorker(tier: tier)
+                        onHired()
                     } label: {
                         Text("₩\(Int(def.coinCost))").font(.caption.bold())
                     }
