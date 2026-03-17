@@ -1,9 +1,34 @@
 import SwiftUI
 import GameCore
 
+// MARK: - WorkerItem
+
+private struct WorkerItem: Identifiable {
+    let id: Int
+    let indexInTier: Int
+    let tier: Int
+    var assignment: Assignment
+
+    enum Assignment: Hashable {
+        case unassigned, farm, cashier, menu(Int)
+
+        var label: String {
+            switch self {
+            case .unassigned:   return "미배정"
+            case .farm:         return "텃밭"
+            case .cashier:      return "계산대"
+            case .menu(let i):  return "메뉴 \(i + 1)"
+            }
+        }
+    }
+}
+
+// MARK: - StaffSheet
+
 public struct StaffSheet: View {
     @EnvironmentObject var store: GameStore
     @Binding public var isPresented: Bool
+    @State private var tab = 0
 
     public init(isPresented: Binding<Bool>) {
         self._isPresented = isPresented
@@ -11,11 +36,14 @@ public struct StaffSheet: View {
 
     public var body: some View {
         NavigationStack {
-            List {
-                hireSection
-                availableSection
-                cashierSection
-                cookSection
+            VStack(spacing: 0) {
+                tabBar
+                TabView(selection: $tab) {
+                    workerList.tag(0)
+                    hireList.tag(1)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .animation(.easeInOut(duration: 0.25), value: tab)
             }
             .navigationTitle("직원 관리")
             .navigationBarTitleDisplayMode(.inline)
@@ -27,206 +55,277 @@ public struct StaffSheet: View {
         }
     }
 
-    // MARK: - Hire Section
+    // MARK: - Tab bar
 
-    private var hireSection: some View {
-        Section {
-            ForEach(1...3, id: \.self) { tier in
-                HireTierRow(tier: tier)
-                    .environmentObject(store)
-            }
-        } header: {
-            Text("직원 고용")
-                .foregroundStyle(Color.deepAmber)
+    private var tabBar: some View {
+        HStack(spacing: 0) {
+            tabButton("직원", tag: 0)
+            tabButton("고용", tag: 1)
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color(uiColor: .systemGroupedBackground))
     }
 
-    // MARK: - Available Workers Banner
+    // MARK: - Worker list
 
-    private var availableSection: some View {
-        Section {
-            HStack(spacing: 16) {
-                TierIconCount(emoji: "👨", count: store.stall.tier1Count)
-                TierIconCount(emoji: "👩", count: store.stall.tier2Count)
-                TierIconCount(emoji: "👨‍🍳", count: store.stall.tier3Count)
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(max(0, store.availableWorkers))명")
-                        .font(.title2.bold())
-                        .foregroundStyle(store.availableWorkers > 0 ? Color.deepAmber : .secondary)
-                    Text("여유")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+    private var workerList: some View {
+        let workers = buildWorkers()
+        return List {
+            if workers.isEmpty {
+                Section {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 8) {
+                            Image(systemName: "person.slash")
+                                .font(.system(size: 36))
+                                .foregroundStyle(.tertiary)
+                            Text("고용 탭에서 직원을 채용하세요")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 24)
+                        Spacer()
+                    }
+                }
+            } else {
+                Section {
+                    ForEach(workers) { worker in
+                        WorkerRow(
+                            worker: worker,
+                            menuTier: store.stall.menuTier,
+                            menuCooks: store.stall.menuCooks,
+                            activeFarmPlots: FarmSystem.activePlotCount(for: store.farm),
+                            farmPlots: store.farm.plots,
+                            onReassign: { reassign(worker: worker, to: $0) }
+                        )
+                    }
+                } header: {
+                    Text("직원 목록")
                 }
             }
-            .padding(.vertical, 4)
-            .listRowBackground(Color.creamBackground)
         }
+        .listStyle(.insetGrouped)
     }
 
-    // MARK: - Cashier Section
+    // MARK: - Hire list
 
-    private var cashierSection: some View {
-        Section {
-            StaffPositionRow(
-                icon: "person.crop.circle.badge.checkmark",
-                iconBg: Color.warmAmber,
-                iconIsEmoji: false,
-                positionName: "계산원",
-                statusText: store.stall.cashierCount > 0 ? "배정됨 · 자동 수금 활성" : "비어있음",
-                assignedCount: store.stall.cashierCount,
-                isSingleSlot: true,
-                canAssign: store.availableWorkers > 0,
-                onAssign: { store.assignToCashier() },
-                onRemove: { store.removeFromCashier() }
-            )
-        } header: {
-            Text("계산대")
-                .foregroundStyle(Color.deepAmber)
-        }
-    }
-
-    // MARK: - Cook Section
-
-    private var cookSection: some View {
-        Section {
-            ForEach(0...store.stall.menuTier, id: \.self) { i in
-                let menuName = UpgradeDefinitions.menu[i].name
-                let tier = i < store.stall.menuCooks.count ? store.stall.menuCooks[i] : 0
-                let tierName = tier > 0 ? UpgradeDefinitions.staff[tier - 1].name : ""
-                let speed = tier > 0 ? GameStore.cookSpeedLabel(forTier: tier) : ""
-                let status = tier > 0
-                    ? "\(tierName) · \(speed) · 자동 조리 활성"
-                    : "비어있음 (수동 조리 가능)"
-                StaffPositionRow(
-                    icon: cookEmoji(for: i),
-                    iconBg: cookColor(for: i),
-                    iconIsEmoji: true,
-                    positionName: "\(menuName) 요리사",
-                    statusText: status,
-                    assignedCount: tier > 0 ? 1 : 0,
-                    isSingleSlot: true,
-                    canAssign: store.availableWorkers > 0 && tier == 0,
-                    onAssign: { store.assignMenuCook(menuIndex: i) },
-                    onRemove: { store.removeMenuCook(menuIndex: i) }
-                )
+    private var hireList: some View {
+        List {
+            Section {
+                ForEach(1...3, id: \.self) { tier in
+                    HireTierRow(tier: tier, menuCount: store.stall.menuTier + 1)
+                        .environmentObject(store)
+                }
+            } header: {
+                Text("직원 고용").foregroundStyle(Color.staffAmber)
             }
-        } header: {
-            Text("주방")
-                .foregroundStyle(Color.deepAmber)
         }
+        .listStyle(.insetGrouped)
     }
 
-    private func cookEmoji(for index: Int) -> String {
-        ["🥬", "🥗", "🥘"][safe: index] ?? "🍳"
+    // MARK: - Tab button
+
+    private func tabButton(_ title: String, tag: Int) -> some View {
+        Button { tab = tag } label: {
+            Text(title)
+                .font(.subheadline.bold())
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(
+                    tab == tag ? Color.staffAmber : Color.staffAmber.opacity(0.10),
+                    in: RoundedRectangle(cornerRadius: 8)
+                )
+                .foregroundStyle(tab == tag ? .white : Color.staffAmber)
+        }
+        .buttonStyle(.plain)
     }
 
-    private func cookColor(for index: Int) -> Color {
-        [Color.cookGreen, Color.cookGreen, Color.warmOrange][safe: index] ?? Color.cookGreen
+    // MARK: - Build worker items from store state
+
+    private func buildWorkers() -> [WorkerItem] {
+        var items: [WorkerItem] = []
+        var idCounter = 0
+        var remainingCashiers = store.stall.cashierCount
+
+        func menuSlots(for tier: Int) -> ArraySlice<Int> {
+            let slots = (0..<store.stall.menuCooks.count).filter { store.stall.menuCooks[$0] == tier }
+            return slots[...]
+        }
+
+        // Tier 3 (봄동 요리사): menus only
+        var t3 = menuSlots(for: 3)
+        var tier3Idx = 0
+        for _ in 0..<store.stall.tier3Count {
+            let a: WorkerItem.Assignment = t3.isEmpty ? .unassigned : .menu(t3.removeFirst())
+            items.append(WorkerItem(id: idCounter, indexInTier: tier3Idx, tier: 3, assignment: a))
+            idCounter += 1; tier3Idx += 1
+        }
+
+        // Tier 2 (이모님): menus → cashier → unassigned
+        var t2 = menuSlots(for: 2)
+        var tier2Idx = 0
+        for _ in 0..<store.stall.tier2Count {
+            let a: WorkerItem.Assignment
+            if !t2.isEmpty               { a = .menu(t2.removeFirst()) }
+            else if remainingCashiers > 0 { remainingCashiers -= 1; a = .cashier }
+            else                          { a = .unassigned }
+            items.append(WorkerItem(id: idCounter, indexInTier: tier2Idx, tier: 2, assignment: a))
+            idCounter += 1; tier2Idx += 1
+        }
+
+        // Tier 1 (알바생): menus → farm → cashier → unassigned
+        var t1 = menuSlots(for: 1)
+        var farmWorkers = store.farm.plots.filter { $0.hasWorker }.count
+        var tier1Idx = 0
+        for _ in 0..<store.stall.tier1Count {
+            let a: WorkerItem.Assignment
+            if !t1.isEmpty               { a = .menu(t1.removeFirst()) }
+            else if farmWorkers > 0       { farmWorkers -= 1; a = .farm }
+            else if remainingCashiers > 0 { remainingCashiers -= 1; a = .cashier }
+            else                          { a = .unassigned }
+            items.append(WorkerItem(id: idCounter, indexInTier: tier1Idx, tier: 1, assignment: a))
+            idCounter += 1; tier1Idx += 1
+        }
+
+        return items
+    }
+
+    // MARK: - Reassign
+
+    private func reassign(worker: WorkerItem, to new: WorkerItem.Assignment) {
+        guard new != worker.assignment else { return }
+
+        // Unassign from current
+        switch worker.assignment {
+        case .menu(let i):   store.removeMenuCook(menuIndex: i)
+        case .cashier:       store.removeFromCashier()
+        case .farm:
+            if let idx = store.farm.plots.firstIndex(where: { $0.hasWorker }) {
+                store.toggleWorker(plotIndex: idx)
+            }
+        case .unassigned: break
+        }
+
+        // Assign to new position
+        switch new {
+        case .menu(let i):   store.assignMenuCook(menuIndex: i, tier: worker.tier)
+        case .cashier:       store.assignToCashier()
+        case .farm:
+            let active = FarmSystem.activePlotCount(for: store.farm)
+            if let idx = (0..<active).first(where: { !store.farm.plots[$0].hasWorker }) {
+                store.toggleWorker(plotIndex: idx)
+            }
+        case .unassigned: break
+        }
     }
 }
 
-// MARK: - StaffPositionRow
+// MARK: - WorkerRow
 
-private struct StaffPositionRow: View {
-    let icon: String
-    let iconBg: Color
-    let iconIsEmoji: Bool
-    let positionName: String
-    let statusText: String
-    let assignedCount: Int
-    let isSingleSlot: Bool
-    let canAssign: Bool
-    let onAssign: () -> Void
-    let onRemove: () -> Void
+private struct WorkerRow: View {
+    let worker: WorkerItem
+    let menuTier: Int
+    let menuCooks: [Int]
+    let activeFarmPlots: Int
+    let farmPlots: [FarmPlot]
+    let onReassign: (WorkerItem.Assignment) -> Void
+
+    private static let name  = ["", "알바생", "이모님", "봄동 요리사"]
+
+    private static let tier1Emojis = ["🧑", "👦", "👧", "👱‍♂️", "👱‍♀️", "🧑‍💼"]
+    private static let tier3Emojis = ["👨‍🍳", "👩‍🍳"]
+
+    private func workerEmoji(tier: Int, indexInTier: Int) -> String {
+        switch tier {
+        case 1:  Self.tier1Emojis[indexInTier % Self.tier1Emojis.count]
+        case 2:  "👵"
+        case 3:  Self.tier3Emojis[indexInTier % Self.tier3Emojis.count]
+        default: "🧑"
+        }
+    }
+
+    private var options: [(WorkerItem.Assignment, Bool)] {
+        var opts: [(WorkerItem.Assignment, Bool)] = [(.unassigned, true)]
+
+        if worker.tier == 1 {
+            let freeSlots = (0..<activeFarmPlots).filter { !farmPlots[$0].hasWorker }.count
+            opts.append((.farm, freeSlots > 0 || worker.assignment == .farm))
+        }
+
+        // Cashier: tier 1 and 2 only (not 요리사)
+        if worker.tier <= 2 {
+            opts.append((.cashier, true))
+        }
+
+        for i in 0...menuTier {
+            let slotTier = menuCooks[safe: i] ?? 0
+            opts.append((.menu(i), slotTier == 0 || worker.assignment == .menu(i)))
+        }
+        return opts
+    }
+
+    private func assignmentLabel(_ a: WorkerItem.Assignment) -> String {
+        switch a {
+        case .menu(let i): return UpgradeDefinitions.menu[safe: i]?.name ?? "메뉴 \(i + 1)"
+        default:           return a.label
+        }
+    }
 
     var body: some View {
         HStack(spacing: 12) {
-            // Icon
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(iconBg)
-                    .frame(width: 36, height: 36)
-                if iconIsEmoji {
-                    Text(icon)
-                        .font(.system(size: 20))
-                } else {
-                    Image(systemName: icon)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
+                    .fill(tierColor(worker.tier))
+                    .frame(width: 40, height: 40)
+                Text(workerEmoji(tier: worker.tier, indexInTier: worker.indexInTier))
+                    .font(.system(size: 22))
             }
 
-            // Labels
             VStack(alignment: .leading, spacing: 2) {
-                Text(positionName)
-                    .font(.headline)
-                Text(statusText)
+                Text(Self.name[worker.tier]).font(.headline)
+                Text(assignmentLabel(worker.assignment))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
 
-            // Buttons
-            assignmentButtons
-        }
-        .padding(.vertical, 4)
-    }
-
-    @ViewBuilder
-    private var assignmentButtons: some View {
-        if isSingleSlot {
-            if assignedCount > 0 {
-                removeButton
-            } else {
-                assignButton
-            }
-        } else {
-            if assignedCount > 0 {
-                VStack(spacing: 6) {
-                    assignButton
-                    removeButton
+            Menu {
+                ForEach(options, id: \.0) { option, available in
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        onReassign(option)
+                    } label: {
+                        if worker.assignment == option {
+                            Label(assignmentLabel(option), systemImage: "checkmark")
+                        } else {
+                            Text(assignmentLabel(option))
+                        }
+                    }
+                    .disabled(!available)
                 }
-                .frame(width: 80)
-            } else {
-                assignButton
-                    .frame(width: 80)
+            } label: {
+                HStack(spacing: 4) {
+                    Text(assignmentLabel(worker.assignment)).font(.caption.bold())
+                    Image(systemName: "chevron.up.chevron.down").font(.caption2)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.staffAmber.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+                .foregroundStyle(Color.staffAmber)
             }
         }
+        .padding(.vertical, 2)
     }
 
-    private var assignButton: some View {
-        Button {
-            haptic()
-            onAssign()
-        } label: {
-            Label(assignedCount > 0 ? "배정 +" : "배정", systemImage: "plus")
-                .font(.caption.bold())
-                .labelStyle(.titleOnly)
+    private func tierColor(_ tier: Int) -> Color {
+        switch tier {
+        case 1:  Color(red: 0.93, green: 0.70, blue: 0.18)
+        case 2:  Color(red: 0.62, green: 0.80, blue: 0.95)
+        case 3:  Color(red: 0.96, green: 0.76, blue: 0.38)
+        default: Color.gray.opacity(0.3)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(canAssign ? Color.deepAmber : .gray)
-        .disabled(!canAssign)
-        .controlSize(.small)
-    }
-
-    private var removeButton: some View {
-        Button {
-            haptic()
-            onRemove()
-        } label: {
-            Label("해제", systemImage: "minus")
-                .font(.caption.bold())
-                .labelStyle(.titleOnly)
-        }
-        .buttonStyle(.bordered)
-        .tint(.red)
-        .controlSize(.small)
-    }
-
-    private func haptic() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 }
 
@@ -235,24 +334,31 @@ private struct StaffPositionRow: View {
 private struct HireTierRow: View {
     @EnvironmentObject var store: GameStore
     let tier: Int
+    let menuCount: Int
 
     private var def: UpgradeDefinition { UpgradeDefinitions.staff[tier - 1] }
 
     private var count: Int {
         switch tier {
-        case 1: return store.stall.tier1Count
-        case 2: return store.stall.tier2Count
-        case 3: return store.stall.tier3Count
-        default: return 0
+        case 1: store.stall.tier1Count
+        case 2: store.stall.tier2Count
+        case 3: store.stall.tier3Count
+        default: 0
         }
+    }
+
+    /// Tier 2+3 workers fill menu slots — cap at total menus
+    private var isAtCap: Bool {
+        guard tier >= 2 else { return false }
+        return store.stall.tier2Count + store.stall.tier3Count >= menuCount
     }
 
     private var isUnlocked: Bool {
         switch tier {
-        case 1: return true
-        case 2: return store.stall.stallTier >= 1
-        case 3: return store.stall.stallTier >= 2
-        default: return false
+        case 1: true
+        case 2: store.stall.stallTier >= 1
+        case 3: store.stall.stallTier >= 2
+        default: false
         }
     }
 
@@ -264,95 +370,63 @@ private struct HireTierRow: View {
         }
     }
 
-    private var tierEmoji: String {
-        switch tier {
-        case 1: return "👨"
-        case 2: return "👩"
-        case 3: return "👨‍🍳"
-        default: return ""
-        }
-    }
+    private static let hireEmoji = ["", "🧑", "👵", "👨‍🍳"]
 
     var body: some View {
         HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isUnlocked ? Color.warmAmber : Color.gray.opacity(0.3))
-                    .frame(width: 36, height: 36)
-                Text(tierEmoji)
-                    .font(.system(size: 20))
+                    .fill(isUnlocked ? Color.staffAmber.opacity(0.8) : Color.gray.opacity(0.2))
+                    .frame(width: 40, height: 40)
+                Text(Self.hireEmoji[tier]).font(.system(size: 22))
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(def.name)
-                    .font(.headline)
-                    .foregroundStyle(isUnlocked ? Color.primary : Color.secondary)
+                Text(def.name).font(.headline)
+                    .foregroundStyle(isUnlocked ? .primary : .secondary)
                 if isUnlocked {
-                    Text(def.description)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("현재 \(count)명")
-                        .font(.caption2)
-                        .foregroundStyle(Color.deepAmber)
+                    Text(def.description).font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: 4) {
+                        Text("현재 \(count)명").font(.caption2).foregroundStyle(Color.staffAmber)
+                        if tier >= 2 {
+                            Text("/ 최대 \(menuCount)명").font(.caption2).foregroundStyle(.tertiary)
+                        }
+                    }
                 } else {
-                    Text(unlockHint)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text(unlockHint).font(.caption).foregroundStyle(.secondary)
                 }
             }
 
             Spacer()
 
             if isUnlocked {
-                let canAfford = store.stall.coins >= def.coinCost
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    store.hireWorker(tier: tier)
-                } label: {
-                    Text("₩\(Int(def.coinCost))")
-                        .font(.caption.bold())
+                if isAtCap {
+                    Text("최대").font(.caption).foregroundStyle(.tertiary)
+                } else {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        store.hireWorker(tier: tier)
+                    } label: {
+                        Text("₩\(Int(def.coinCost))").font(.caption.bold())
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(store.stall.coins >= def.coinCost ? Color.staffAmber : .gray)
+                    .disabled(store.stall.coins < def.coinCost)
+                    .controlSize(.small)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(canAfford ? Color.deepAmber : .gray)
-                .disabled(!canAfford)
-                .controlSize(.small)
             } else {
-                Image(systemName: "lock.fill")
-                    .foregroundStyle(.tertiary)
+                Image(systemName: "lock.fill").foregroundStyle(.tertiary)
             }
         }
         .padding(.vertical, 4)
     }
 }
 
-// MARK: - TierIconCount
-
-private struct TierIconCount: View {
-    let emoji: String
-    let count: Int
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Text(emoji)
-                .font(.system(size: 26))
-            Text("\(count)")
-                .font(.caption.bold())
-                .foregroundStyle(count > 0 ? Color.deepAmber : Color.secondary)
-        }
-    }
-}
-
-// MARK: - Color Palette
+// MARK: - Helpers
 
 private extension Color {
-    static let warmAmber     = Color(red: 0.93, green: 0.70, blue: 0.18)
-    static let deepAmber     = Color(red: 0.72, green: 0.40, blue: 0.10)
-    static let creamBackground = Color(red: 0.98, green: 0.94, blue: 0.86)
-    static let cookGreen     = Color(red: 0.72, green: 0.88, blue: 0.52)
-    static let warmOrange    = Color(red: 0.96, green: 0.76, blue: 0.38)
+    static let staffAmber = Color(red: 0.72, green: 0.40, blue: 0.10)
 }
-
-// MARK: - Safe subscript
 
 private extension Array {
     subscript(safe index: Int) -> Element? {

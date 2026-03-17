@@ -20,6 +20,7 @@ final class MainStallScene: SKScene {
     private var lastPendingCoins: Double = 0
     private var lastStallTier = -1
     private var lastShopName = ""
+    private var lastAvailableWorkers = -1
 
     // Farm
     private var farmPlotNodes: [FarmPlotNode] = []
@@ -54,6 +55,28 @@ final class MainStallScene: SKScene {
     private static func menuEmoji(for index: Int) -> String {
         let all = ["🥬", "🥗", "🥘"]
         return index < all.count ? all[index] : "🥬"
+    }
+
+    private static let tier1Emojis = ["🧑", "👦", "👧", "👱‍♂️", "👱‍♀️", "🧑‍💼"]
+    private static let tier3Emojis = ["👨‍🍳", "👩‍🍳"]
+
+    private func staffEmoji(tier: Int, indexInTier: Int) -> String {
+        switch tier {
+        case 1:  Self.tier1Emojis[indexInTier % Self.tier1Emojis.count]
+        case 2:  "👵"
+        case 3:  Self.tier3Emojis[indexInTier % Self.tier3Emojis.count]
+        default: "🧑"
+        }
+    }
+
+    /// Emoji for the cook assigned to menu slot i (tier > 0).
+    private func cookEmoji(menuIndex i: Int, store: GameStore) -> String {
+        let tier = i < store.stall.menuCooks.count ? store.stall.menuCooks[i] : 0
+        guard tier > 0 else { return "" }
+        let slotsForTier = store.stall.menuCooks.enumerated()
+            .filter { $0.element == tier }.map { $0.offset }.sorted()
+        let indexInTier = slotsForTier.firstIndex(of: i) ?? 0
+        return staffEmoji(tier: tier, indexInTier: indexInTier)
     }
 
     // Bottom-up layout: stack zones from safe bottom, sky fills the rest naturally.
@@ -208,11 +231,19 @@ final class MainStallScene: SKScene {
         let warehouseFull = (store?.stall.warehouse ?? 0) >= (store?.stall.warehouseCapacity ?? 1)
         let workerAvailable = (store?.availableForFarm ?? 0) > 0
 
+        let tier1InMenus = store?.stall.menuCooks.filter { $0 == 1 }.count ?? 0
+        var farmWorkerIdx = 0
         for i in 0..<activePlots {
             farmPlotNodes[i].position = gridPosition(for: i)
             farmPlotNodes[i].isHidden = false
             if i < farm.plots.count {
-                farmPlotNodes[i].update(plot: farm.plots[i], warehouseFull: warehouseFull, workerAvailable: workerAvailable)
+                let plot = farm.plots[i]
+                let assignedEmoji: String? = plot.hasWorker
+                    ? staffEmoji(tier: 1, indexInTier: tier1InMenus + farmWorkerIdx)
+                    : nil
+                if plot.hasWorker { farmWorkerIdx += 1 }
+                farmPlotNodes[i].update(plot: plot, warehouseFull: warehouseFull,
+                                        assignedEmoji: assignedEmoji, workerAvailable: workerAvailable)
             }
         }
         for i in activePlots..<farmPlotNodes.count {
@@ -334,8 +365,8 @@ final class MainStallScene: SKScene {
             let cookTier = i < store.stall.menuCooks.count ? store.stall.menuCooks[i] : 0
             let stock    = i < store.stall.menuStock.count ? store.stall.menuStock[i] : 0
             let prog     = i < progress.count ? progress[i] : 0
-            menuCookSlots[i].update(cookTier: cookTier, progress: prog,
-                                    stock: stock, maxStock: maxStock)
+            menuCookSlots[i].update(cookTier: cookTier, cookEmoji: cookEmoji(menuIndex: i, store: store),
+                                    progress: prog, stock: stock, maxStock: maxStock)
         }
     }
 
@@ -387,12 +418,48 @@ final class MainStallScene: SKScene {
         gear.zPosition = 4
         gear.name      = "gearIcon"
         addChild(gear)
+
+        // Notification badge — shown when availableWorkers > 0
+        let badge = SKShapeNode(circleOfRadius: 8)
+        badge.fillColor   = SKColor(red: 0.95, green: 0.25, blue: 0.20, alpha: 1)
+        badge.strokeColor = .white
+        badge.lineWidth   = 1.5
+        badge.position    = CGPoint(x: frame.midX + 103, y: signY + 10)
+        badge.zPosition   = 5
+        badge.name        = "gearBadge"
+        badge.isHidden    = true
+        addChild(badge)
+
+        let badgeLabel = SKLabelNode(text: "1")
+        badgeLabel.fontName = "AppleSDGothicNeo-Bold"
+        badgeLabel.fontSize = 9
+        badgeLabel.fontColor = .white
+        badgeLabel.verticalAlignmentMode = .center
+        badgeLabel.horizontalAlignmentMode = .center
+        badgeLabel.position  = CGPoint(x: frame.midX + 103, y: signY + 10)
+        badgeLabel.zPosition = 6
+        badgeLabel.name      = "gearBadgeLabel"
+        badgeLabel.isHidden  = true
+        addChild(badgeLabel)
     }
 
     private func updateSignLabel() {
         guard let store,
               let label = childNode(withName: "signLabel") as? SKLabelNode else { return }
         label.text = "🥬 \(store.progress.shopName)"
+    }
+
+    private func syncGearBadge(store: GameStore) {
+        let count = store.availableWorkers
+        guard count != lastAvailableWorkers else { return }
+        lastAvailableWorkers = count
+
+        let show = count > 0
+        childNode(withName: "gearBadge")?.isHidden = !show
+        childNode(withName: "gearBadgeLabel")?.isHidden = !show
+        if let lbl = childNode(withName: "gearBadgeLabel") as? SKLabelNode {
+            lbl.text = "\(count)"
+        }
     }
 
     // MARK: - Product stack
@@ -579,6 +646,7 @@ final class MainStallScene: SKScene {
             self.syncFarmPlots(farm: store.farm, activePlots: activePlots)
             self.syncWarehouse(store: store)
             self.syncCookSlots(store: store)
+            self.syncGearBadge(store: store)
             let shopName = store.progress.shopName
             if shopName != self.lastShopName {
                 self.lastShopName = shopName

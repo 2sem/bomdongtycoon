@@ -77,7 +77,7 @@ final class MenuCookSlotNode: SKNode {
         menuLabel.text = menuEmoji
     }
 
-    func update(cookTier: Int, progress: Double, stock: Int, maxStock: Int) {
+    func update(cookTier: Int, cookEmoji: String, progress: Double, stock: Int, maxStock: Int) {
         let hasAutoCook = cookTier > 0
 
         // Background tint
@@ -100,7 +100,7 @@ final class MenuCookSlotNode: SKNode {
         barFill.fillColor = hasAutoCook ? Self.barFill1 : Self.barFill0
 
         // Tier badge
-        tierBadge.text    = hasAutoCook ? tierEmoji(cookTier) : ""
+        tierBadge.text    = hasAutoCook ? cookEmoji : ""
         tierBadge.isHidden = !hasAutoCook
     }
 
@@ -111,14 +111,5 @@ final class MenuCookSlotNode: SKNode {
             SKAction.scale(to: 1.18, duration: 0.07),
             SKAction.scale(to: 1.00, duration: 0.10),
         ]), withKey: "cookPop")
-    }
-
-    private func tierEmoji(_ tier: Int) -> String {
-        switch tier {
-        case 1: return "👨"
-        case 2: return "👩"
-        case 3: return "👨‍🍳"
-        default: return ""
-        }
     }
 }

@@ -80,7 +80,7 @@ final class FarmPlotNode: SKNode {
     private var wasReady    = false
     private var wasPlanted  = false
 
-    func update(plot: FarmPlot, warehouseFull: Bool = false, workerAvailable: Bool = false) {
+    func update(plot: FarmPlot, warehouseFull: Bool, assignedEmoji: String?, workerAvailable: Bool) {
         let isEmpty = !plot.isPlanted
 
         hintPlus.isHidden   = !isEmpty
@@ -137,8 +137,8 @@ final class FarmPlotNode: SKNode {
         }
 
         // Worker badge: solid when assigned, dim hint when worker available
-        if plot.hasWorker {
-            workerLabel.text  = "👷"
+        if plot.hasWorker, let emoji = assignedEmoji {
+            workerLabel.text  = emoji
             workerLabel.alpha = 1.0
         } else if workerAvailable {
             workerLabel.text  = "👷"
