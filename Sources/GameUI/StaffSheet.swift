@@ -45,21 +45,22 @@ public struct StaffSheet: View {
 
     private var availableSection: some View {
         Section {
-            HStack {
-                Label("여유 인력", systemImage: "person.2.fill")
-                    .font(.headline)
+            HStack(spacing: 16) {
+                TierIconCount(emoji: "👨", count: store.stall.tier1Count)
+                TierIconCount(emoji: "👩", count: store.stall.tier2Count)
+                TierIconCount(emoji: "👨‍🍳", count: store.stall.tier3Count)
                 Spacer()
-                Text("\(max(0, store.availableWorkers))명")
-                    .font(.title2.bold())
-                    .foregroundStyle(store.availableWorkers > 0 ? Color.deepAmber : .secondary)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(max(0, store.availableWorkers))명")
+                        .font(.title2.bold())
+                        .foregroundStyle(store.availableWorkers > 0 ? Color.deepAmber : .secondary)
+                    Text("여유")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(.vertical, 4)
             .listRowBackground(Color.creamBackground)
-
-            Text("알바생 \(store.stall.tier1Count)명 · 이모님 \(store.stall.tier2Count)명 · 요리사 \(store.stall.tier3Count)명")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .listRowBackground(Color.creamBackground)
         }
     }
 
@@ -321,6 +322,23 @@ private struct HireTierRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - TierIconCount
+
+private struct TierIconCount: View {
+    let emoji: String
+    let count: Int
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(emoji)
+                .font(.system(size: 26))
+            Text("\(count)")
+                .font(.caption.bold())
+                .foregroundStyle(count > 0 ? Color.deepAmber : Color.secondary)
+        }
     }
 }
 
