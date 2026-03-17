@@ -299,11 +299,6 @@ final class MainStallScene: SKScene {
 
     private func syncCookButtons(store: GameStore) {
         let tier = store.stall.menuTier
-        let raw = store.stall.staffTier > 0
-            ? UpgradeDefinitions.staff[store.stall.staffTier - 1].productionMultiplier
-            : 1.0
-        let perWorker = max(1, Int(round(raw)))
-        let batchSize = perWorker * max(1, store.stall.shopWorkers)
 
         if tier != lastCookMenuTier {
             cookButton?.removeFromParent()
@@ -316,14 +311,18 @@ final class MainStallScene: SKScene {
             lastCookBatchSize = -1
         }
 
-        let maxStock  = EarningsSystem.maxStock(for: store.stall)
-        let allFull   = (0...tier).allSatisfy { i in
-            i >= store.stall.menuStock.count || store.stall.menuStock[i] >= maxStock
+        // Only show button for menus without a dedicated cook
+        let maxStock = EarningsSystem.maxStock(for: store.stall)
+        let manualEmojis = (0...tier).compactMap { i -> String? in
+            guard i < store.stall.menuCooks.count,
+                  store.stall.menuCooks[i] == 0 else { return nil }
+            return Self.menuEmoji(for: i)
         }
-        let canCook = store.stall.warehouse > 0 && !allFull
-        let emojis  = (0...tier).map { Self.menuEmoji(for: $0) }
-        cookButton?.update(batchSize: batchSize, menuEmojis: emojis, canCook: canCook)
-        lastCookBatchSize = batchSize
+        let canCook = store.stall.warehouse > 0 && manualEmojis.contains { emoji in
+            let i = ["🥬", "🥗", "🥘"].firstIndex(of: emoji) ?? 0
+            return i < store.stall.menuStock.count && store.stall.menuStock[i] < maxStock
+        }
+        cookButton?.update(manualMenuEmojis: manualEmojis, canCook: canCook)
     }
 
     // MARK: - Stall

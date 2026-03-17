@@ -86,16 +86,21 @@ public struct StaffSheet: View {
         Section {
             ForEach(0...store.stall.menuTier, id: \.self) { i in
                 let menuName = UpgradeDefinitions.menu[i].name
-                let count = i < store.stall.menuCooks.count ? store.stall.menuCooks[i] : 0
+                let tier = i < store.stall.menuCooks.count ? store.stall.menuCooks[i] : 0
+                let tierName = tier > 0 ? UpgradeDefinitions.staff[tier - 1].name : ""
+                let speed = tier > 0 ? GameStore.cookSpeedLabel(forTier: tier) : ""
+                let status = tier > 0
+                    ? "\(tierName) · \(speed) · 자동 조리 활성"
+                    : "비어있음 (수동 조리 가능)"
                 StaffPositionRow(
                     icon: cookEmoji(for: i),
                     iconBg: cookColor(for: i),
                     iconIsEmoji: true,
                     positionName: "\(menuName) 요리사",
-                    statusText: count > 0 ? "\(count)명 배정 · 자동 조리 활성" : "비어있음",
-                    assignedCount: count,
-                    isSingleSlot: false,
-                    canAssign: store.availableWorkers > 0,
+                    statusText: status,
+                    assignedCount: tier > 0 ? 1 : 0,
+                    isSingleSlot: true,
+                    canAssign: store.availableWorkers > 0 && tier == 0,
                     onAssign: { store.assignMenuCook(menuIndex: i) },
                     onRemove: { store.removeMenuCook(menuIndex: i) }
                 )

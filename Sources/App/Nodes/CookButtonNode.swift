@@ -36,15 +36,13 @@ final class CookButtonNode: SKNode {
 
     required init?(coder: NSCoder) { fatalError() }
 
-    func update(batchSize: Int, menuEmojis: [String], canCook: Bool) {
-        emojisLabel.text = menuEmojis.joined()
-        // Build distribution string e.g. "2+2+3" for 7 across 3 menus
-        let menus = menuEmojis.count
-        let base = batchSize / menus
-        let rem  = batchSize % menus
-        let parts = (0..<menus).map { i in base + (i >= menus - rem ? 1 : 0) }
-        let distStr = parts.map { "\($0)" }.joined(separator: "+")
-        countLabel.text = "일괄 조리 \(distStr)"
+    /// Update button for menus that need manual cooking (no dedicated cook assigned).
+    /// Pass an empty array to hide the button entirely.
+    func update(manualMenuEmojis: [String], canCook: Bool) {
+        isHidden = manualMenuEmojis.isEmpty
+        guard !manualMenuEmojis.isEmpty else { return }
+        emojisLabel.text = manualMenuEmojis.joined()
+        countLabel.text  = "수동 조리 ×1"
         alpha = canCook ? 1.0 : 0.45
     }
 }

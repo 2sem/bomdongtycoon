@@ -24,7 +24,8 @@ public struct StallState: Codable {
 
     // Computed
     public var staffCount: Int { tier1Count + tier2Count + tier3Count }
-    public var shopWorkers: Int { cashierCount + menuCooks.reduce(0, +) }
+    /// Number of shop-side workers (cashier + one cook per assigned menu slot)
+    public var shopWorkers: Int { cashierCount + menuCooks.filter { $0 > 0 }.count }
     public var stock: Double { Double(menuStock.reduce(0, +)) }
     public var autoCollectEnabled: Bool { cashierCount > 0 }
 
