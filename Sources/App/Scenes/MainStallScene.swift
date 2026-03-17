@@ -304,8 +304,8 @@ final class MainStallScene: SKScene {
     // MARK: - Cook slots (staff area)
 
     private static let cookSlotSpacing: CGFloat = 68
-    // Y position: just above the sign (signY = stallY+80), anchored to it
-    private var cookSlotsY: CGFloat { stallY + 115 }
+    // Y position: above product stack (~stallY+150 max), well below HUD
+    private var cookSlotsY: CGFloat { stallY + 200 }
 
     private func setupCookSlots() {}   // slots are built lazily in syncCookSlots
 
@@ -403,7 +403,7 @@ final class MainStallScene: SKScene {
     // MARK: - Product stack
 
     private func setupProductStack() {
-        productStackNode.position = CGPoint(x: frame.midX, y: stallY + 100)
+        productStackNode.position = CGPoint(x: frame.midX, y: stallY + 50)
         productStackNode.zPosition = 3
         addChild(productStackNode)
         for i in 0..<3 {
