@@ -62,7 +62,10 @@ final class MainStallScene: SKScene {
 
     private var groundY:  CGFloat { frame.height * 0.30 }
     private var stallY:   CGFloat { groundY + 58 }
-    private var hudTopY:  CGFloat { frame.height - 180 }
+    // Anchored from top: adapts to SE (small safe area) vs Pro (large Dynamic Island)
+    private var hudTopY: CGFloat {
+        frame.height - (view?.safeAreaInsets.top ?? 44) - 90
+    }
     private var warehouseBarHeight: CGFloat { 76 }
     private var warehouseY: CGFloat { (view?.safeAreaInsets.bottom ?? 0) + 150 + warehouseBarHeight / 2 }
 
@@ -295,8 +298,8 @@ final class MainStallScene: SKScene {
     // MARK: - Cook slots (staff area)
 
     private static let cookSlotSpacing: CGFloat = 68
-    // Y position: in the sky above the sign (signY = stallY+80), below the HUD
-    private var cookSlotsY: CGFloat { stallY + 130 }
+    // Y position: just above the sign (signY = stallY+80), anchored to it
+    private var cookSlotsY: CGFloat { stallY + 115 }
 
     private func setupCookSlots() {}   // slots are built lazily in syncCookSlots
 
@@ -462,11 +465,12 @@ final class MainStallScene: SKScene {
     // MARK: - HUD
 
     private func setupHUD() {
-        let pill = SKShapeNode(rectOf: CGSize(width: 160, height: 38), cornerRadius: 19)
+        // Taller pill holds both coin amount + stats on one info line
+        let pill = SKShapeNode(rectOf: CGSize(width: 170, height: 54), cornerRadius: 27)
         pill.fillColor   = SKColor(white: 0.0, alpha: 0.55)
         pill.strokeColor = SKColor(white: 1.0, alpha: 0.30)
         pill.lineWidth   = 1
-        pill.position    = CGPoint(x: frame.midX, y: hudTopY + 10)
+        pill.position    = CGPoint(x: frame.midX, y: hudTopY)
         pill.zPosition   = 9
         addChild(pill)
 
@@ -474,26 +478,21 @@ final class MainStallScene: SKScene {
         coinLabel.fontSize = 20
         coinLabel.fontColor = .white
         coinLabel.verticalAlignmentMode = .center
-        coinLabel.position  = CGPoint(x: frame.midX, y: hudTopY + 10)
+        coinLabel.position  = CGPoint(x: frame.midX, y: hudTopY + 12)
         coinLabel.zPosition = 10
         coinLabel.name = "coinLabel"
         addChild(coinLabel)
 
-        let rateLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Regular")
-        rateLabel.fontSize = 12
-        rateLabel.fontColor = SKColor(white: 1.0, alpha: 0.80)
-        rateLabel.position  = CGPoint(x: frame.midX, y: hudTopY - 18)
-        rateLabel.zPosition = 10
-        rateLabel.name = "rateLabel"
-        addChild(rateLabel)
-
-        let stockLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Regular")
-        stockLabel.fontSize = 12
-        stockLabel.fontColor = SKColor(white: 1.0, alpha: 0.80)
-        stockLabel.position  = CGPoint(x: frame.midX, y: hudTopY - 34)
-        stockLabel.zPosition = 10
-        stockLabel.name = "stockLabel"
-        addChild(stockLabel)
+        // Single info line: rate · stock — saves vertical space vs two separate labels
+        let infoLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Regular")
+        infoLabel.fontSize = 11
+        infoLabel.fontColor = SKColor(white: 1.0, alpha: 0.75)
+        infoLabel.verticalAlignmentMode   = .center
+        infoLabel.horizontalAlignmentMode = .center
+        infoLabel.position  = CGPoint(x: frame.midX, y: hudTopY - 12)
+        infoLabel.zPosition = 10
+        infoLabel.name = "infoLabel"
+        addChild(infoLabel)
     }
 
     // MARK: - Customer spawning
@@ -628,12 +627,9 @@ final class MainStallScene: SKScene {
             if let label = self.childNode(withName: "coinLabel") as? SKLabelNode {
                 label.text = "₩\(Self.formatCoins(Int(store.stall.coins)))"
             }
-            if let label = self.childNode(withName: "rateLabel") as? SKLabelNode {
+            if let label = self.childNode(withName: "infoLabel") as? SKLabelNode {
                 let rate = EarningsSystem.coinsPerSecond(for: store.stall)
-                label.text = "⚡ \(String(format: "%.1f", rate))/s"
-            }
-            if let label = self.childNode(withName: "stockLabel") as? SKLabelNode {
-                label.text = "🥬 창고: \(store.stall.warehouse)/\(store.stall.warehouseCapacity)"
+                label.text = "⚡ \(String(format: "%.1f", rate))/s · 📦 \(store.stall.warehouse)/\(store.stall.warehouseCapacity)"
             }
             self.syncProductStack(menuStock: store.stall.menuStock, menuTier: store.stall.menuTier)
             let activePlots = FarmSystem.activePlotCount(for: store.farm)
