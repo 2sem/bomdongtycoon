@@ -114,19 +114,29 @@ final class WarehouseNode: SKNode {
         expandBg.position    = CGPoint(x: Self.spacing / 2, y: 0)
         addChild(expandBg)
 
-        expandIcon.fontSize = 24
+        expandIcon.fontSize = 22
         expandIcon.verticalAlignmentMode   = .center
         expandIcon.horizontalAlignmentMode = .center
-        expandIcon.position = CGPoint(x: Self.spacing / 2, y: 6)
+        expandIcon.position = CGPoint(x: Self.spacing / 2, y: 4)
         addChild(expandIcon)
 
         expandCost.fontName = "AppleSDGothicNeo-Bold"
-        expandCost.fontSize = 11
+        expandCost.fontSize = 13
         expandCost.fontColor = SKColor(white: 1.0, alpha: 0.70)
         expandCost.verticalAlignmentMode   = .center
         expandCost.horizontalAlignmentMode = .center
-        expandCost.position = CGPoint(x: Self.spacing / 2, y: -12)
+        expandCost.position = CGPoint(x: Self.spacing / 2, y: -14)
         addChild(expandCost)
+
+        // "확장" label above the icon — clearly explains the action
+        let actionLabel = SKLabelNode(text: "확장")
+        actionLabel.fontName = "AppleSDGothicNeo-Bold"
+        actionLabel.fontSize = 11
+        actionLabel.fontColor = SKColor(white: 1.0, alpha: 0.55)
+        actionLabel.verticalAlignmentMode   = .center
+        actionLabel.horizontalAlignmentMode = .center
+        actionLabel.position = CGPoint(x: Self.spacing / 2, y: 22)
+        addChild(actionLabel)
     }
 
     // MARK: - Update
