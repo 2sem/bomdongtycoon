@@ -97,6 +97,18 @@ final class CustomerNode: SKNode {
         run(SKAction.move(to: point, duration: duration), completion: completion)
     }
 
+    /// Gentle impatient shuffle while waiting for stock.
+    func startWaiting() {
+        run(SKAction.repeatForever(SKAction.sequence([
+            SKAction.moveBy(x: 4, y: 0, duration: 0.35),
+            SKAction.moveBy(x: -4, y: 0, duration: 0.35),
+        ])), withKey: "waiting")
+    }
+
+    func stopWaiting() {
+        removeAction(forKey: "waiting")
+    }
+
     func showReaction(happy: Bool) {
         // Stop bubble bob
         thoughtBubble.removeAllActions()

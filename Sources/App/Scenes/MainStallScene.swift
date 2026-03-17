@@ -423,33 +423,59 @@ final class MainStallScene: SKScene {
         let menus = Self.availableMenus(for: store.stall.menuTier)
         let customer = CustomerNode(availableMenus: menus)
 
-        // Street level: below pavement, left edge
         let streetY   = groundY - 18
-        let counterPt = CGPoint(x: frame.midX - 70, y: groundY + 22)  // stall counter
-        let exitPt    = CGPoint(x: frame.width + 50, y: streetY)       // home: right + down
+        let counterPt = CGPoint(x: frame.midX - 70, y: groundY + 22)
+        let exitPt    = CGPoint(x: frame.width + 50, y: streetY)
 
         customer.position = CGPoint(x: -50, y: streetY)
         addChild(customer)
 
-        // Leg 1: walk right and UP toward the counter
         customer.walkTo(counterPt) { [weak self] in
             guard let self else { return }
-            Task { @MainActor in
-                let menus = Self.availableMenus(for: store.stall.menuTier)
-                let desiredIndex = menus.firstIndex(of: customer.wantedMenu) ?? 0
-                guard let price = store.sellItem(menuIndex: desiredIndex) else {
-                    customer.showReaction(happy: false)
-                    // Leg 2 (sad): walk down + right back to street
-                    customer.walkTo(exitPt) { customer.removeFromParent() }
-                    return
-                }
-                self.spawnCoinBubble(at: customer.position, amount: price,
-                                     autoPop: store.stall.autoCollectEnabled)
-                customer.showReaction(happy: true)
-                // Leg 2 (happy): walk down + right back to street
-                customer.walkTo(exitPt) { customer.removeFromParent() }
-            }
+            self.serveOrWait(customer: customer, store: store, exitPt: exitPt)
         }
+    }
+
+    private func serveOrWait(customer: CustomerNode, store: GameStore, exitPt: CGPoint) {
+        let menus = Self.availableMenus(for: store.stall.menuTier)
+        let idx   = menus.firstIndex(of: customer.wantedMenu) ?? 0
+
+        // Try to serve immediately
+        if let price = store.sellItem(menuIndex: idx) {
+            spawnCoinBubble(at: customer.position, amount: price,
+                            autoPop: store.stall.autoCollectEnabled)
+            customer.showReaction(happy: true)
+            customer.walkTo(exitPt) { customer.removeFromParent() }
+            return
+        }
+
+        // No stock — wait up to 8 s, polling every 0.5 s
+        customer.startWaiting()
+        var waited = 0.0
+        let maxWait  = 8.0
+        let interval = 0.5
+
+        let poll = SKAction.sequence([
+            SKAction.wait(forDuration: interval),
+            SKAction.run { [weak self, weak customer] in
+                guard let self, let customer else { return }
+                waited += interval
+                if let price = store.sellItem(menuIndex: idx) {
+                    customer.stopWaiting()
+                    customer.removeAction(forKey: "poll")
+                    self.spawnCoinBubble(at: customer.position, amount: price,
+                                        autoPop: store.stall.autoCollectEnabled)
+                    customer.showReaction(happy: true)
+                    customer.walkTo(exitPt) { customer.removeFromParent() }
+                } else if waited >= maxWait {
+                    customer.stopWaiting()
+                    customer.removeAction(forKey: "poll")
+                    customer.showReaction(happy: false)
+                    customer.walkTo(exitPt) { customer.removeFromParent() }
+                }
+            }
+        ])
+        customer.run(SKAction.repeatForever(poll), withKey: "poll")
     }
 
     private func spawnCoinBubble(at position: CGPoint, amount: Double, autoPop: Bool = false) {
