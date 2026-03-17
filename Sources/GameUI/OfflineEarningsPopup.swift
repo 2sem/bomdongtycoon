@@ -14,7 +14,7 @@ public struct OfflineEarningsPopup: View {
                     .font(.title2.bold())
                 Text("가게를 비운 동안 번 돈:")
                     .foregroundStyle(.secondary)
-                Text("💰 \(Int(store.offlineEarnings))원")
+                Text("₩\(Int(store.offlineEarnings).formatted())원")
                     .font(.system(size: 48, weight: .bold))
                     .foregroundStyle(.orange)
 
