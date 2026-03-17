@@ -11,7 +11,6 @@ public final class GameStore: ObservableObject {
     @Published public var stall: StallState
     @Published public var farm: FarmState
     @Published public var progress: PlayerProgress
-    @Published public var season: SeasonState
     @Published public var offlineEarnings: Double = 0
 
     private enum DefaultsKey {
@@ -48,11 +47,7 @@ public final class GameStore: ObservableObject {
         } else {
             loadedProgress = PlayerProgress()
         }
-        if loadedProgress.seasonStartDate == nil {
-            loadedProgress.seasonStartDate = Date()
-        }
         self.progress = loadedProgress
-        self.season   = SeasonSystem.currentState(seasonStart: loadedProgress.seasonStartDate!)
 
         // Migration from old save format
         migrate()
@@ -87,8 +82,7 @@ public final class GameStore: ObservableObject {
     // MARK: - Tick
 
     public func tick(deltaTime: Double) {
-        let seasonMult = SeasonSystem.earningsMultiplier(for: season.currentSeason)
-        let growRate   = FarmSystem.growthRate(for: farm) * seasonMult
+        let growRate   = FarmSystem.growthRate(for: farm)
         let activePlots = FarmSystem.activePlotCount(for: farm)
 
         // Grow planted plots
@@ -355,7 +349,7 @@ public final class GameStore: ObservableObject {
             stall: stall,
             lastActiveDate: progress.lastActiveDate,
             multiplier: multiplier,
-            seasonMultiplier: SeasonSystem.earningsMultiplier(for: season.currentSeason)
+            seasonMultiplier: 1.0
         )
         offlineEarnings = earned
         stall.coins    += earned

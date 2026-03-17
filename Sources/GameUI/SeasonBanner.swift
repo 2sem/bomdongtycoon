@@ -1,43 +1,30 @@
 import SwiftUI
 import GameCore
 
-public struct SeasonBanner: View {
+/// Shows the player's total lifetime earnings in Korean format (e.g. 1,234,567원).
+public struct TotalEarnedBadge: View {
     @EnvironmentObject var store: GameStore
 
     public init() {}
 
     public var body: some View {
-        HStack(spacing: 6) {
-            Text(emoji)
+        HStack(spacing: 4) {
+            Text("💰")
                 .font(.caption)
-            Text(store.season.currentSeason.rawValue)
+            Text(formatted)
                 .font(.caption.bold())
-            Text("💰×\(String(format: "%.1f", multiplier))배")
-                .font(.caption)
-                .foregroundStyle(.orange)
-            if store.season.daysRemaining > 0 {
-                Text("·")
-                    .foregroundStyle(.secondary)
-                Text("\(store.season.daysRemaining)일 남음")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(.ultraThinMaterial, in: Capsule())
     }
 
-    private var emoji: String {
-        switch store.season.currentSeason {
-        case .spring: "🌸"
-        case .summer: "🌞"
-        case .autumn: "🍂"
-        case .winter: "❄️"
-        }
-    }
-
-    private var multiplier: Double {
-        SeasonSystem.earningsMultiplier(for: store.season.currentSeason)
+    private var formatted: String {
+        let value = Int(store.progress.totalEarned)
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = Locale(identifier: "ko_KR")
+        let number = formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+        return "\(number)원"
     }
 }

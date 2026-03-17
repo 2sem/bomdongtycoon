@@ -23,7 +23,7 @@ struct GameRootView: View {
         }
         .safeAreaInset(edge: .top) {
             HStack(alignment: .center) {
-                SeasonBanner()
+                TotalEarnedBadge()
                 Spacer()
                 GoalProgressBar(showUpgrades: $showUpgrades)
             }
