@@ -32,8 +32,8 @@ final class AddPlotCellNode: SKNode {
         plusLabel.position = CGPoint(x: 0, y: 2)
         addChild(plusLabel)
 
-        costLabel.fontName = "AppleSDGothicNeo-Regular"
-        costLabel.fontSize = 10
+        costLabel.fontName = "AppleSDGothicNeo-Bold"
+        costLabel.fontSize = 13
         costLabel.verticalAlignmentMode = .center
         costLabel.position = CGPoint(x: 0, y: -16)
         addChild(costLabel)
