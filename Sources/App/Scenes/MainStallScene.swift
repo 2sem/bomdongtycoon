@@ -29,7 +29,7 @@ final class MainStallScene: SKScene {
     private var lastMenuTierForStack = -1
 
     // Warehouse
-    private var warehouseBar: WarehouseBarNode?
+    private var warehouseNode: WarehouseNode?
     private var lastWarehouse = -1
     private var lastWarehouseCapacity = -1
 
@@ -269,11 +269,11 @@ final class MainStallScene: SKScene {
     // MARK: - Warehouse
 
     private func setupWarehouse() {
-        let bar = WarehouseBarNode(width: frame.width)
-        bar.position = CGPoint(x: frame.midX, y: warehouseY)
-        bar.zPosition = 2
-        addChild(bar)
-        warehouseBar = bar
+        let node = WarehouseNode()
+        node.position  = CGPoint(x: frame.midX, y: warehouseY)
+        node.zPosition = 2
+        addChild(node)
+        warehouseNode = node
 
         let divider = SKSpriteNode(
             color: SKColor(red: 0.20, green: 0.12, blue: 0.04, alpha: 1),
@@ -290,7 +290,7 @@ final class MainStallScene: SKScene {
         guard w != lastWarehouse || cap != lastWarehouseCapacity else { return }
         let expandCost = WarehouseSystem.costForNextExpansion(current: cap)
         let canAfford  = expandCost.map { store.stall.coins >= $0 } ?? false
-        warehouseBar?.update(warehouse: w, capacity: cap, expandCost: expandCost, canAfford: canAfford)
+        warehouseNode?.update(warehouse: w, capacity: cap, expandCostValue: expandCost, canAfford: canAfford)
         lastWarehouse = w
         lastWarehouseCapacity = cap
     }
@@ -624,9 +624,9 @@ final class MainStallScene: SKScene {
             return
         }
 
-        if let bar = warehouseBar {
-            let barLocal = bar.convert(location, from: self)
-            if bar.expandButtonContains(barLocal) {
+        if let wNode = warehouseNode {
+            let wLocal = wNode.convert(location, from: self)
+            if wNode.expandCellContains(wLocal) {
                 Task { @MainActor in store.expandWarehouse() }
                 return
             }

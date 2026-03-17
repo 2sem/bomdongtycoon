@@ -1,93 +1,227 @@
 import SpriteKit
 import GameCore
 
-final class WarehouseBarNode: SKNode {
+// Two-cell warehouse display: [warehouse cell] [expand cell]
+// Matches farm cell visual language (62×62pt, same corner radius, same spacing)
+final class WarehouseNode: SKNode {
 
-    private let width: CGFloat
-    private let height: CGFloat = 50
+    // MARK: - Layout
+    private static let cellSize   = CGSize(width: 62, height: 62)
+    private static let radius:  CGFloat = 10
+    private static let barW:    CGFloat = 52
+    private static let barH:    CGFloat = 6
+    private static let spacing: CGFloat = 68   // matches farmSpacingX
 
-    private let bg          = SKSpriteNode()
-    private let infoLabel   = SKLabelNode()
-    private let expandBtn   = SKShapeNode()
-    private let expandLabel = SKLabelNode()
-    private let fullLabel   = SKLabelNode()
+    // MARK: - Colors
+    private static let normalBg   = SKColor(red: 0.24, green: 0.16, blue: 0.06, alpha: 1)
+    private static let fullBg     = SKColor(red: 0.48, green: 0.18, blue: 0.04, alpha: 1)
+    private static let normalBorder = SKColor(red: 0.42, green: 0.28, blue: 0.10, alpha: 1)
+    private static let fullBorder   = SKColor(red: 0.90, green: 0.45, blue: 0.10, alpha: 1)
+    private static let barBgColor = SKColor(white: 0, alpha: 0.30)
+    private static let barFillColor = SKColor(red: 0.28, green: 0.72, blue: 0.95, alpha: 1)
 
-    private var expandButtonFrame: CGRect = .zero
+    // MARK: - Warehouse cell nodes
+    private let cellBg        = SKShapeNode(rectOf: cellSize, cornerRadius: radius)
+    private let iconLabel     = SKLabelNode()
+    private let stockLabel    = SKLabelNode()
+    private let fillBarBg     = SKShapeNode(rectOf: CGSize(width: barW, height: barH), cornerRadius: 3)
+    private let fillBarFill   = SKShapeNode()
+    private let warningCircle = SKShapeNode(circleOfRadius: 9)
+    private let warningLabel  = SKLabelNode()
 
-    init(width: CGFloat) {
-        self.width = width
+    // MARK: - Expand cell nodes
+    private let expandBg      = SKShapeNode(rectOf: cellSize, cornerRadius: radius)
+    private let expandIcon    = SKLabelNode()
+    private let expandCost    = SKLabelNode()
+
+    // MARK: - State
+    private var wasFull = false
+    private var lastCanAfford = false
+
+    // Expose for hit-testing in MainStallScene
+    var warehouseCellContains: ((CGPoint) -> Bool) { { [weak self] pt in self?.cellBg.contains(pt) ?? false } }
+
+    override init() {
         super.init()
-
-        bg.color = SKColor(red: 0.20, green: 0.12, blue: 0.04, alpha: 1)
-        bg.size  = CGSize(width: width, height: height)
-        addChild(bg)
-
-        infoLabel.fontName = "AppleSDGothicNeo-Bold"
-        infoLabel.fontSize = 15
-        infoLabel.fontColor = .white
-        infoLabel.verticalAlignmentMode = .center
-        infoLabel.horizontalAlignmentMode = .left
-        infoLabel.position = CGPoint(x: -width / 2 + 14, y: 0)
-        addChild(infoLabel)
-
-        let btnW: CGFloat = 90
-        let btnH: CGFloat = 30
-        expandBtn.path = CGPath(roundedRect: CGRect(x: -btnW/2, y: -btnH/2, width: btnW, height: btnH),
-                                cornerWidth: 15, cornerHeight: 15, transform: nil)
-        expandBtn.fillColor   = SKColor(red: 0.20, green: 0.55, blue: 0.95, alpha: 1)
-        expandBtn.strokeColor = SKColor(red: 0.10, green: 0.35, blue: 0.75, alpha: 1)
-        expandBtn.lineWidth   = 1.5
-        expandBtn.position    = CGPoint(x: width / 2 - 56, y: 0)
-        addChild(expandBtn)
-        expandButtonFrame = CGRect(x: expandBtn.position.x - btnW/2,
-                                   y: -btnH/2,
-                                   width: btnW, height: btnH)
-
-        expandLabel.fontName = "AppleSDGothicNeo-Bold"
-        expandLabel.fontSize = 12
-        expandLabel.fontColor = .white
-        expandLabel.verticalAlignmentMode = .center
-        expandLabel.horizontalAlignmentMode = .center
-        expandLabel.position = expandBtn.position
-        addChild(expandLabel)
-
-        fullLabel.fontName = "AppleSDGothicNeo-Bold"
-        fullLabel.fontSize = 13
-        fullLabel.fontColor = SKColor(red: 1.0, green: 0.55, blue: 0.1, alpha: 1)
-        fullLabel.verticalAlignmentMode = .center
-        fullLabel.horizontalAlignmentMode = .center
-        fullLabel.isHidden = true
-        addChild(fullLabel)
+        buildWarehouseCell()
+        buildExpandCell()
     }
-
     required init?(coder: NSCoder) { fatalError() }
 
-    func update(warehouse: Int, capacity: Int, expandCost: Double?, canAfford: Bool) {
-        let isFull = warehouse >= capacity
-        infoLabel.text = "🥬 창고 \(warehouse)/\(capacity)"
+    // MARK: - Build
 
+    private func buildWarehouseCell() {
+        // Background
+        cellBg.fillColor   = Self.normalBg
+        cellBg.strokeColor = Self.normalBorder
+        cellBg.lineWidth   = 2
+        cellBg.position    = CGPoint(x: -Self.spacing / 2, y: 0)
+        addChild(cellBg)
+
+        // Warehouse icon
+        iconLabel.text     = "📦"
+        iconLabel.fontSize = 30
+        iconLabel.verticalAlignmentMode = .center
+        iconLabel.position = CGPoint(x: -Self.spacing / 2, y: 6)
+        addChild(iconLabel)
+
+        // Fill bar background
+        fillBarBg.fillColor   = Self.barBgColor
+        fillBarBg.strokeColor = .clear
+        fillBarBg.position    = CGPoint(x: -Self.spacing / 2, y: -14)
+        addChild(fillBarBg)
+
+        // Fill bar fill (anchored at left edge of bar)
+        fillBarFill.fillColor   = Self.barFillColor
+        fillBarFill.strokeColor = .clear
+        fillBarFill.position    = CGPoint(x: -Self.spacing / 2 - Self.barW / 2, y: -14)
+        addChild(fillBarFill)
+
+        // Stock label "×N"
+        stockLabel.fontName = "AppleSDGothicNeo-Bold"
+        stockLabel.fontSize = 12
+        stockLabel.fontColor = .white
+        stockLabel.verticalAlignmentMode   = .center
+        stockLabel.horizontalAlignmentMode = .center
+        stockLabel.position = CGPoint(x: -Self.spacing / 2, y: -25)
+        addChild(stockLabel)
+
+        // Warning circle (hidden initially)
+        warningCircle.fillColor   = SKColor(red: 0.95, green: 0.40, blue: 0.05, alpha: 1)
+        warningCircle.strokeColor = .clear
+        warningCircle.position    = CGPoint(x: -Self.spacing / 2 + 22, y: 22)
+        warningCircle.isHidden    = true
+        addChild(warningCircle)
+
+        // Warning "!" label
+        warningLabel.text     = "!"
+        warningLabel.fontName = "AppleSDGothicNeo-Bold"
+        warningLabel.fontSize = 13
+        warningLabel.fontColor = .white
+        warningLabel.verticalAlignmentMode   = .center
+        warningLabel.horizontalAlignmentMode = .center
+        warningLabel.position = warningCircle.position
+        warningLabel.isHidden = true
+        addChild(warningLabel)
+    }
+
+    private func buildExpandCell() {
+        // Dashed-style border (simulate with low-alpha solid — SpriteKit doesn't support native dash on SKShapeNode easily)
+        expandBg.fillColor   = .clear
+        expandBg.strokeColor = SKColor(white: 1.0, alpha: 0.20)
+        expandBg.lineWidth   = 1.5
+        expandBg.position    = CGPoint(x: Self.spacing / 2, y: 0)
+        addChild(expandBg)
+
+        expandIcon.fontSize = 24
+        expandIcon.verticalAlignmentMode   = .center
+        expandIcon.horizontalAlignmentMode = .center
+        expandIcon.position = CGPoint(x: Self.spacing / 2, y: 6)
+        addChild(expandIcon)
+
+        expandCost.fontName = "AppleSDGothicNeo-Regular"
+        expandCost.fontSize = 11
+        expandCost.fontColor = SKColor(white: 1.0, alpha: 0.35)
+        expandCost.verticalAlignmentMode   = .center
+        expandCost.horizontalAlignmentMode = .center
+        expandCost.position = CGPoint(x: Self.spacing / 2, y: -12)
+        addChild(expandCost)
+    }
+
+    // MARK: - Update
+
+    func update(warehouse: Int, capacity: Int, expandCostValue: Double?, canAfford: Bool) {
+        let isFull = warehouse >= capacity
+
+        // Fill bar
+        let pct = capacity > 0 ? CGFloat(warehouse) / CGFloat(capacity) : 0
+        let fillW = max(0, pct * Self.barW)
+        fillBarFill.path = CGPath(
+            roundedRect: CGRect(x: 0, y: -Self.barH / 2, width: fillW, height: Self.barH),
+            cornerWidth: 3, cornerHeight: 3, transform: nil
+        )
+
+        // Stock label
+        stockLabel.text = "×\(warehouse)"
         if isFull {
-            fullLabel.text = "⚠️ 가득 — 요리하세요!"
-            fullLabel.isHidden = false
-            fullLabel.position = CGPoint(x: width / 2 - 130, y: 0)
+            stockLabel.fontColor = SKColor(red: 1.0, green: 0.85, blue: 0.40, alpha: 1)
         } else {
-            fullLabel.isHidden = true
+            stockLabel.fontColor = .white
         }
 
-        if let cost = expandCost {
-            expandBtn.isHidden   = false
-            expandLabel.isHidden = false
-            expandLabel.text     = "확장 ₩\(Int(cost))"
-            expandBtn.fillColor  = canAfford
-                ? SKColor(red: 0.20, green: 0.55, blue: 0.95, alpha: 1)
-                : SKColor(red: 0.40, green: 0.40, blue: 0.40, alpha: 1)
+        // Full ↔ normal transition
+        if isFull && !wasFull {
+            // Animate to full state
+            cellBg.run(SKAction.sequence([
+                SKAction.group([
+                    SKAction.scale(to: 1.15, duration: 0.10),
+                    SKAction.colorize(with: Self.fullBg, colorBlendFactor: 1, duration: 0.10),
+                ]),
+                SKAction.scale(to: 1.0, duration: 0.12),
+            ]))
+            cellBg.strokeColor = Self.fullBorder
+            cellBg.lineWidth   = 2.5
+
+            warningCircle.isHidden = false
+            warningLabel.isHidden  = false
+            warningCircle.alpha    = 0
+            warningCircle.run(SKAction.sequence([
+                SKAction.fadeIn(withDuration: 0.12),
+                SKAction.repeatForever(SKAction.sequence([
+                    SKAction.scale(to: 1.25, duration: 0.45),
+                    SKAction.scale(to: 1.0,  duration: 0.45),
+                ])),
+            ]))
+        } else if !isFull && wasFull {
+            // Animate back to normal
+            cellBg.removeAllActions()
+            cellBg.run(SKAction.colorize(with: Self.normalBg, colorBlendFactor: 1, duration: 0.20))
+            cellBg.strokeColor = Self.normalBorder
+            cellBg.lineWidth   = 2
+
+            warningCircle.removeAllActions()
+            warningCircle.setScale(1.0)
+            warningCircle.isHidden = true
+            warningLabel.isHidden  = true
+        }
+        wasFull = isFull
+
+        // Expand cell
+        if let cost = expandCostValue {
+            expandBg.isHidden   = false
+            expandIcon.isHidden = false
+            expandCost.isHidden = false
+            expandIcon.text     = "📦+"
+            expandCost.text     = "₩\(Int(cost))"
+
+            if canAfford && !lastCanAfford {
+                // Bounce animation when newly affordable
+                expandBg.strokeColor = SKColor(red: 0.95, green: 0.70, blue: 0.20, alpha: 0.85)
+                expandCost.fontColor = SKColor(white: 1.0, alpha: 0.80)
+                expandIcon.run(SKAction.sequence([
+                    SKAction.scale(to: 1.15, duration: 0.15),
+                    SKAction.scale(to: 1.0,  duration: 0.15),
+                ]))
+            } else if !canAfford {
+                expandBg.strokeColor = SKColor(white: 1.0, alpha: 0.20)
+                expandCost.fontColor = SKColor(white: 1.0, alpha: 0.35)
+            }
+            lastCanAfford = canAfford
         } else {
-            expandBtn.isHidden   = true
-            expandLabel.isHidden = true
+            expandBg.isHidden   = true
+            expandIcon.isHidden = true
+            expandCost.isHidden = true
         }
     }
 
-    func expandButtonContains(_ point: CGPoint) -> Bool {
-        expandButtonFrame.contains(point)
+    // MARK: - Hit testing
+
+    func warehouseCellContains(_ point: CGPoint) -> Bool {
+        cellBg.contains(point)
+    }
+
+    func expandCellContains(_ point: CGPoint) -> Bool {
+        guard !expandBg.isHidden else { return false }
+        return expandBg.contains(point)
     }
 }
