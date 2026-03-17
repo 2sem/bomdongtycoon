@@ -122,7 +122,7 @@ final class WarehouseNode: SKNode {
 
         expandCost.fontName = "AppleSDGothicNeo-Bold"
         expandCost.fontSize = 13
-        expandCost.fontColor = .white
+        expandCost.fontColor = SKColor(white: 0.65, alpha: 1)   // default: can't afford gray
         expandCost.verticalAlignmentMode   = .center
         expandCost.horizontalAlignmentMode = .center
         expandCost.position = CGPoint(x: Self.spacing / 2, y: -12)
@@ -195,17 +195,18 @@ final class WarehouseNode: SKNode {
             expandIcon.text     = "📦+"
             expandCost.text     = "₩\(Int(cost))"
 
-            if canAfford && !lastCanAfford {
-                // Bounce animation when newly affordable
+            if canAfford {
                 expandBg.strokeColor = SKColor(red: 0.95, green: 0.70, blue: 0.20, alpha: 0.85)
-                expandCost.fontColor = SKColor(white: 1.0, alpha: 0.80)
-                expandIcon.run(SKAction.sequence([
-                    SKAction.scale(to: 1.15, duration: 0.15),
-                    SKAction.scale(to: 1.0,  duration: 0.15),
-                ]))
-            } else if !canAfford {
+                expandCost.fontColor = SKColor(red: 1.0, green: 0.80, blue: 0.20, alpha: 1)  // gold
+                if !lastCanAfford {
+                    expandIcon.run(SKAction.sequence([
+                        SKAction.scale(to: 1.15, duration: 0.15),
+                        SKAction.scale(to: 1.0,  duration: 0.15),
+                    ]))
+                }
+            } else {
                 expandBg.strokeColor = SKColor(white: 1.0, alpha: 0.55)
-                expandCost.fontColor = .white
+                expandCost.fontColor = SKColor(white: 0.65, alpha: 1)  // gray
             }
             lastCanAfford = canAfford
         } else {
