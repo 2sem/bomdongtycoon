@@ -129,8 +129,7 @@ public struct StaffSheet: View {
         List {
             Section {
                 ForEach(1...3, id: \.self) { tier in
-                    HireTierRow(tier: tier, menuCount: store.stall.menuTier + 1,
-                                onHired: { withAnimation { tab = 0 } })
+                    HireTierRow(tier: tier, onHired: { withAnimation { tab = 0 } })
                         .environmentObject(store)
                 }
             } header: {
@@ -416,7 +415,6 @@ private struct WorkerRow: View {
 private struct HireTierRow: View {
     @EnvironmentObject var store: GameStore
     let tier: Int
-    let menuCount: Int
     let onHired: () -> Void
 
     private var def: UpgradeDefinition { UpgradeDefinitions.staff[tier - 1] }
@@ -430,11 +428,7 @@ private struct HireTierRow: View {
         }
     }
 
-    /// Tier 2+3 workers fill menu slots — cap at total menus
-    private var isAtCap: Bool {
-        guard tier >= 2 else { return false }
-        return store.stall.tier2Count + store.stall.tier3Count >= menuCount
-    }
+    private var isAtCap: Bool { false }
 
     private var isUnlocked: Bool {
         switch tier {
@@ -469,12 +463,7 @@ private struct HireTierRow: View {
                     .foregroundStyle(isUnlocked ? .primary : .secondary)
                 if isUnlocked {
                     Text(def.description).font(.caption).foregroundStyle(.secondary)
-                    HStack(spacing: 4) {
-                        Text("현재 \(count)명").font(.caption2).foregroundStyle(Color.staffAmber)
-                        if tier >= 2 {
-                            Text("/ 최대 \(menuCount)명").font(.caption2).foregroundStyle(.tertiary)
-                        }
-                    }
+                    Text("현재 \(count)명").font(.caption2).foregroundStyle(Color.staffAmber)
                 } else {
                     Text(unlockHint).font(.caption).foregroundStyle(.secondary)
                 }
