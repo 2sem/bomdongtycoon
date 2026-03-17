@@ -223,18 +223,18 @@ public final class GameStore: ObservableObject {
     /// Items per second a cook of the given tier produces.
     private func cookRate(forTier tier: Int) -> Double {
         guard tier > 0, tier <= UpgradeDefinitions.staff.count else { return 0 }
-        return 0.15 * UpgradeDefinitions.staff[tier - 1].productionMultiplier
-        // tier1 (×2.0) → 0.30/s  ~3.3s per item
-        // tier2 (×4.0) → 0.60/s  ~1.7s per item
-        // tier3 (×7.0) → 1.05/s  ~1.0s per item
+        return 0.07 * UpgradeDefinitions.staff[tier - 1].productionMultiplier
+        // tier1 (×2.0) → 0.14/s  ~7s per item
+        // tier2 (×4.0) → 0.28/s  ~3.6s per item
+        // tier3 (×7.0) → 0.49/s  ~2s per item
     }
 
     /// Human-readable cook speed label for the given tier.
     public static func cookSpeedLabel(forTier tier: Int) -> String {
         switch tier {
-        case 1: return "3.3초/개"
-        case 2: return "1.7초/개"
-        case 3: return "1.0초/개"
+        case 1: return "7초/개"
+        case 2: return "3.6초/개"
+        case 3: return "2초/개"
         default: return ""
         }
     }
