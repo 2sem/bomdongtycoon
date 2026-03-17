@@ -546,6 +546,7 @@ final class MainStallScene: SKScene {
     private func spawnCoinBubble(at position: CGPoint, amount: Double, autoPop: Bool = false) {
         let bubble = CoinBubbleNode(amount: amount)
         bubble.position = CGPoint(x: position.x, y: position.y + 80)
+        bubble.zPosition = 6   // above sign (z=3) and cook slots (z=4), below HUD (z=9)
         addChild(bubble)
         coinBubbles.append(bubble)
 
