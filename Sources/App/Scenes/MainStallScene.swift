@@ -17,6 +17,7 @@ final class MainStallScene: SKScene {
 
     private var lastUpdateTime: TimeInterval = 0
     private var coinBubbles: [CoinBubbleNode] = []
+    private var lastPendingCoins: Double = 0
     private var lastStallTier = -1
     private var lastShopName = ""
 
@@ -619,6 +620,15 @@ final class MainStallScene: SKScene {
         Task { @MainActor [weak self] in
             guard let self, let store = self.store else { return }
             store.tick(deltaTime: delta)
+
+            // Pop any lingering bubbles when pendingCoins reaches 0 (cashier collected)
+            let pending = store.stall.pendingCoins
+            if pending == 0 && self.lastPendingCoins > 0 {
+                self.coinBubbles.forEach { $0.pop() }
+                self.coinBubbles.removeAll()
+            }
+            self.lastPendingCoins = pending
+
             if let label = self.childNode(withName: "coinLabel") as? SKLabelNode {
                 label.text = "₩\(Self.formatCoins(Int(store.stall.coins)))"
             }
