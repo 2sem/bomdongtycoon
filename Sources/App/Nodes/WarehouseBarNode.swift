@@ -103,33 +103,33 @@ final class WarehouseNode: SKNode {
         node.addChild(bg)
 
         let icon = SKLabelNode(text: "📦")
-        icon.fontSize = 18
+        icon.fontSize = 24
         icon.verticalAlignmentMode = .center
-        icon.position = CGPoint(x: 0, y: 20)
+        icon.position = CGPoint(x: 0, y: 8)
         icon.name = "icon"
         node.addChild(icon)
 
         let stock = SKLabelNode()
         stock.fontName = "AppleSDGothicNeo-Bold"
-        stock.fontSize = 18
+        stock.fontSize = 13
         stock.fontColor = .white
         stock.verticalAlignmentMode   = .center
         stock.horizontalAlignmentMode = .center
-        stock.position = CGPoint(x: 0, y: -2)
+        stock.position = CGPoint(x: 0, y: -10)
         stock.name = "stock"
         node.addChild(stock)
 
         let barBg = SKShapeNode(rectOf: CGSize(width: Self.barW, height: Self.barH), cornerRadius: 3)
         barBg.fillColor   = Self.barBgColor
         barBg.strokeColor = .clear
-        barBg.position    = CGPoint(x: 0, y: -22)
+        barBg.position    = CGPoint(x: 0, y: -24)
         barBg.name        = "barBg"
         node.addChild(barBg)
 
         let barFill = SKShapeNode()
         barFill.fillColor   = Self.barFillColor
         barFill.strokeColor = .clear
-        barFill.position    = CGPoint(x: -Self.barW / 2, y: -22)
+        barFill.position    = CGPoint(x: -Self.barW / 2, y: -24)
         barFill.name        = "barFill"
         node.addChild(barFill)
 
