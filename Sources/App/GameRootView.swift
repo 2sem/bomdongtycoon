@@ -26,7 +26,6 @@ struct GameRootView: View {
                 SeasonBanner()
                 Spacer()
                 GoalProgressBar(showUpgrades: $showUpgrades)
-                staffButton
             }
             .padding(.horizontal, 12)
             .padding(.top, 4)
@@ -42,6 +41,9 @@ struct GameRootView: View {
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(24)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openStaffSheet)) { _ in
+            showStaff = true
+        }
         .onAppear {
             store.applyOfflineEarnings()
         }
@@ -56,18 +58,5 @@ struct GameRootView: View {
                 break
             }
         }
-    }
-
-    private var staffButton: some View {
-        Button { showStaff = true } label: {
-            Label("직원 관리", systemImage: "person.2.fill")
-                .font(.caption.bold())
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-        }
-        .buttonStyle(.plain)
-        .background(.ultraThinMaterial, in: Capsule())
-        .disabled(store.stall.staffCount == 0)
-        .opacity(store.stall.staffCount == 0 ? 0.45 : 1)
     }
 }

@@ -1,6 +1,10 @@
 import SpriteKit
 import GameCore
 
+extension Notification.Name {
+    static let openStaffSheet = Notification.Name("openStaffSheet")
+}
+
 final class MainStallScene: SKScene {
 
     // MARK: - Properties
@@ -351,6 +355,15 @@ final class MainStallScene: SKScene {
         signLabel.zPosition = 3
         signLabel.name = "signLabel"
         addChild(signLabel)
+
+        // Gear icon — tap to open staff management sheet
+        let gear = SKLabelNode(text: "⚙️")
+        gear.fontSize = 22
+        gear.verticalAlignmentMode = .center
+        gear.position  = CGPoint(x: frame.midX + 95, y: stallY + 55)
+        gear.zPosition = 4
+        gear.name = "gearIcon"
+        addChild(gear)
     }
 
     private func updateSignLabel() {
@@ -581,6 +594,11 @@ final class MainStallScene: SKScene {
 
         if let btn = cookButton, btn.contains(location) {
             Task { @MainActor in store.batchCook() }
+            return
+        }
+
+        if let gear = childNode(withName: "gearIcon"), gear.contains(location) {
+            NotificationCenter.default.post(name: .openStaffSheet, object: nil)
             return
         }
     }
