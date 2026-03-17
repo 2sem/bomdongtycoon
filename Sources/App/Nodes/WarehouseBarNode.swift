@@ -108,7 +108,7 @@ final class WarehouseNode: SKNode {
 
     private func buildExpandCell() {
         // Dashed-style border (simulate with low-alpha solid — SpriteKit doesn't support native dash on SKShapeNode easily)
-        expandBg.fillColor   = SKColor(white: 1.0, alpha: 0.08)
+        expandBg.fillColor   = SKColor(red: 0.24, green: 0.16, blue: 0.06, alpha: 1)
         expandBg.strokeColor = SKColor(white: 1.0, alpha: 0.55)
         expandBg.lineWidth   = 1.5
         expandBg.position    = CGPoint(x: Self.spacing / 2, y: 0)
