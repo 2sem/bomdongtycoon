@@ -257,7 +257,7 @@ private struct HireTierRow: View {
 
     private var unlockHint: String {
         switch tier {
-        case 2: return "분식집 업그레이드 필요"
+        case 2: return "봄동 식당 업그레이드 필요"
         case 3: return "봄동 전문점 업그레이드 필요"
         default: return ""
         }

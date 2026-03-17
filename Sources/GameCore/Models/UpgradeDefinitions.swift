@@ -79,7 +79,7 @@ public enum UpgradeDefinitions {
     /// Stall upgrades — increase maximum stock capacity
     public static let stall: [UpgradeDefinition] = [
         .init(name: "포장마차",    coinCost: 0,      description: "시작 가게", maxStock: 20),
-        .init(name: "분식집",      coinCost: 5_000,  description: "업그레이드", maxStock: 50),
+        .init(name: "봄동 식당",    coinCost: 5_000,  description: "업그레이드", maxStock: 50),
         .init(name: "봄동 전문점", coinCost: 25_000, description: "최고급",    maxStock: 150)
     ]
 
