@@ -422,25 +422,32 @@ final class MainStallScene: SKScene {
         guard let store else { return }
         let menus = Self.availableMenus(for: store.stall.menuTier)
         let customer = CustomerNode(availableMenus: menus)
-        customer.position = CGPoint(x: -40, y: groundY + 20)
+
+        // Street level: below pavement, left edge
+        let streetY   = groundY - 18
+        let counterPt = CGPoint(x: frame.midX - 70, y: groundY + 22)  // stall counter
+        let exitPt    = CGPoint(x: frame.width + 50, y: streetY)       // home: right + down
+
+        customer.position = CGPoint(x: -50, y: streetY)
         addChild(customer)
 
-        customer.walkTo(x: frame.midX - 70) { [weak self] in
+        // Leg 1: walk right and UP toward the counter
+        customer.walkTo(counterPt) { [weak self] in
             guard let self else { return }
             Task { @MainActor in
                 let menus = Self.availableMenus(for: store.stall.menuTier)
                 let desiredIndex = menus.firstIndex(of: customer.wantedMenu) ?? 0
                 guard let price = store.sellItem(menuIndex: desiredIndex) else {
                     customer.showReaction(happy: false)
-                    customer.walkTo(x: self.frame.width + 40) { customer.removeFromParent() }
+                    // Leg 2 (sad): walk down + right back to street
+                    customer.walkTo(exitPt) { customer.removeFromParent() }
                     return
                 }
-                // sellItem() already added price to pendingCoins.
-                // Always show a bubble; cashier auto-pops it, player taps without one.
                 self.spawnCoinBubble(at: customer.position, amount: price,
                                      autoPop: store.stall.autoCollectEnabled)
                 customer.showReaction(happy: true)
-                customer.walkTo(x: self.frame.width + 40) { customer.removeFromParent() }
+                // Leg 2 (happy): walk down + right back to street
+                customer.walkTo(exitPt) { customer.removeFromParent() }
             }
         }
     }

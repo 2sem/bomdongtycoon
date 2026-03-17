@@ -35,7 +35,7 @@ final class CustomerNode: SKNode {
         buildReactionLabel()
     }
 
-    required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
+    required init?(coder: NSCoder) { fatalError() }
 
     // MARK: - Building
 
@@ -91,9 +91,10 @@ final class CustomerNode: SKNode {
 
     // MARK: - Public API
 
-    func walkTo(x: CGFloat, completion: @escaping () -> Void) {
-        let duration = Double.random(in: 2.0...3.5)
-        run(SKAction.moveTo(x: x, duration: duration), completion: completion)
+    func walkTo(_ point: CGPoint, completion: @escaping () -> Void) {
+        let dx = abs(point.x - position.x)
+        let duration = min(max(Double(dx / 120), 1.2), 4.0)
+        run(SKAction.move(to: point, duration: duration), completion: completion)
     }
 
     func showReaction(happy: Bool) {
