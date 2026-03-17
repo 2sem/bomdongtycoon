@@ -34,13 +34,13 @@ final class GameStoreTests: XCTestCase {
     }
 
     func test_tick_workerAutoHarvestsReadyPlot() {
-        // Seed a plot as ready and assign a worker — tick should harvest it
+        // Seed a plot as ready and assign a worker — tick should harvest into warehouse
         store.farm.plots[0].growth = 1.0
-        store.stall.farmWorkers = 1
-        store.farm.farmWorkers = 1
-        let stockBefore = store.stall.stock
+        store.farm.plots[0].isPlanted = true
+        store.farm.plots[0].hasWorker = true
+        let warehouseBefore = store.stall.warehouse
         store.tick(deltaTime: 0.0)  // deltaTime irrelevant — worker harvests on every tick
-        XCTAssertGreaterThan(store.stall.stock, stockBefore)
+        XCTAssertGreaterThan(store.stall.warehouse, warehouseBefore)
         XCTAssertEqual(store.farm.plots[0].growth, 0, accuracy: 0.001)
     }
 

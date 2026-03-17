@@ -474,11 +474,19 @@ final class MainStallScene: SKScene {
     // MARK: - Customer spawning
 
     private func startCustomerSpawning() {
-        let spawn = SKAction.sequence([
-            SKAction.wait(forDuration: 3.0, withRange: 1.0),
-            SKAction.run { [weak self] in self?.spawnCustomer() },
-        ])
-        run(SKAction.repeatForever(spawn))
+        scheduleNextCustomer()
+    }
+
+    private func scheduleNextCustomer() {
+        let interval = store?.customerSpawnInterval ?? 4.0
+        let jitter   = interval * 0.2
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: interval, withRange: jitter),
+            SKAction.run { [weak self] in
+                self?.spawnCustomer()
+                self?.scheduleNextCustomer()
+            },
+        ]), withKey: "customerSpawn")
     }
 
     private static func availableMenus(for menuTier: Int) -> [String] {
@@ -510,6 +518,7 @@ final class MainStallScene: SKScene {
 
         // Try to serve immediately
         if let price = store.sellItem(menuIndex: idx) {
+            store.recordServed(waitTime: 0)
             spawnCoinBubble(at: customer.position, amount: price,
                             autoPop: store.stall.autoCollectEnabled)
             customer.showReaction(happy: true)
@@ -531,6 +540,7 @@ final class MainStallScene: SKScene {
                 if let price = store.sellItem(menuIndex: idx) {
                     customer.stopWaiting()
                     customer.removeAction(forKey: "poll")
+                    store.recordServed(waitTime: waited)
                     self.spawnCoinBubble(at: customer.position, amount: price,
                                         autoPop: store.stall.autoCollectEnabled)
                     customer.showReaction(happy: true)
@@ -538,6 +548,7 @@ final class MainStallScene: SKScene {
                 } else if waited >= maxWait {
                     customer.stopWaiting()
                     customer.removeAction(forKey: "poll")
+                    store.recordFailed()
                     customer.showReaction(happy: false)
                     customer.walkTo(exitPt) { customer.removeFromParent() }
                 }

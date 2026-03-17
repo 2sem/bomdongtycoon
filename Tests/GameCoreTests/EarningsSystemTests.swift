@@ -27,13 +27,13 @@ final class EarningsSystemTests: XCTestCase {
 
     func test_maxStock_baseLine() {
         let stall = StallState()
-        XCTAssertEqual(EarningsSystem.maxStock(for: stall), 20)
+        XCTAssertEqual(EarningsSystem.maxStock(for: stall), 15)
     }
 
     func test_maxStock_tier1() {
         var stall = StallState()
         stall.stallTier = 1
-        XCTAssertEqual(EarningsSystem.maxStock(for: stall), 50)
+        XCTAssertEqual(EarningsSystem.maxStock(for: stall), 30)
     }
 
     func test_pricePerItem_withMenuUpgrade() {

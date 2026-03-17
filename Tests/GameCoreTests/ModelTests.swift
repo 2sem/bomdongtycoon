@@ -9,7 +9,7 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(stall.menuTier, 0)
         XCTAssertEqual(stall.staffTier, 0)
         XCTAssertEqual(stall.stallTier, 0)
-        XCTAssertEqual(stall.locationTier, 0)
+
         XCTAssertFalse(stall.autoCollectEnabled)
     }
 

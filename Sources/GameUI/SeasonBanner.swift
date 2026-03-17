@@ -56,3 +56,32 @@ public struct TotalEarnedBadge: View {
         return "\(number)원"
     }
 }
+
+/// Shows the shop's star rating (e.g. ★ 3.8) in the top-center HUD.
+public struct RatingBadge: View {
+    @EnvironmentObject var store: GameStore
+
+    public init() {}
+
+    public var body: some View {
+        HStack(spacing: 3) {
+            Text("★")
+                .font(.caption.bold())
+                .foregroundStyle(starColor)
+            Text(String(format: "%.1f", store.progress.rating))
+                .font(.caption.bold())
+                .contentTransition(.numericText())
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial, in: Capsule())
+        .animation(.spring(duration: 0.3), value: store.progress.rating)
+    }
+
+    private var starColor: Color {
+        let r = store.progress.rating
+        if r >= 4.0 { return Color(red: 1.0, green: 0.80, blue: 0.0) }
+        if r >= 2.5 { return Color(red: 0.95, green: 0.60, blue: 0.1) }
+        return Color(red: 0.85, green: 0.25, blue: 0.2)
+    }
+}

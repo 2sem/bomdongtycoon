@@ -99,7 +99,11 @@ public struct StaffSheet: View {
                             cashierCount: store.stall.cashierCount,
                             activeFarmPlots: FarmSystem.activePlotCount(for: store.farm),
                             farmPlots: store.farm.plots,
-                            onReassign: { reassign(worker: worker, to: $0) }
+                            coins: store.stall.coins,
+                            onReassign: { reassign(worker: worker, to: $0) },
+                            onUpgrade: worker.tier < 3
+                                ? { store.upgradeWorker(fromTier: worker.tier, preservingEnergy: worker.energy) }
+                                : nil
                         )
                     }
                 } header: {
@@ -170,6 +174,9 @@ public struct StaffSheet: View {
             return 1.0;
         }
 
+        // Idle energy cursors — parallel-index into the tier's idle pool
+        var t3IdleIdx = 0; var t2IdleIdx = 0; var t1IdleIdx = 0
+
         // Tier 3 (봄동 요리사): menus only
         var t3 = menuSlots(for: 3);
         var tier3Idx = 0;
@@ -178,7 +185,9 @@ public struct StaffSheet: View {
             let e: Double;
             switch a {
             case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0
-            default:           e = 1.0
+            default:
+                e = store.stall.tier3IdleEnergies[safe: t3IdleIdx] ?? 1.0
+                t3IdleIdx += 1
             }
             items.append(WorkerItem(id: idCounter, indexInTier: tier3Idx, tier: 3, assignment: a, energy: e));
             idCounter += 1; tier3Idx += 1;
@@ -196,7 +205,9 @@ public struct StaffSheet: View {
             switch a {
             case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0
             case .cashier:     e = store.stall.cashierEnergy
-            default:           e = 1.0
+            default:
+                e = store.stall.tier2IdleEnergies[safe: t2IdleIdx] ?? 1.0
+                t2IdleIdx += 1
             }
             items.append(WorkerItem(id: idCounter, indexInTier: tier2Idx, tier: 2, assignment: a, energy: e));
             idCounter += 1; tier2Idx += 1;
@@ -217,13 +228,20 @@ public struct StaffSheet: View {
             case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0
             case .cashier:     e = store.stall.cashierEnergy
             case .farm:        e = nextFarmWorkerEnergy()
-            default:           e = 1.0
+            default:
+                e = store.stall.tier1IdleEnergies[safe: t1IdleIdx] ?? 1.0
+                t1IdleIdx += 1
             }
             items.append(WorkerItem(id: idCounter, indexInTier: tier1Idx, tier: 1, assignment: a, energy: e));
             idCounter += 1; tier1Idx += 1;
         }
 
-        return items;
+        return items.sorted { a, b in
+            let aUnassigned = a.assignment == .unassigned
+            let bUnassigned = b.assignment == .unassigned
+            if aUnassigned != bUnassigned { return aUnassigned }
+            return a.energy > b.energy
+        }
     }
 
     // MARK: - Reassign
@@ -231,13 +249,13 @@ public struct StaffSheet: View {
     private func reassign(worker: WorkerItem, to new: WorkerItem.Assignment) {
         guard new != worker.assignment else { return }
 
-        // Unassign from current
+        // Unassign from current — pass worker.energy so the displayed value is preserved
         switch worker.assignment {
-        case .menu(let i):   store.removeMenuCook(menuIndex: i)
-        case .cashier:       store.removeFromCashier()
+        case .menu(let i):   store.removeMenuCook(menuIndex: i, displayedEnergy: worker.energy)
+        case .cashier:       store.removeFromCashier(displayedEnergy: worker.energy)
         case .farm:
             if let idx = store.farm.plots.firstIndex(where: { $0.hasWorker }) {
-                store.toggleWorker(plotIndex: idx)
+                store.toggleWorker(plotIndex: idx, displayedEnergy: worker.energy)
             }
         case .unassigned: break
         }
@@ -245,7 +263,7 @@ public struct StaffSheet: View {
         // Assign to new position
         switch new {
         case .menu(let i):   store.assignMenuCook(menuIndex: i, tier: worker.tier)
-        case .cashier:       store.assignToCashier()
+        case .cashier:       store.assignToCashier(tier: worker.tier)
         case .farm:
             let active = FarmSystem.activePlotCount(for: store.farm)
             if let idx = (0..<active).first(where: { !store.farm.plots[$0].hasWorker }) {
@@ -265,7 +283,9 @@ private struct WorkerRow: View {
     let cashierCount: Int;
     let activeFarmPlots: Int;
     let farmPlots: [FarmPlot];
+    let coins: Double;
     let onReassign: (WorkerItem.Assignment) -> Void;
+    let onUpgrade: (() -> Void)?;
 
     private static let name  = ["", "알바생", "이모님", "봄동 요리사"];
 
@@ -303,7 +323,7 @@ private struct WorkerRow: View {
     }
 
     private func assignmentLabel(_ a: WorkerItem.Assignment, energy: Double = 1.0) -> String {
-        if case .unassigned = a, energy < 0.99 { return "💤 휴식 중" }
+        if case .unassigned = a, energy < 0.2 { return "😴 휴식" }
         switch a {
         case .menu(let i): return UpgradeDefinitions.menu[safe: i]?.name ?? "메뉴 \(i + 1)"
         default:           return a.label
@@ -346,29 +366,58 @@ private struct WorkerRow: View {
 
             Spacer()
 
-            Menu {
-                ForEach(options, id: \.0) { option, available in
+            VStack(spacing: 6) {
+                // Upgrade button — idle workers only, tier 1→2 or 2→3
+                if worker.assignment == .unassigned, worker.tier < 3, let onUpgrade {
+                    let nextTierCost = UpgradeDefinitions.staff[safe: worker.tier]?.coinCost ?? 0
+                    let canAfford = coins >= nextTierCost
                     Button {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        onReassign(option)
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        onUpgrade()
                     } label: {
-                        if worker.assignment == option {
-                            Label(assignmentLabel(option), systemImage: "checkmark")
-                        } else {
-                            Text(assignmentLabel(option))
+                        VStack(spacing: 1) {
+                            Image(systemName: "arrow.up.circle.fill").font(.caption.bold())
+                            Text(nextTierCost >= 1000
+                                 ? "₩\(Int(nextTierCost) / 1000)K"
+                                 : "₩\(Int(nextTierCost))")
+                                .font(.system(size: 9))
                         }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(
+                            canAfford ? Color.green.opacity(0.15) : Color.gray.opacity(0.1),
+                            in: RoundedRectangle(cornerRadius: 8)
+                        )
+                        .foregroundStyle(canAfford ? Color.green : Color.gray)
                     }
-                    .disabled(!available)
+                    .buttonStyle(.plain)
+                    .disabled(!canAfford)
                 }
-            } label: {
-                HStack(spacing: 4) {
-                    Text(assignmentLabel(worker.assignment, energy: worker.energy)).font(.caption.bold())
-                    Image(systemName: "chevron.up.chevron.down").font(.caption2)
+
+                Menu {
+                    ForEach(options, id: \.0) { option, available in
+                        Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            onReassign(option)
+                        } label: {
+                            if worker.assignment == option {
+                                Label(assignmentLabel(option), systemImage: "checkmark")
+                            } else {
+                                Text(assignmentLabel(option))
+                            }
+                        }
+                        .disabled(!available)
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(assignmentLabel(worker.assignment, energy: worker.energy)).font(.caption.bold())
+                        Image(systemName: "chevron.up.chevron.down").font(.caption2)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.staffAmber.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+                    .foregroundStyle(Color.staffAmber)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Color.staffAmber.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
-                .foregroundStyle(Color.staffAmber)
             }
         }
         .padding(.vertical, 2)

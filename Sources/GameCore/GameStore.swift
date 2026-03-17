@@ -60,6 +60,29 @@ public final class GameStore: ObservableObject {
         max(0.2, energy);   // minimum 20% speed when exhausted
     }
 
+    /// Pop the oldest idle energy for a tier (returns 1.0 if pool is empty).
+    @discardableResult
+    private func popIdleEnergy(for tier: Int) -> Double {
+        switch tier {
+        case 1: return stall.tier1IdleEnergies.isEmpty ? 1.0 : stall.tier1IdleEnergies.removeFirst()
+        case 2: return stall.tier2IdleEnergies.isEmpty ? 1.0 : stall.tier2IdleEnergies.removeFirst()
+        case 3: return stall.tier3IdleEnergies.isEmpty ? 1.0 : stall.tier3IdleEnergies.removeFirst()
+        default: return 1.0
+        }
+    }
+
+    /// Push a worker's current energy into the idle pool for their tier.
+    /// Values below 5% are snapped to exactly 0.0 so the bar shows cleanly empty.
+    private func pushIdleEnergy(_ energy: Double, for tier: Int) {
+        let snapped = energy < 0.05 ? 0.0 : energy
+        switch tier {
+        case 1: stall.tier1IdleEnergies.append(snapped)
+        case 2: stall.tier2IdleEnergies.append(snapped)
+        case 3: stall.tier3IdleEnergies.append(snapped)
+        default: break
+        }
+    }
+
     // MARK: - Tick
 
     public func tick(deltaTime: Double) {
@@ -67,6 +90,15 @@ public final class GameStore: ObservableObject {
         let activePlots = FarmSystem.activePlotCount(for: farm);
 
         // Energy: deplete while working, restore while resting
+        for i in 0..<stall.tier1IdleEnergies.count {
+            stall.tier1IdleEnergies[i] = min(1, stall.tier1IdleEnergies[i] + Self.energyRestoreRate * deltaTime)
+        }
+        for i in 0..<stall.tier2IdleEnergies.count {
+            stall.tier2IdleEnergies[i] = min(1, stall.tier2IdleEnergies[i] + Self.energyRestoreRate * deltaTime)
+        }
+        for i in 0..<stall.tier3IdleEnergies.count {
+            stall.tier3IdleEnergies[i] = min(1, stall.tier3IdleEnergies[i] + Self.energyRestoreRate * deltaTime)
+        }
         for i in 0..<stall.menuCookEnergy.count {
             if i < stall.menuCooks.count, stall.menuCooks[i] > 0 {
                 stall.menuCookEnergy[i] = max(0, stall.menuCookEnergy[i] - Self.energyDepletionRate * deltaTime);
@@ -199,6 +231,11 @@ public final class GameStore: ObservableObject {
     /// Energy level for the cashier worker (0.0–1.0).
     public var cashierEnergy: Double { stall.cashierEnergy }
 
+    /// Base spawn interval in seconds, driven by shop rating.
+    public var customerSpawnInterval: Double {
+        min(12.0, max(1.5, 4.0 * (3.0 / progress.rating)))
+    }
+
     /// Manually cook 1 item for the given menu (regardless of cook assignment).
     public func manualCook(menuIndex: Int) {
         let maxStock = EarningsSystem.maxStock(for: stall)
@@ -263,26 +300,37 @@ public final class GameStore: ObservableObject {
         stall.tier1Count - farmAssigned
     }
 
-    public func toggleWorker(plotIndex: Int) {
+    public func toggleWorker(plotIndex: Int, displayedEnergy: Double? = nil) {
         guard plotIndex < farm.plots.count else { return }
         if farm.plots[plotIndex].hasWorker {
+            let energy = displayedEnergy ?? farm.plots[plotIndex].workerEnergy
+            pushIdleEnergy(energy, for: 1)
+            farm.plots[plotIndex].workerEnergy = 1.0
             farm.plots[plotIndex].hasWorker = false
         } else {
             guard availableForFarm > 0 else { return }
+            farm.plots[plotIndex].workerEnergy = popIdleEnergy(for: 1)
             farm.plots[plotIndex].hasWorker = true
         }
         stall.farmWorkers = farmAssigned
         save()
     }
 
-    public func assignToCashier() {
+    public func assignToCashier(tier: Int = 0) {
         guard availableWorkers > 0, stall.cashierCount == 0 else { return }
+        let t = tier > 0 ? tier : 1
+        stall.cashierEnergy = popIdleEnergy(for: t)
+        stall.cashierTier   = t
         stall.cashierCount += 1
         save()
     }
 
-    public func removeFromCashier() {
+    public func removeFromCashier(displayedEnergy: Double? = nil) {
         guard stall.cashierCount > 0 else { return }
+        let energy = displayedEnergy ?? stall.cashierEnergy
+        pushIdleEnergy(energy, for: stall.cashierTier)
+        stall.cashierEnergy = 1.0
+        stall.cashierTier   = 0
         stall.cashierCount -= 1
         save()
     }
@@ -305,6 +353,7 @@ public final class GameStore: ObservableObject {
         let used  = stall.menuCooks.filter { $0 == tier }.count
         guard total > used else { return }
         stall.menuCooks[menuIndex] = tier
+        stall.menuCookEnergy[menuIndex] = popIdleEnergy(for: tier)
         save()
     }
 
@@ -317,9 +366,13 @@ public final class GameStore: ObservableObject {
         }
     }
 
-    public func removeMenuCook(menuIndex: Int) {
+    public func removeMenuCook(menuIndex: Int, displayedEnergy: Double? = nil) {
         guard menuIndex < stall.menuCooks.count,
               stall.menuCooks[menuIndex] > 0 else { return }
+        let tier = stall.menuCooks[menuIndex]
+        let energy = displayedEnergy ?? stall.menuCookEnergy[menuIndex]
+        pushIdleEnergy(energy, for: tier)
+        stall.menuCookEnergy[menuIndex] = 1.0
         stall.menuCooks[menuIndex] = 0
         save()
     }
@@ -350,9 +403,9 @@ public final class GameStore: ObservableObject {
         guard stall.coins >= cost else { return }
         stall.coins -= cost
         switch stall.staffTier {
-        case 1: stall.tier1Count += 1
-        case 2: stall.tier2Count += 1
-        case 3: stall.tier3Count += 1
+        case 1: stall.tier1Count += 1; stall.tier1IdleEnergies.append(1.0)
+        case 2: stall.tier2Count += 1; stall.tier2IdleEnergies.append(1.0)
+        case 3: stall.tier3Count += 1; stall.tier3IdleEnergies.append(1.0)
         default: break
         }
         save()
@@ -364,12 +417,43 @@ public final class GameStore: ObservableObject {
         guard stall.coins >= cost else { return }
         stall.coins -= cost
         switch tier {
-        case 1: stall.tier1Count += 1
-        case 2: stall.tier2Count += 1
-        case 3: stall.tier3Count += 1
+        case 1: stall.tier1Count += 1; stall.tier1IdleEnergies.append(1.0)
+        case 2: stall.tier2Count += 1; stall.tier2IdleEnergies.append(1.0)
+        case 3: stall.tier3Count += 1; stall.tier3IdleEnergies.append(1.0)
         default: break
         }
         stall.staffTier = max(stall.staffTier, tier)
+        save()
+    }
+
+    /// Upgrade one idle worker from `tier` to `tier + 1`, paying the target tier's hire cost.
+    /// The worker must be idle (unassigned). `energy` is the displayed energy to preserve.
+    public func upgradeWorker(fromTier tier: Int, preservingEnergy energy: Double) {
+        let targetTier = tier + 1
+        guard targetTier <= 3 else { return }
+        let cost = UpgradeDefinitions.staff[targetTier - 1].coinCost
+        guard stall.coins >= cost else { return }
+
+        stall.coins -= cost
+
+        // Remove one idle slot from old tier (any entry, workers are fungible)
+        switch tier {
+        case 1:
+            if !stall.tier1IdleEnergies.isEmpty { stall.tier1IdleEnergies.removeFirst() }
+            stall.tier1Count -= 1
+        case 2:
+            if !stall.tier2IdleEnergies.isEmpty { stall.tier2IdleEnergies.removeFirst() }
+            stall.tier2Count -= 1
+        default: return
+        }
+
+        // Add upgraded worker using the caller-supplied energy (what the player saw)
+        switch targetTier {
+        case 2: stall.tier2Count += 1; stall.tier2IdleEnergies.append(energy)
+        case 3: stall.tier3Count += 1; stall.tier3IdleEnergies.append(energy)
+        default: break
+        }
+        stall.staffTier = max(stall.staffTier, targetTier)
         save()
     }
 
@@ -391,6 +475,19 @@ public final class GameStore: ObservableObject {
 
     public func clearOfflineEarnings() { offlineEarnings = 0 }
 
+    public func recordServed(waitTime: Double) {
+        progress.totalServed += 1
+        let delta = waitTime < 3.0 ? 0.03 : 0.01
+        progress.rating = min(5.0, progress.rating + delta)
+        save()
+    }
+
+    public func recordFailed() {
+        progress.totalFailed += 1
+        progress.rating = max(1.0, progress.rating - 0.05)
+        save()
+    }
+
     // MARK: - Upgrades
 
     public func purchaseUpgrade(_ type: UpgradeType) {
@@ -403,9 +500,9 @@ public final class GameStore: ObservableObject {
             stall.coins    -= cost
             stall.staffTier += 1
             switch stall.staffTier {
-            case 1: stall.tier1Count += 1
-            case 2: stall.tier2Count += 1
-            case 3: stall.tier3Count += 1
+            case 1: stall.tier1Count += 1; stall.tier1IdleEnergies.append(1.0)
+            case 2: stall.tier2Count += 1; stall.tier2IdleEnergies.append(1.0)
+            case 3: stall.tier3Count += 1; stall.tier3IdleEnergies.append(1.0)
             default: break
             }
 

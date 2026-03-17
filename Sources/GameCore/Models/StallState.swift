@@ -16,9 +16,15 @@ public struct StallState: Codable {
     public var cashierCount: Int = 0;
     public var menuCooks: [Int] = [0, 0, 0];   // one slot per menu
 
-    // Worker energy (0.0–1.0)
+    // Worker energy (0.0–1.0) — per active slot
     public var menuCookEnergy: [Double] = [1.0, 1.0, 1.0];
     public var cashierEnergy: Double = 1.0;
+    public var cashierTier: Int = 0;   // which tier worker is in the cashier slot
+
+    // Idle energy pools — one Double per unassigned worker of each tier
+    public var tier1IdleEnergies: [Double] = []
+    public var tier2IdleEnergies: [Double] = []
+    public var tier3IdleEnergies: [Double] = []
 
     // Warehouse
     public var warehouse: Int = 0
@@ -39,7 +45,8 @@ public struct StallState: Codable {
         case coins, menuTier, staffTier, stallTier, pendingCoins
         case tier1Count, tier2Count, tier3Count
         case cashierCount, menuCooks
-        case menuCookEnergy, cashierEnergy
+        case menuCookEnergy, cashierEnergy, cashierTier
+        case tier1IdleEnergies, tier2IdleEnergies, tier3IdleEnergies
         case warehouse, warehouseCapacity, menuStock
         case farmWorkers
     }

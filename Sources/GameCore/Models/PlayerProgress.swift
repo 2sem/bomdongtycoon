@@ -7,6 +7,9 @@ public struct PlayerProgress: Codable {
     public var lastActiveDate: Date? = nil
     public var seasonStartDate: Date? = nil
     public var totalEarned: Double = 0
+    public var rating: Double = 3.0
+    public var totalServed: Int = 0
+    public var totalFailed: Int = 0
 
     public init() {}
 }
