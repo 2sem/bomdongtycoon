@@ -257,25 +257,35 @@ public struct StaffSheet: View {
     private func reassign(worker: WorkerItem, to new: WorkerItem.Assignment) {
         guard new != worker.assignment else { return }
 
-        // When moving to another position, bypass the idle pool entirely so
-        // the worker carries their exact energy value to the new slot.
         let movingToIdle = (new == .unassigned)
 
-        // Remove from current position
+        // Read the worker's LIVE energy from the store right now — not from the
+        // stale WorkerItem snapshot, which may have been captured at render time
+        // before several ticks of depletion.
+        let liveEnergy: Double = {
+            switch worker.assignment {
+            case .menu(let i):  return store.stall.menuCookEnergy[safe: i] ?? 1.0
+            case .cashier:      return store.stall.cashierEnergy
+            case .farm:         return store.farm.plots.first(where: { $0.hasWorker })?.workerEnergy ?? 1.0
+            case .unassigned:   return store.stall.tier1IdleEnergies.first ?? 1.0
+            }
+        }()
+
+        // Remove from current position (no displayedEnergy — live value already captured above)
         switch worker.assignment {
         case .menu(let i):
-            store.removeMenuCook(menuIndex: i, displayedEnergy: worker.energy, addToIdle: movingToIdle)
+            store.removeMenuCook(menuIndex: i, addToIdle: movingToIdle)
         case .cashier:
-            store.removeFromCashier(displayedEnergy: worker.energy, addToIdle: movingToIdle)
+            store.removeFromCashier(addToIdle: movingToIdle)
         case .farm:
             if let idx = store.farm.plots.firstIndex(where: { $0.hasWorker }) {
-                store.toggleWorker(plotIndex: idx, displayedEnergy: worker.energy, addToIdle: movingToIdle)
+                store.toggleWorker(plotIndex: idx, addToIdle: movingToIdle)
             }
         case .unassigned: break
         }
 
-        // Assign to new position — pass energy directly when coming from another slot
-        let carry: Double? = movingToIdle ? nil : worker.energy
+        // Assign to new position, carrying the live energy directly
+        let carry: Double? = movingToIdle ? nil : liveEnergy
         switch new {
         case .menu(let i):
             store.assignMenuCook(menuIndex: i, tier: worker.tier, directEnergy: carry)
