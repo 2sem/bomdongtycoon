@@ -5,7 +5,6 @@ public struct StallState: Codable {
     public var menuTier: Int = 0
     public var staffTier: Int = 0       // highest tier purchased
     public var stallTier: Int = 0
-    public var locationTier: Int = 0
     public var pendingCoins: Double = 0
 
     // Per-tier headcounts (only tier1 can farm)
@@ -33,7 +32,7 @@ public struct StallState: Codable {
     public var farmWorkers: Int = 0
 
     private enum CodingKeys: String, CodingKey {
-        case coins, menuTier, staffTier, stallTier, locationTier, pendingCoins
+        case coins, menuTier, staffTier, stallTier, pendingCoins
         case tier1Count, tier2Count, tier3Count
         case cashierCount, menuCooks
         case warehouse, warehouseCapacity, menuStock

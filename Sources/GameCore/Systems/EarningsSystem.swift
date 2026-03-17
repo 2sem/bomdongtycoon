@@ -11,7 +11,6 @@ public enum EarningsSystem {
         if stall.staffTier > 0 {
             rate *= UpgradeDefinitions.staff[stall.staffTier - 1].productionMultiplier
         }
-        rate *= UpgradeDefinitions.location[stall.locationTier].productionMultiplier
         return rate
     }
 
@@ -19,7 +18,6 @@ public enum EarningsSystem {
     public static func pricePerItem(for stall: StallState) -> Double {
         var price = basePricePerItem
         price *= UpgradeDefinitions.menu[stall.menuTier].priceMultiplier
-        price *= UpgradeDefinitions.location[stall.locationTier].priceMultiplier
         return price
     }
 
@@ -55,9 +53,6 @@ public enum EarningsSystem {
         }
         if stall.stallTier + 1 < UpgradeDefinitions.stall.count {
             result.append(UpgradeDefinitions.stall[stall.stallTier + 1])
-        }
-        if stall.locationTier + 1 < UpgradeDefinitions.location.count {
-            result.append(UpgradeDefinitions.location[stall.locationTier + 1])
         }
         return result
     }

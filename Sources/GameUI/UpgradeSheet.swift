@@ -24,12 +24,6 @@ public struct UpgradeSheet: View {
                     definitions: UpgradeDefinitions.stall,
                     currentTier: store.stall.stallTier + 1
                 )
-                upgradeSection(
-                    title: "위치 이전",
-                    type: .location,
-                    definitions: UpgradeDefinitions.location,
-                    currentTier: store.stall.locationTier + 1
-                )
             }
             .navigationTitle("업그레이드")
             .navigationBarTitleDisplayMode(.inline)

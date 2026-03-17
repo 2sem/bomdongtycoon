@@ -83,14 +83,7 @@ public enum UpgradeDefinitions {
         .init(name: "봄동 전문점", coinCost: 25_000, description: "최고급",    maxStock: 150)
     ]
 
-    /// Location upgrades — increase both production rate and sale price
-    public static let location: [UpgradeDefinition] = [
-        .init(name: "골목", coinCost: 0,      description: "조용한 골목",    productionMultiplier: 1.0, priceMultiplier: 1.0),
-        .init(name: "시장", coinCost: 8_000,  description: "사람 많은 시장", productionMultiplier: 2.5, priceMultiplier: 2.5),
-        .init(name: "강남", coinCost: 50_000, description: "핫플레이스",    productionMultiplier: 8.0, priceMultiplier: 8.0)
-    ]
-
-    /// Farm upgrades — increase plot count, growth speed, and harvest yield
+/// Farm upgrades — increase plot count, growth speed, and harvest yield
     public static let farm: [FarmUpgradeDefinition] = [
         .init(name: "텃밭",     coinCost: 0,      description: "작은 시작",  plotCount: 2, growthMultiplier: 1.0, harvestYield: 1),
         .init(name: "주말농장", coinCost: 3_000,  description: "더 넓은 밭", plotCount: 3, growthMultiplier: 1.5, harvestYield: 2),

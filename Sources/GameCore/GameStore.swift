@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 public enum UpgradeType {
-    case staff, menu, stall, location, farm
+    case staff, menu, stall, farm
 }
 
 @MainActor
@@ -393,14 +393,6 @@ public final class GameStore: ObservableObject {
             guard stall.coins >= cost else { return }
             stall.coins -= cost
             stall.stallTier += 1
-
-        case .location:
-            let nextTier = stall.locationTier + 1
-            guard nextTier < UpgradeDefinitions.location.count else { return }
-            let cost = UpgradeDefinitions.location[nextTier].coinCost
-            guard stall.coins >= cost else { return }
-            stall.coins -= cost
-            stall.locationTier += 1
 
         case .farm:
             guard let cost = FarmSystem.costForNextPlot(currentCount: farm.plots.count) else { return }
