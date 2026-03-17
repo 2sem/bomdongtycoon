@@ -6,6 +6,7 @@ struct GameRootView: View {
     @EnvironmentObject var store: GameStore
     @Environment(\.scenePhase) var scenePhase
     @State private var showUpgrades = false
+    @State private var showStaff = false
 
     var body: some View {
         ZStack {
@@ -25,6 +26,7 @@ struct GameRootView: View {
                 SeasonBanner()
                 Spacer()
                 GoalProgressBar(showUpgrades: $showUpgrades)
+                staffButton
             }
             .padding(.horizontal, 12)
             .padding(.top, 4)
@@ -32,6 +34,13 @@ struct GameRootView: View {
         .sheet(isPresented: $showUpgrades) {
             UpgradeSheet(isPresented: $showUpgrades)
                 .environmentObject(store)
+        }
+        .sheet(isPresented: $showStaff) {
+            StaffSheet(isPresented: $showStaff)
+                .environmentObject(store)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(24)
         }
         .onAppear {
             store.applyOfflineEarnings()
@@ -47,5 +56,18 @@ struct GameRootView: View {
                 break
             }
         }
+    }
+
+    private var staffButton: some View {
+        Button { showStaff = true } label: {
+            Label("직원 관리", systemImage: "person.2.fill")
+                .font(.caption.bold())
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+        }
+        .buttonStyle(.plain)
+        .background(.ultraThinMaterial, in: Capsule())
+        .disabled(store.stall.staffCount == 0)
+        .opacity(store.stall.staffCount == 0 ? 0.45 : 1)
     }
 }

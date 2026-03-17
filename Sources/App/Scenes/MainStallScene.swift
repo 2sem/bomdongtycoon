@@ -38,10 +38,6 @@ final class MainStallScene: SKScene {
     private var lastCookMenuTier = -1
     private var lastCookBatchSize = -1
 
-    // Shop worker badges
-    private var shopWorkerNodes: [SKNode] = []
-    private var lastShopWorkers = -1
-
     private static func formatCoins(_ value: Int) -> String {
         if value >= 1_000_000 { return String(format: "%.1fM", Double(value) / 1_000_000) }
         if value >= 1_000     { return String(format: "%.1fK", Double(value) / 1_000) }
@@ -326,90 +322,6 @@ final class MainStallScene: SKScene {
         lastCookBatchSize = batchSize
     }
 
-    // MARK: - Shop worker badges
-
-    private func syncShopWorkers(store: GameStore) {
-        let assigned   = store.stall.cashierCount
-        let available  = store.availableWorkers
-        let menuCooks  = store.stall.menuCooks
-        let menuTier   = store.stall.menuTier
-        let cookHash   = menuCooks.prefix(menuTier + 1).reduce(0) { $0 * 10 + $1 }
-        let sentinel   = assigned * 1_000_000 + available * 1_000 + cookHash
-        guard sentinel != lastShopWorkers else { return }
-        shopWorkerNodes.forEach { $0.removeFromParent() }
-        shopWorkerNodes.removeAll()
-
-        // --- Cashier badges (left of stall) ---
-        let badgeBaseX: CGFloat = frame.midX - 115
-        for i in 0..<assigned {
-            let badge = SKLabelNode(text: "👩‍🍳")
-            badge.fontSize = 20
-            badge.verticalAlignmentMode = .center
-            badge.position = CGPoint(x: badgeBaseX + CGFloat(i) * 24, y: stallY + 8)
-            badge.zPosition = 4
-            badge.name = "cashierBadge"
-            addChild(badge)
-            shopWorkerNodes.append(badge)
-        }
-        if available > 0 {
-            let pillW: CGFloat = 60
-            let pillH: CGFloat = 26
-            let pill = SKShapeNode(rectOf: CGSize(width: pillW, height: pillH), cornerRadius: 13)
-            pill.fillColor   = SKColor(red: 1.0, green: 0.70, blue: 0.0, alpha: 0.95)
-            pill.strokeColor = SKColor(red: 0.85, green: 0.50, blue: 0.0, alpha: 1)
-            pill.lineWidth   = 1.5
-            pill.name        = "cashierHint"
-            pill.zPosition   = 4
-            pill.position    = CGPoint(x: badgeBaseX + CGFloat(assigned) * 24 + pillW / 2, y: stallY + 8)
-            let lbl = SKLabelNode(text: "💰 +")
-            lbl.fontName = "AppleSDGothicNeo-Bold"
-            lbl.fontSize = 12
-            lbl.fontColor = .white
-            lbl.verticalAlignmentMode   = .center
-            lbl.horizontalAlignmentMode = .center
-            pill.addChild(lbl)
-            addChild(pill)
-            shopWorkerNodes.append(pill)
-        }
-
-        // --- Menu cook badges (right of stall) ---
-        let menuCookBaseX: CGFloat = frame.midX + 60
-        let menuSpacingX: CGFloat  = 30
-        for i in 0...menuTier {
-            let count = i < menuCooks.count ? menuCooks[i] : 0
-            let x = menuCookBaseX + CGFloat(i) * menuSpacingX
-            let y = stallY - 8
-
-            if count > 0 {
-                let badge = SKLabelNode(text: "🍳×\(count)")
-                badge.fontName = "AppleSDGothicNeo-Bold"
-                badge.fontSize = 13
-                badge.fontColor = .white
-                badge.verticalAlignmentMode   = .center
-                badge.horizontalAlignmentMode = .center
-                badge.position  = CGPoint(x: x, y: y)
-                badge.zPosition = 4
-                badge.name = "menuCookBadge_\(i)"
-                addChild(badge)
-                shopWorkerNodes.append(badge)
-            } else if available > 0 {
-                let hint = SKLabelNode(text: "🍳+")
-                hint.fontName = "AppleSDGothicNeo-Bold"
-                hint.fontSize = 13
-                hint.fontColor = SKColor(white: 1.0, alpha: 0.45)
-                hint.verticalAlignmentMode   = .center
-                hint.horizontalAlignmentMode = .center
-                hint.position  = CGPoint(x: x, y: y)
-                hint.zPosition = 4
-                hint.name = "menuCookHint_\(i)"
-                addChild(hint)
-                shopWorkerNodes.append(hint)
-            }
-        }
-
-        lastShopWorkers = sentinel
-    }
-
     // MARK: - Stall
 
     private func setupStall() {
@@ -667,26 +579,6 @@ final class MainStallScene: SKScene {
             }
         }
 
-        for node in shopWorkerNodes {
-            if node.contains(location) {
-                switch node.name {
-                case "cashierBadge":
-                    Task { @MainActor in store.removeFromCashier() }
-                case "cashierHint":
-                    Task { @MainActor in store.assignToCashier() }
-                case let name where name?.hasPrefix("menuCookBadge_") == true:
-                    let idx = Int(node.name?.dropFirst("menuCookBadge_".count) ?? "") ?? 0
-                    Task { @MainActor in store.removeMenuCook(menuIndex: idx) }
-                case let name where name?.hasPrefix("menuCookHint_") == true:
-                    let idx = Int(node.name?.dropFirst("menuCookHint_".count) ?? "") ?? 0
-                    Task { @MainActor in store.assignMenuCook(menuIndex: idx) }
-                default: break
-                }
-                lastShopWorkers = -1
-                return
-            }
-        }
-
         if let btn = cookButton, btn.contains(location) {
             Task { @MainActor in store.batchCook() }
             return
@@ -718,7 +610,6 @@ final class MainStallScene: SKScene {
             self.syncFarmPlots(farm: store.farm, activePlots: activePlots)
             self.syncWarehouse(store: store)
             self.syncCookButtons(store: store)
-            self.syncShopWorkers(store: store)
             let shopName = store.progress.shopName
             if shopName != self.lastShopName {
                 self.lastShopName = shopName
