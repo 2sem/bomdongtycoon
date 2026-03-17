@@ -25,6 +25,8 @@ struct GameRootView: View {
             HStack(alignment: .center) {
                 TotalEarnedBadge()
                 Spacer()
+                CoinBadge()
+                Spacer()
                 GoalProgressBar(showUpgrades: $showUpgrades)
             }
             .padding(.horizontal, 12)

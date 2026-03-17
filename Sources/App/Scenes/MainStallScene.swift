@@ -472,22 +472,7 @@ final class MainStallScene: SKScene {
     // MARK: - HUD
 
     private func setupHUD() {
-        let pill = SKShapeNode(rectOf: CGSize(width: 150, height: 40), cornerRadius: 20)
-        pill.fillColor   = SKColor(white: 0.0, alpha: 0.55)
-        pill.strokeColor = SKColor(white: 1.0, alpha: 0.30)
-        pill.lineWidth   = 1
-        pill.position    = CGPoint(x: frame.midX, y: hudTopY)
-        pill.zPosition   = 9
-        addChild(pill)
-
-        let coinLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Bold")
-        coinLabel.fontSize = 22
-        coinLabel.fontColor = .white
-        coinLabel.verticalAlignmentMode = .center
-        coinLabel.position  = CGPoint(x: frame.midX, y: hudTopY)
-        coinLabel.zPosition = 10
-        coinLabel.name = "coinLabel"
-        addChild(coinLabel)
+        // Coin display moved to SwiftUI top bar (CoinBadge)
     }
 
     // MARK: - Customer spawning
@@ -629,9 +614,6 @@ final class MainStallScene: SKScene {
             }
             self.lastPendingCoins = pending
 
-            if let label = self.childNode(withName: "coinLabel") as? SKLabelNode {
-                label.text = "₩\(Self.formatCoins(Int(store.stall.coins)))"
-            }
             self.syncProductStack(menuStock: store.stall.menuStock, menuTier: store.stall.menuTier)
             let activePlots = FarmSystem.activePlotCount(for: store.farm)
             self.syncFarmPlots(farm: store.farm, activePlots: activePlots)
