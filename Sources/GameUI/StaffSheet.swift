@@ -357,17 +357,15 @@ private struct WorkerRow: View {
                 Text(assignmentLabel(worker.assignment, energy: worker.energy))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 4)
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.gray.opacity(0.2))
+                    .overlay(alignment: .leading) {
                         RoundedRectangle(cornerRadius: 2)
                             .fill(energyColor(worker.energy))
-                            .frame(width: geo.size.width * CGFloat(worker.energy), height: 4)
+                            .scaleEffect(x: CGFloat(worker.energy), anchor: .leading)
                     }
-                }
-                .frame(height: 4)
+                    .frame(height: 4)
+                    .clipped()
             }
 
             Spacer()
