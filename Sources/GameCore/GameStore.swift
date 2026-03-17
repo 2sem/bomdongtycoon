@@ -300,35 +300,35 @@ public final class GameStore: ObservableObject {
         stall.tier1Count - farmAssigned
     }
 
-    public func toggleWorker(plotIndex: Int, displayedEnergy: Double? = nil) {
+    public func toggleWorker(plotIndex: Int, displayedEnergy: Double? = nil, addToIdle: Bool = true, directEnergy: Double? = nil) {
         guard plotIndex < farm.plots.count else { return }
         if farm.plots[plotIndex].hasWorker {
             let energy = displayedEnergy ?? farm.plots[plotIndex].workerEnergy
-            pushIdleEnergy(energy, for: 1)
+            if addToIdle { pushIdleEnergy(energy, for: 1) }
             farm.plots[plotIndex].workerEnergy = 1.0
             farm.plots[plotIndex].hasWorker = false
         } else {
             guard availableForFarm > 0 else { return }
-            farm.plots[plotIndex].workerEnergy = popIdleEnergy(for: 1)
+            farm.plots[plotIndex].workerEnergy = directEnergy ?? popIdleEnergy(for: 1)
             farm.plots[plotIndex].hasWorker = true
         }
         stall.farmWorkers = farmAssigned
         save()
     }
 
-    public func assignToCashier(tier: Int = 0) {
+    public func assignToCashier(tier: Int = 0, directEnergy: Double? = nil) {
         guard availableWorkers > 0, stall.cashierCount == 0 else { return }
         let t = tier > 0 ? tier : 1
-        stall.cashierEnergy = popIdleEnergy(for: t)
+        stall.cashierEnergy = directEnergy ?? popIdleEnergy(for: t)
         stall.cashierTier   = t
         stall.cashierCount += 1
         save()
     }
 
-    public func removeFromCashier(displayedEnergy: Double? = nil) {
+    public func removeFromCashier(displayedEnergy: Double? = nil, addToIdle: Bool = true) {
         guard stall.cashierCount > 0 else { return }
         let energy = displayedEnergy ?? stall.cashierEnergy
-        pushIdleEnergy(energy, for: stall.cashierTier)
+        if addToIdle { pushIdleEnergy(energy, for: stall.cashierTier) }
         stall.cashierEnergy = 1.0
         stall.cashierTier   = 0
         stall.cashierCount -= 1
@@ -345,7 +345,7 @@ public final class GameStore: ObservableObject {
     }
 
     /// Assign a worker of a specific tier directly to a menu slot.
-    public func assignMenuCook(menuIndex: Int, tier: Int) {
+    public func assignMenuCook(menuIndex: Int, tier: Int, directEnergy: Double? = nil) {
         guard menuIndex <= stall.menuTier,
               menuIndex < stall.menuCooks.count,
               stall.menuCooks[menuIndex] == 0 else { return }
@@ -353,7 +353,7 @@ public final class GameStore: ObservableObject {
         let used  = stall.menuCooks.filter { $0 == tier }.count
         guard total > used else { return }
         stall.menuCooks[menuIndex] = tier
-        stall.menuCookEnergy[menuIndex] = popIdleEnergy(for: tier)
+        stall.menuCookEnergy[menuIndex] = directEnergy ?? popIdleEnergy(for: tier)
         save()
     }
 
@@ -366,12 +366,12 @@ public final class GameStore: ObservableObject {
         }
     }
 
-    public func removeMenuCook(menuIndex: Int, displayedEnergy: Double? = nil) {
+    public func removeMenuCook(menuIndex: Int, displayedEnergy: Double? = nil, addToIdle: Bool = true) {
         guard menuIndex < stall.menuCooks.count,
               stall.menuCooks[menuIndex] > 0 else { return }
         let tier = stall.menuCooks[menuIndex]
         let energy = displayedEnergy ?? stall.menuCookEnergy[menuIndex]
-        pushIdleEnergy(energy, for: tier)
+        if addToIdle { pushIdleEnergy(energy, for: tier) }
         stall.menuCookEnergy[menuIndex] = 1.0
         stall.menuCooks[menuIndex] = 0
         save()

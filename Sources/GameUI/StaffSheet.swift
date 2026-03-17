@@ -257,25 +257,34 @@ public struct StaffSheet: View {
     private func reassign(worker: WorkerItem, to new: WorkerItem.Assignment) {
         guard new != worker.assignment else { return }
 
-        // Unassign from current — pass worker.energy so the displayed value is preserved
+        // When moving to another position, bypass the idle pool entirely so
+        // the worker carries their exact energy value to the new slot.
+        let movingToIdle = (new == .unassigned)
+
+        // Remove from current position
         switch worker.assignment {
-        case .menu(let i):   store.removeMenuCook(menuIndex: i, displayedEnergy: worker.energy)
-        case .cashier:       store.removeFromCashier(displayedEnergy: worker.energy)
+        case .menu(let i):
+            store.removeMenuCook(menuIndex: i, displayedEnergy: worker.energy, addToIdle: movingToIdle)
+        case .cashier:
+            store.removeFromCashier(displayedEnergy: worker.energy, addToIdle: movingToIdle)
         case .farm:
             if let idx = store.farm.plots.firstIndex(where: { $0.hasWorker }) {
-                store.toggleWorker(plotIndex: idx, displayedEnergy: worker.energy)
+                store.toggleWorker(plotIndex: idx, displayedEnergy: worker.energy, addToIdle: movingToIdle)
             }
         case .unassigned: break
         }
 
-        // Assign to new position
+        // Assign to new position — pass energy directly when coming from another slot
+        let carry: Double? = movingToIdle ? nil : worker.energy
         switch new {
-        case .menu(let i):   store.assignMenuCook(menuIndex: i, tier: worker.tier)
-        case .cashier:       store.assignToCashier(tier: worker.tier)
+        case .menu(let i):
+            store.assignMenuCook(menuIndex: i, tier: worker.tier, directEnergy: carry)
+        case .cashier:
+            store.assignToCashier(tier: worker.tier, directEnergy: carry)
         case .farm:
             let active = FarmSystem.activePlotCount(for: store.farm)
             if let idx = (0..<active).first(where: { !store.farm.plots[$0].hasWorker }) {
-                store.toggleWorker(plotIndex: idx)
+                store.toggleWorker(plotIndex: idx, directEnergy: carry)
             }
         case .unassigned: break
         }
