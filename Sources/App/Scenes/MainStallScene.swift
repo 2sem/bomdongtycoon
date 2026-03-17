@@ -27,11 +27,6 @@ final class MainStallScene: SKScene {
     private let farmNode = SKNode()
     private var lastFarmUpgradeTier = -1
 
-    // Product stack — one stack node per menu slot
-    private let productStackNode = SKNode()
-    private var stackItemArrays: [[SKLabelNode]] = [[], [], []]
-    private var lastVisualCounts: [Int] = [-1, -1, -1]
-    private var lastMenuTierForStack = -1
 
     // Warehouse
     private var warehouseNode: WarehouseNode?
@@ -86,7 +81,6 @@ final class MainStallScene: SKScene {
         setupWarehouse()
         setupStall()
         setupCookSlots()
-        setupProductStack()
         setupHUD()
         startCustomerSpawning()
     }
@@ -403,72 +397,6 @@ final class MainStallScene: SKScene {
 
     // MARK: - Product stack
 
-    private func setupProductStack() {
-        productStackNode.position = CGPoint(x: frame.midX, y: stallY + 50)
-        productStackNode.zPosition = 3
-        addChild(productStackNode)
-        for i in 0..<3 {
-            let node = SKNode()
-            node.name = "stack\(i)"
-            node.position = CGPoint(x: CGFloat(i - 1) * 28, y: 0)
-            productStackNode.addChild(node)
-        }
-        stackItemArrays = [[], [], []]
-    }
-
-    private func syncProductStack(menuStock: [Int], menuTier: Int) {
-        if menuTier != lastMenuTierForStack {
-            for i in 0..<3 {
-                stackItemArrays[i].forEach { $0.removeFromParent() }
-                stackItemArrays[i].removeAll()
-                lastVisualCounts[i] = 0
-                productStackNode.childNode(withName: "stack\(i)")?.isHidden = (i > menuTier)
-            }
-            lastMenuTierForStack = menuTier
-        }
-
-        for i in 0...menuTier {
-            guard i < menuStock.count else { continue }
-            let visualCount = min(menuStock[i], 6)
-            guard visualCount != lastVisualCounts[i] else { continue }
-            guard let stackNode = productStackNode.childNode(withName: "stack\(i)") else { continue }
-            let emoji = Self.menuEmoji(for: i)
-
-            if visualCount > lastVisualCounts[i] {
-                for j in lastVisualCounts[i]..<visualCount {
-                    let lbl = SKLabelNode(text: emoji)
-                    lbl.fontSize = 18
-                    lbl.verticalAlignmentMode = .center
-                    lbl.position = CGPoint(x: CGFloat.random(in: -4...4), y: CGFloat(j) * 20)
-                    lbl.alpha = 0
-                    lbl.setScale(0.3)
-                    stackNode.addChild(lbl)
-                    stackItemArrays[i].append(lbl)
-                    lbl.run(SKAction.group([
-                        SKAction.fadeIn(withDuration: 0.18),
-                        SKAction.scale(to: 1.0, duration: 0.18),
-                    ]))
-                }
-            } else {
-                for _ in visualCount..<lastVisualCounts[i] {
-                    guard let top = stackItemArrays[i].popLast() else { break }
-                    top.run(SKAction.sequence([
-                        SKAction.group([
-                            SKAction.scale(to: 1.4, duration: 0.08),
-                            SKAction.moveBy(x: CGFloat.random(in: -8...8), y: 8, duration: 0.08),
-                        ]),
-                        SKAction.group([
-                            SKAction.fadeOut(withDuration: 0.15),
-                            SKAction.moveBy(x: 0, y: 8, duration: 0.15),
-                        ]),
-                        SKAction.removeFromParent(),
-                    ]))
-                }
-            }
-            lastVisualCounts[i] = visualCount
-        }
-    }
-
     // MARK: - HUD
 
     private func setupHUD() {
@@ -614,7 +542,6 @@ final class MainStallScene: SKScene {
             }
             self.lastPendingCoins = pending
 
-            self.syncProductStack(menuStock: store.stall.menuStock, menuTier: store.stall.menuTier)
             let activePlots = FarmSystem.activePlotCount(for: store.farm)
             self.syncFarmPlots(farm: store.farm, activePlots: activePlots)
             self.syncWarehouse(store: store)
