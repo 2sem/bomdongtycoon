@@ -64,7 +64,7 @@ final class MainStallScene: SKScene {
     private var groundY:  CGFloat { frame.height * 0.30 }
     private var stallY:   CGFloat { groundY + 58 }
     private var hudTopY:  CGFloat { frame.height - 180 }
-    private var warehouseBarHeight: CGFloat { 50 }
+    private var warehouseBarHeight: CGFloat { 76 }
     private var warehouseY: CGFloat { (view?.safeAreaInsets.bottom ?? 0) + 150 + warehouseBarHeight / 2 }
 
     // MARK: - Scene lifecycle

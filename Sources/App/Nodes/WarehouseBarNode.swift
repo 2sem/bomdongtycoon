@@ -58,32 +58,33 @@ final class WarehouseNode: SKNode {
         cellBg.position    = CGPoint(x: -Self.spacing / 2, y: 0)
         addChild(cellBg)
 
-        // Warehouse icon
+        // Warehouse icon — small, top of cell
         iconLabel.text     = "📦"
-        iconLabel.fontSize = 30
+        iconLabel.fontSize = 18
         iconLabel.verticalAlignmentMode = .center
-        iconLabel.position = CGPoint(x: -Self.spacing / 2, y: 6)
+        iconLabel.position = CGPoint(x: -Self.spacing / 2, y: 20)
         addChild(iconLabel)
 
-        // Fill bar background
+        // Fill bar background — bottom of cell
         fillBarBg.fillColor   = Self.barBgColor
         fillBarBg.strokeColor = .clear
-        fillBarBg.position    = CGPoint(x: -Self.spacing / 2, y: -14)
+        fillBarBg.position    = CGPoint(x: -Self.spacing / 2, y: -22)
         addChild(fillBarBg)
 
         // Fill bar fill (anchored at left edge of bar)
         fillBarFill.fillColor   = Self.barFillColor
         fillBarFill.strokeColor = .clear
-        fillBarFill.position    = CGPoint(x: -Self.spacing / 2 - Self.barW / 2, y: -14)
+        fillBarFill.position    = CGPoint(x: -Self.spacing / 2 - Self.barW / 2, y: -22)
         addChild(fillBarFill)
 
         // Stock label "×N"
+        // Stock count — hero text in the center of the cell
         stockLabel.fontName = "AppleSDGothicNeo-Bold"
-        stockLabel.fontSize = 12
+        stockLabel.fontSize = 18
         stockLabel.fontColor = .white
         stockLabel.verticalAlignmentMode   = .center
         stockLabel.horizontalAlignmentMode = .center
-        stockLabel.position = CGPoint(x: -Self.spacing / 2, y: -25)
+        stockLabel.position = CGPoint(x: -Self.spacing / 2, y: -2)
         addChild(stockLabel)
 
         // Warning circle (hidden initially)
@@ -137,7 +138,7 @@ final class WarehouseNode: SKNode {
         let pct = capacity > 0 ? CGFloat(warehouse) / CGFloat(capacity) : 0
         let fillW = max(0, pct * Self.barW)
         fillBarFill.path = CGPath(
-            roundedRect: CGRect(x: 0, y: -Self.barH / 2, width: fillW, height: Self.barH),
+            roundedRect: CGRect(x: 0, y: -Self.barH / 2, width: max(fillW, 0), height: Self.barH),
             cornerWidth: 3, cornerHeight: 3, transform: nil
         )
 
