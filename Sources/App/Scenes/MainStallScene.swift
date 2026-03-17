@@ -287,7 +287,6 @@ final class MainStallScene: SKScene {
     private func syncWarehouse(store: GameStore) {
         let w   = store.stall.warehouse
         let cap = store.stall.warehouseCapacity
-        guard w != lastWarehouse || cap != lastWarehouseCapacity else { return }
         let expandCost = WarehouseSystem.costForNextExpansion(current: cap)
         let canAfford  = expandCost.map { store.stall.coins >= $0 } ?? false
         warehouseNode?.update(warehouse: w, capacity: cap, expandCostValue: expandCost, canAfford: canAfford)
