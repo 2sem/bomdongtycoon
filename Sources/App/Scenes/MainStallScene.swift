@@ -60,14 +60,20 @@ final class MainStallScene: SKScene {
         return index < all.count ? all[index] : "🥬"
     }
 
-    private var groundY:  CGFloat { frame.height * 0.30 }
-    private var stallY:   CGFloat { groundY + 58 }
+    // Bottom-up layout: stack zones from safe bottom, sky fills the rest naturally.
+    private static let soilZoneH:      CGFloat = 130   // farm plots (2 rows × 62pt ≈ 128)
+    private static let warehouseZoneH: CGFloat = 90    // warehouse cells (76pt + margin)
+    private static let pavementZoneH:  CGFloat = 80    // pavement between grass and stall
+
+    private var soilHeight:  CGFloat { Self.soilZoneH }
+    private var groundY:     CGFloat { safeBottom + soilHeight + Self.warehouseZoneH }
+    private var stallY:      CGFloat { groundY + Self.pavementZoneH / 2 }
     // Anchored from top: adapts to SE (small safe area) vs Pro (large Dynamic Island)
     private var hudTopY: CGFloat {
         frame.height - (view?.safeAreaInsets.top ?? 44) - 90
     }
     private var warehouseBarHeight: CGFloat { 76 }
-    private var warehouseY: CGFloat { (view?.safeAreaInsets.bottom ?? 0) + 150 + warehouseBarHeight / 2 }
+    private var warehouseY: CGFloat { safeBottom + soilHeight + Self.warehouseZoneH / 2 }
 
     // MARK: - Scene lifecycle
 
@@ -147,7 +153,7 @@ final class MainStallScene: SKScene {
 
     private func setupFarm() {
         let safeBase   = safeBottom
-        let soilHeight: CGFloat = 150
+        let soilHeight = self.soilHeight
         let soilY      = safeBase + soilHeight / 2
 
         let underSoil = SKSpriteNode(
@@ -235,7 +241,7 @@ final class MainStallScene: SKScene {
     // MARK: - Fence
 
     private func setupFence() {
-        let fenceY  = safeBottom + 150   // top edge of the soil strip
+        let fenceY  = safeBottom + soilHeight   // top edge of the soil strip
         let postW:  CGFloat = 8
         let postH:  CGFloat = 24
         let railH:  CGFloat = 4
