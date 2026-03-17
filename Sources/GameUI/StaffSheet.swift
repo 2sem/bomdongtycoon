@@ -99,12 +99,21 @@ public struct StaffSheet: View {
                             cashierCount: store.stall.cashierCount,
                             activeFarmPlots: FarmSystem.activePlotCount(for: store.farm),
                             farmPlots: store.farm.plots,
-                            coins: store.stall.coins,
-                            onReassign: { reassign(worker: worker, to: $0) },
-                            onUpgrade: worker.tier < 3
-                                ? { store.upgradeWorker(fromTier: worker.tier, preservingEnergy: worker.energy) }
-                                : nil
+                            onReassign: { reassign(worker: worker, to: $0) }
                         )
+                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                            if worker.assignment == .unassigned, worker.tier < 3 {
+                                let cost = UpgradeDefinitions.staff[safe: worker.tier]?.coinCost ?? 0
+                                Button {
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                    store.upgradeWorker(fromTier: worker.tier, preservingEnergy: worker.energy)
+                                } label: {
+                                    Label("업그레이드", systemImage: "arrow.up.circle.fill")
+                                }
+                                .tint(store.stall.coins >= cost ? .green : .gray)
+                                .disabled(store.stall.coins < cost)
+                            }
+                        }
                     }
                 } header: {
                     Text("직원 목록")
@@ -283,9 +292,7 @@ private struct WorkerRow: View {
     let cashierCount: Int;
     let activeFarmPlots: Int;
     let farmPlots: [FarmPlot];
-    let coins: Double;
     let onReassign: (WorkerItem.Assignment) -> Void;
-    let onUpgrade: (() -> Void)?;
 
     private static let name  = ["", "알바생", "이모님", "봄동 요리사"];
 
@@ -366,35 +373,7 @@ private struct WorkerRow: View {
 
             Spacer()
 
-            VStack(spacing: 6) {
-                // Upgrade button — idle workers only, tier 1→2 or 2→3
-                if worker.assignment == .unassigned, worker.tier < 3, let onUpgrade {
-                    let nextTierCost = UpgradeDefinitions.staff[safe: worker.tier]?.coinCost ?? 0
-                    let canAfford = coins >= nextTierCost
-                    Button {
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        onUpgrade()
-                    } label: {
-                        VStack(spacing: 1) {
-                            Image(systemName: "arrow.up.circle.fill").font(.caption.bold())
-                            Text(nextTierCost >= 1000
-                                 ? "₩\(Int(nextTierCost) / 1000)K"
-                                 : "₩\(Int(nextTierCost))")
-                                .font(.system(size: 9))
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(
-                            canAfford ? Color.green.opacity(0.15) : Color.gray.opacity(0.1),
-                            in: RoundedRectangle(cornerRadius: 8)
-                        )
-                        .foregroundStyle(canAfford ? Color.green : Color.gray)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!canAfford)
-                }
-
-                Menu {
+            Menu {
                     ForEach(options, id: \.0) { option, available in
                         Button {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -418,7 +397,6 @@ private struct WorkerRow: View {
                     .background(Color.staffAmber.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
                     .foregroundStyle(Color.staffAmber)
                 }
-            }
         }
         .padding(.vertical, 2)
     }
