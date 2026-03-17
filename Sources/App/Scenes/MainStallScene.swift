@@ -22,11 +22,25 @@ final class MainStallScene: SKScene {
     private let farmNode = SKNode()
     private var lastFarmUpgradeTier = -1
 
-    // Product stack
+    // Product stack — one stack node per menu slot
     private let productStackNode = SKNode()
-    private var stackItems: [SKLabelNode] = []
-    private var lastVisualCount = -1
+    private var stackItemArrays: [[SKLabelNode]] = [[], [], []]
+    private var lastVisualCounts: [Int] = [-1, -1, -1]
     private var lastMenuTierForStack = -1
+
+    // Warehouse
+    private var warehouseBar: WarehouseBarNode?
+    private var lastWarehouse = -1
+    private var lastWarehouseCapacity = -1
+
+    // Cook button (single batch-cook)
+    private var cookButton: CookButtonNode?
+    private var lastCookMenuTier = -1
+    private var lastCookBatchSize = -1
+
+    // Shop worker badges
+    private var shopWorkerNodes: [SKNode] = []
+    private var lastShopWorkers = -1
 
     private static func formatCoins(_ value: Int) -> String {
         if value >= 1_000_000 { return String(format: "%.1fM", Double(value) / 1_000_000) }
@@ -36,16 +50,22 @@ final class MainStallScene: SKScene {
 
     private static func stallEmoji(for tier: Int) -> String {
         switch tier {
-        case 0:  "⛺"   // 포장마차
-        case 1:  "🏪"   // 분식집
-        default: "🏬"   // 봄동 전문점
+        case 0:  "⛺"
+        case 1:  "🏪"
+        default: "🏬"
         }
     }
 
-    // Layout anchors — proportional for all iPhone sizes
+    private static func menuEmoji(for index: Int) -> String {
+        let all = ["🥬", "🥗", "🥘"]
+        return index < all.count ? all[index] : "🥬"
+    }
+
     private var groundY:  CGFloat { frame.height * 0.30 }
-    private var stallY:   CGFloat { groundY + 58 }   // tent base sits on grass
+    private var stallY:   CGFloat { groundY + 58 }
     private var hudTopY:  CGFloat { frame.height - 180 }
+    private var warehouseBarHeight: CGFloat { 50 }
+    private var warehouseY: CGFloat { (view?.safeAreaInsets.bottom ?? 0) + 150 + warehouseBarHeight / 2 }
 
     // MARK: - Scene lifecycle
 
@@ -53,7 +73,9 @@ final class MainStallScene: SKScene {
         backgroundColor = SKColor(red: 0.62, green: 0.85, blue: 1.0, alpha: 1)
         setupBackground()
         setupFarm()
+        setupWarehouse()
         setupStall()
+        setupCookButtons()
         setupProductStack()
         setupHUD()
         startCustomerSpawning()
@@ -62,7 +84,6 @@ final class MainStallScene: SKScene {
     // MARK: - Background
 
     private func setupBackground() {
-        // Pavement
         let pavement = SKSpriteNode(
             color: SKColor(red: 0.76, green: 0.78, blue: 0.74, alpha: 1),
             size: CGSize(width: frame.width, height: groundY * 2)
@@ -71,7 +92,6 @@ final class MainStallScene: SKScene {
         pavement.zPosition = -5
         addChild(pavement)
 
-        // Grass strip at pavement top
         let grass = SKSpriteNode(
             color: SKColor(red: 0.40, green: 0.72, blue: 0.28, alpha: 1),
             size: CGSize(width: frame.width, height: 18)
@@ -80,7 +100,6 @@ final class MainStallScene: SKScene {
         grass.zPosition = -4
         addChild(grass)
 
-        // Spring flowers along grass
         let flowers = ["🌸", "🌺", "🌼", "🌸", "🌺", "🌼"]
         for (i, flower) in flowers.enumerated() {
             let label = SKLabelNode(text: flower)
@@ -93,7 +112,6 @@ final class MainStallScene: SKScene {
             addChild(label)
         }
 
-        // Clouds
         addCloud(at: CGPoint(x: frame.width * 0.18, y: frame.height * 0.82), scale: 1.0)
         addCloud(at: CGPoint(x: frame.width * 0.72, y: frame.height * 0.88), scale: 0.65)
         addCloud(at: CGPoint(x: frame.width * 0.48, y: frame.height * 0.93), scale: 0.8)
@@ -114,8 +132,6 @@ final class MainStallScene: SKScene {
         cloud.position = position
         cloud.zPosition = -6
         addChild(cloud)
-
-        // Slow drift
         cloud.run(SKAction.repeatForever(SKAction.sequence([
             SKAction.moveBy(x: 25, y: 0, duration: 7),
             SKAction.moveBy(x: -25, y: 0, duration: 7)
@@ -124,17 +140,13 @@ final class MainStallScene: SKScene {
 
     // MARK: - Farm
 
-    /// Bottom of the usable area — above home indicator on Face ID iPhones.
-    private var safeBottom: CGFloat {
-        view?.safeAreaInsets.bottom ?? 0
-    }
+    private var safeBottom: CGFloat { view?.safeAreaInsets.bottom ?? 0 }
 
     private func setupFarm() {
-        let safeBase  = safeBottom          // e.g. 34 pt on iPhone with home indicator
-        let soilHeight: CGFloat = 72
-        let soilY = safeBase + soilHeight / 2
+        let safeBase   = safeBottom
+        let soilHeight: CGFloat = 150
+        let soilY      = safeBase + soilHeight / 2
 
-        // Fill below safe area with matching soil colour so no gap shows
         let underSoil = SKSpriteNode(
             color: SKColor(red: 0.42, green: 0.28, blue: 0.10, alpha: 1),
             size: CGSize(width: frame.width, height: safeBase + 4)
@@ -151,7 +163,6 @@ final class MainStallScene: SKScene {
         soil.zPosition = -3
         addChild(soil)
 
-        // Thin divider line between pavement and soil
         let divider = SKSpriteNode(
             color: SKColor(red: 0.35, green: 0.55, blue: 0.20, alpha: 1),
             size: CGSize(width: frame.width, height: 4)
@@ -165,8 +176,24 @@ final class MainStallScene: SKScene {
         addChild(farmNode)
     }
 
+    // MARK: - Farm grid layout constants
+    private static let farmCols     = 4
+    private static let farmSpacingX: CGFloat = 68
+    private static let farmSpacingY: CGFloat = 68
+    private static let farmRowY: [CGFloat] = [34, -34]
+    private static let farmOriginX: CGFloat = -CGFloat(farmCols - 1) * farmSpacingX / 2
+
+    private func gridPosition(for index: Int) -> CGPoint {
+        let col = index % Self.farmCols
+        let row = index / Self.farmCols
+        let x   = Self.farmOriginX + CGFloat(col) * Self.farmSpacingX
+        let y   = row < Self.farmRowY.count
+            ? Self.farmRowY[row]
+            : Self.farmRowY.last! - CGFloat(row - Self.farmRowY.count + 1) * Self.farmSpacingY
+        return CGPoint(x: x, y: y)
+    }
+
     private func syncFarmPlots(farm: FarmState, activePlots: Int) {
-        // Add new plot nodes as farm expands
         while farmPlotNodes.count < activePlots {
             let node = FarmPlotNode()
             farmNode.addChild(node)
@@ -174,34 +201,28 @@ final class MainStallScene: SKScene {
         }
 
         let nextCost = FarmSystem.costForNextPlot(currentCount: activePlots)
-        // Total cells = plots + optional add-cell
-        let totalCells = activePlots + (nextCost != nil ? 1 : 0)
+        let warehouseFull = (store?.stall.warehouse ?? 0) >= (store?.stall.warehouseCapacity ?? 1)
+        let assignedPlots = farm.plots.filter { $0.hasWorker }.count
+        let workerAvailable = ((store?.stall.staffCount ?? 0) - (store?.stall.shopWorkers ?? 0) - assignedPlots) > 0
 
-        let spacing: CGFloat = 70   // 62pt cell + 8pt gap
-        let totalWidth = CGFloat(totalCells - 1) * spacing
-        let originX = -totalWidth / 2
-
-        // Position and update plot cells
         for i in 0..<activePlots {
-            farmPlotNodes[i].position = CGPoint(x: originX + CGFloat(i) * spacing, y: 0)
+            farmPlotNodes[i].position = gridPosition(for: i)
             farmPlotNodes[i].isHidden = false
             if i < farm.plots.count {
-                farmPlotNodes[i].update(plot: farm.plots[i])
+                farmPlotNodes[i].update(plot: farm.plots[i], warehouseFull: warehouseFull, workerAvailable: workerAvailable)
             }
         }
         for i in activePlots..<farmPlotNodes.count {
             farmPlotNodes[i].isHidden = true
         }
 
-        // Add-plot cell at the end
         if let cost = nextCost {
             if addPlotCell == nil {
                 let cell = AddPlotCellNode()
                 farmNode.addChild(cell)
                 addPlotCell = cell
             }
-            let cellX = originX + CGFloat(activePlots) * spacing
-            addPlotCell?.position = CGPoint(x: cellX, y: 0)
+            addPlotCell?.position = gridPosition(for: activePlots)
             addPlotCell?.isHidden = false
             addPlotCell?.update(cost: cost, canAfford: (store?.stall.coins ?? 0) >= cost)
         } else {
@@ -209,10 +230,118 @@ final class MainStallScene: SKScene {
         }
     }
 
+    // MARK: - Warehouse
+
+    private func setupWarehouse() {
+        let bar = WarehouseBarNode(width: frame.width)
+        bar.position = CGPoint(x: frame.midX, y: warehouseY)
+        bar.zPosition = 2
+        addChild(bar)
+        warehouseBar = bar
+
+        let divider = SKSpriteNode(
+            color: SKColor(red: 0.20, green: 0.12, blue: 0.04, alpha: 1),
+            size: CGSize(width: frame.width, height: 2)
+        )
+        divider.position = CGPoint(x: frame.midX, y: warehouseY - warehouseBarHeight / 2)
+        divider.zPosition = 2
+        addChild(divider)
+    }
+
+    private func syncWarehouse(store: GameStore) {
+        let w   = store.stall.warehouse
+        let cap = store.stall.warehouseCapacity
+        guard w != lastWarehouse || cap != lastWarehouseCapacity else { return }
+        let expandCost = WarehouseSystem.costForNextExpansion(current: cap)
+        let canAfford  = expandCost.map { store.stall.coins >= $0 } ?? false
+        warehouseBar?.update(warehouse: w, capacity: cap, expandCost: expandCost, canAfford: canAfford)
+        lastWarehouse = w
+        lastWarehouseCapacity = cap
+    }
+
+    // MARK: - Cook buttons
+
+    private func setupCookButtons() {}
+
+    private func syncCookButtons(store: GameStore) {
+        let tier = store.stall.menuTier
+        let raw = store.stall.staffTier > 0
+            ? UpgradeDefinitions.staff[store.stall.staffTier - 1].productionMultiplier
+            : 1.0
+        let perWorker = max(1, Int(round(raw)))
+        let batchSize = perWorker * max(1, store.stall.shopWorkers)
+
+        if tier != lastCookMenuTier {
+            cookButton?.removeFromParent()
+            let btn = CookButtonNode()
+            btn.position = CGPoint(x: frame.midX + 95, y: stallY + 20)
+            btn.zPosition = 4
+            addChild(btn)
+            cookButton = btn
+            lastCookMenuTier = tier
+            lastCookBatchSize = -1
+        }
+
+        let maxStock  = EarningsSystem.maxStock(for: store.stall)
+        let allFull   = (0...tier).allSatisfy { i in
+            i >= store.stall.menuStock.count || store.stall.menuStock[i] >= maxStock
+        }
+        let canCook = store.stall.warehouse > 0 && !allFull
+        let emojis  = (0...tier).map { Self.menuEmoji(for: $0) }
+        cookButton?.update(batchSize: batchSize, menuEmojis: emojis, canCook: canCook)
+        lastCookBatchSize = batchSize
+    }
+
+    // MARK: - Shop worker badges
+
+    private func syncShopWorkers(store: GameStore) {
+        let assigned        = store.stall.shopWorkers
+        let assignedToPlots = store.farm.plots.filter { $0.hasWorker }.count
+        let available       = store.stall.staffCount - assigned - assignedToPlots
+        let sentinel        = assigned * 100 + available
+        guard sentinel != lastShopWorkers else { return }
+        shopWorkerNodes.forEach { $0.removeFromParent() }
+        shopWorkerNodes.removeAll()
+
+        let badgeBaseX: CGFloat = frame.midX - 115
+        for i in 0..<assigned {
+            let badge = SKLabelNode(text: "👩‍🍳")
+            badge.fontSize = 20
+            badge.verticalAlignmentMode = .center
+            badge.position = CGPoint(x: badgeBaseX + CGFloat(i) * 24, y: stallY + 8)
+            badge.zPosition = 4
+            addChild(badge)
+            shopWorkerNodes.append(badge)
+        }
+
+        if available > 0 {
+            let pillW: CGFloat = 72
+            let pillH: CGFloat = 28
+            let pill = SKShapeNode(rectOf: CGSize(width: pillW, height: pillH), cornerRadius: 14)
+            pill.fillColor   = SKColor(red: 1.0, green: 0.70, blue: 0.0, alpha: 0.95)
+            pill.strokeColor = SKColor(red: 0.85, green: 0.50, blue: 0.0, alpha: 1)
+            pill.lineWidth   = 1.5
+            pill.name        = "shopWorkerHint"
+            pill.zPosition   = 4
+            pill.position    = CGPoint(x: badgeBaseX + CGFloat(assigned) * 24 + pillW / 2,
+                                       y: stallY + 8)
+            let label = SKLabelNode(text: "👩‍🍳 +\(available)")
+            label.fontName  = "AppleSDGothicNeo-Bold"
+            label.fontSize  = 13
+            label.fontColor = .white
+            label.verticalAlignmentMode   = .center
+            label.horizontalAlignmentMode = .center
+            pill.addChild(label)
+            addChild(pill)
+            shopWorkerNodes.append(pill)
+        }
+
+        lastShopWorkers = sentinel
+    }
+
     // MARK: - Stall
 
     private func setupStall() {
-        // Main stall emoji — ⛺ gives perfect포장마차 vibe
         let stallEmoji = SKLabelNode(text: "⛺")
         stallEmoji.fontSize = 110
         stallEmoji.verticalAlignmentMode = .center
@@ -221,15 +350,13 @@ final class MainStallScene: SKScene {
         stallEmoji.name = "stallEmoji"
         addChild(stallEmoji)
 
-        // Sign board under the tent
-        // Sign board — hangs ABOVE the tent so it never overlaps customers or emotions
         let signY = stallY + 80
         let signBg = SKShapeNode(rectOf: CGSize(width: 170, height: 32), cornerRadius: 8)
-        signBg.fillColor = SKColor(red: 0.12, green: 0.48, blue: 0.22, alpha: 1)
+        signBg.fillColor   = SKColor(red: 0.12, green: 0.48, blue: 0.22, alpha: 1)
         signBg.strokeColor = SKColor(red: 0.08, green: 0.32, blue: 0.15, alpha: 1)
-        signBg.lineWidth = 2
-        signBg.position = CGPoint(x: frame.midX, y: signY)
-        signBg.zPosition = 2
+        signBg.lineWidth   = 2
+        signBg.position    = CGPoint(x: frame.midX, y: signY)
+        signBg.zPosition   = 2
         addChild(signBg)
 
         let signLabel = SKLabelNode(text: "🥬 봄동 가게")
@@ -237,11 +364,10 @@ final class MainStallScene: SKScene {
         signLabel.fontSize = 15
         signLabel.fontColor = .white
         signLabel.verticalAlignmentMode = .center
-        signLabel.position = CGPoint(x: frame.midX, y: signY)
+        signLabel.position  = CGPoint(x: frame.midX, y: signY)
         signLabel.zPosition = 3
         signLabel.name = "signLabel"
         addChild(signLabel)
-
     }
 
     private func updateSignLabel() {
@@ -253,79 +379,87 @@ final class MainStallScene: SKScene {
     // MARK: - Product stack
 
     private func setupProductStack() {
-        // Stack sits above the sign (stallY + 80), items grow upward
         productStackNode.position = CGPoint(x: frame.midX, y: stallY + 100)
         productStackNode.zPosition = 3
         addChild(productStackNode)
+        for i in 0..<3 {
+            let node = SKNode()
+            node.name = "stack\(i)"
+            node.position = CGPoint(x: CGFloat(i - 1) * 28, y: 0)
+            productStackNode.addChild(node)
+        }
+        stackItemArrays = [[], [], []]
     }
 
-    private func syncProductStack(stock: Int, menuTier: Int) {
-        let visualCount = min(stock, 6)
-        let emoji = Self.availableMenus(for: menuTier).last ?? "🥬"
-
-        // Rebuild entirely when menu tier changes (new emoji)
+    private func syncProductStack(menuStock: [Int], menuTier: Int) {
         if menuTier != lastMenuTierForStack {
-            stackItems.forEach { $0.removeFromParent() }
-            stackItems.removeAll()
-            lastVisualCount = 0
+            for i in 0..<3 {
+                stackItemArrays[i].forEach { $0.removeFromParent() }
+                stackItemArrays[i].removeAll()
+                lastVisualCounts[i] = 0
+                productStackNode.childNode(withName: "stack\(i)")?.isHidden = (i > menuTier)
+            }
             lastMenuTierForStack = menuTier
         }
 
-        guard visualCount != lastVisualCount else { return }
+        for i in 0...menuTier {
+            guard i < menuStock.count else { continue }
+            let visualCount = min(menuStock[i], 6)
+            guard visualCount != lastVisualCounts[i] else { continue }
+            guard let stackNode = productStackNode.childNode(withName: "stack\(i)") else { continue }
+            let emoji = Self.menuEmoji(for: i)
 
-        if visualCount > lastVisualCount {
-            // New item produced — pop in on top
-            for i in lastVisualCount..<visualCount {
-                let label = SKLabelNode(text: emoji)
-                label.fontSize = 20
-                label.verticalAlignmentMode = .center
-                label.position = CGPoint(x: CGFloat.random(in: -5...5), y: CGFloat(i) * 22)
-                label.alpha = 0
-                label.setScale(0.3)
-                productStackNode.addChild(label)
-                stackItems.append(label)
-                label.run(SKAction.group([
-                    SKAction.fadeIn(withDuration: 0.18),
-                    SKAction.scale(to: 1.0, duration: 0.18),
-                ]))
+            if visualCount > lastVisualCounts[i] {
+                for j in lastVisualCounts[i]..<visualCount {
+                    let lbl = SKLabelNode(text: emoji)
+                    lbl.fontSize = 18
+                    lbl.verticalAlignmentMode = .center
+                    lbl.position = CGPoint(x: CGFloat.random(in: -4...4), y: CGFloat(j) * 20)
+                    lbl.alpha = 0
+                    lbl.setScale(0.3)
+                    stackNode.addChild(lbl)
+                    stackItemArrays[i].append(lbl)
+                    lbl.run(SKAction.group([
+                        SKAction.fadeIn(withDuration: 0.18),
+                        SKAction.scale(to: 1.0, duration: 0.18),
+                    ]))
+                }
+            } else {
+                for _ in visualCount..<lastVisualCounts[i] {
+                    guard let top = stackItemArrays[i].popLast() else { break }
+                    top.run(SKAction.sequence([
+                        SKAction.group([
+                            SKAction.scale(to: 1.4, duration: 0.08),
+                            SKAction.moveBy(x: CGFloat.random(in: -8...8), y: 8, duration: 0.08),
+                        ]),
+                        SKAction.group([
+                            SKAction.fadeOut(withDuration: 0.15),
+                            SKAction.moveBy(x: 0, y: 8, duration: 0.15),
+                        ]),
+                        SKAction.removeFromParent(),
+                    ]))
+                }
             }
-        } else {
-            // Item sold — pop top item off with a little bounce
-            for _ in visualCount..<lastVisualCount {
-                guard let top = stackItems.popLast() else { break }
-                top.run(SKAction.sequence([
-                    SKAction.group([
-                        SKAction.scale(to: 1.4, duration: 0.08),
-                        SKAction.moveBy(x: CGFloat.random(in: -10...10), y: 10, duration: 0.08),
-                    ]),
-                    SKAction.group([
-                        SKAction.fadeOut(withDuration: 0.18),
-                        SKAction.moveBy(x: 0, y: 10, duration: 0.18),
-                    ]),
-                    SKAction.removeFromParent(),
-                ]))
-            }
+            lastVisualCounts[i] = visualCount
         }
-        lastVisualCount = visualCount
     }
 
     // MARK: - HUD
 
     private func setupHUD() {
-        // Frosted pill backing for the coin display
         let pill = SKShapeNode(rectOf: CGSize(width: 160, height: 38), cornerRadius: 19)
-        pill.fillColor = SKColor(white: 0.0, alpha: 0.55)
+        pill.fillColor   = SKColor(white: 0.0, alpha: 0.55)
         pill.strokeColor = SKColor(white: 1.0, alpha: 0.30)
-        pill.lineWidth = 1
-        pill.position = CGPoint(x: frame.midX, y: hudTopY + 10)
-        pill.zPosition = 9
+        pill.lineWidth   = 1
+        pill.position    = CGPoint(x: frame.midX, y: hudTopY + 10)
+        pill.zPosition   = 9
         addChild(pill)
 
         let coinLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Bold")
         coinLabel.fontSize = 20
         coinLabel.fontColor = .white
         coinLabel.verticalAlignmentMode = .center
-        coinLabel.position = CGPoint(x: frame.midX, y: hudTopY + 10)
+        coinLabel.position  = CGPoint(x: frame.midX, y: hudTopY + 10)
         coinLabel.zPosition = 10
         coinLabel.name = "coinLabel"
         addChild(coinLabel)
@@ -333,7 +467,7 @@ final class MainStallScene: SKScene {
         let rateLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Regular")
         rateLabel.fontSize = 12
         rateLabel.fontColor = SKColor(white: 1.0, alpha: 0.80)
-        rateLabel.position = CGPoint(x: frame.midX, y: hudTopY - 18)
+        rateLabel.position  = CGPoint(x: frame.midX, y: hudTopY - 18)
         rateLabel.zPosition = 10
         rateLabel.name = "rateLabel"
         addChild(rateLabel)
@@ -341,7 +475,7 @@ final class MainStallScene: SKScene {
         let stockLabel = SKLabelNode(fontNamed: "AppleSDGothicNeo-Regular")
         stockLabel.fontSize = 12
         stockLabel.fontColor = SKColor(white: 1.0, alpha: 0.80)
-        stockLabel.position = CGPoint(x: frame.midX, y: hudTopY - 34)
+        stockLabel.position  = CGPoint(x: frame.midX, y: hudTopY - 34)
         stockLabel.zPosition = 10
         stockLabel.name = "stockLabel"
         addChild(stockLabel)
@@ -357,14 +491,13 @@ final class MainStallScene: SKScene {
         run(SKAction.repeatForever(spawn))
     }
 
-    /// Maps menuTier to the emoji menu items the shop currently sells.
     private static func availableMenus(for menuTier: Int) -> [String] {
         let all = ["🥬", "🥗", "🥘"]
         return Array(all.prefix(menuTier + 1))
     }
 
     private func spawnCustomer() {
-        guard let store = store else { return }
+        guard let store else { return }
         let menus = Self.availableMenus(for: store.stall.menuTier)
         let customer = CustomerNode(availableMenus: menus)
         customer.position = CGPoint(x: -40, y: groundY + 20)
@@ -373,14 +506,19 @@ final class MainStallScene: SKScene {
         customer.walkTo(x: frame.midX - 70) { [weak self] in
             guard let self else { return }
             Task { @MainActor in
-                guard store.stall.stock >= 1.0 else {
+                let menus = Self.availableMenus(for: store.stall.menuTier)
+                let desiredIndex = menus.firstIndex(of: customer.wantedMenu) ?? 0
+                guard let price = store.sellItem(menuIndex: desiredIndex) else {
                     customer.showReaction(happy: false)
                     customer.walkTo(x: self.frame.width + 40) { customer.removeFromParent() }
                     return
                 }
-                store.stall.stock -= 1.0
-                let price = EarningsSystem.pricePerItem(for: store.stall)
-                self.spawnCoinBubble(at: customer.position, amount: price)
+                if store.stall.autoCollectEnabled {
+                    store.stall.pendingCoins += price
+                    store.collectCoins()
+                } else {
+                    self.spawnCoinBubble(at: customer.position, amount: price)
+                }
                 customer.showReaction(happy: true)
                 customer.walkTo(x: self.frame.width + 40) { customer.removeFromParent() }
             }
@@ -388,7 +526,7 @@ final class MainStallScene: SKScene {
     }
 
     private func spawnCoinBubble(at position: CGPoint, amount: Double) {
-        guard let store = store else { return }
+        guard let store else { return }
         let bubble = CoinBubbleNode(amount: amount)
         bubble.position = CGPoint(x: position.x, y: position.y + 80)
         addChild(bubble)
@@ -413,7 +551,7 @@ final class MainStallScene: SKScene {
     // MARK: - Touch handling
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first, let store = store else { return }
+        guard let touch = touches.first, let store else { return }
         let location = touch.location(in: self)
 
         for bubble in coinBubbles where bubble.contains(location) {
@@ -426,26 +564,52 @@ final class MainStallScene: SKScene {
             return
         }
 
-        // Farm interactions
-        let activePlots = FarmSystem.activePlotCount(for: store.farm)
+        let activePlots  = FarmSystem.activePlotCount(for: store.farm)
         let nodeLocation = farmNode.convert(location, from: self)
 
-        // Add-plot cell
         if let cell = addPlotCell, !cell.isHidden, cell.contains(nodeLocation) {
             Task { @MainActor in store.purchaseUpgrade(.farm) }
             return
         }
 
-        // Plot cells — plant seed on empty, harvest when ready
         for i in 0..<min(activePlots, farmPlotNodes.count) {
             guard farmPlotNodes[i].contains(nodeLocation) else { continue }
             let plot = store.farm.plots[i]
-            if plot.isReady {
+            let localInPlot = farmPlotNodes[i].convert(nodeLocation, from: farmNode)
+            let workerBadgeDist = hypot(localInPlot.x - 20, localInPlot.y - 22)
+            if workerBadgeDist <= 18 {
+                Task { @MainActor in store.toggleWorker(plotIndex: i) }
+            } else if plot.isReady {
                 Task { @MainActor in store.harvest(plotIndex: i) }
                 farmPlotNodes[i].animateHarvest()
             } else if !plot.isPlanted {
                 Task { @MainActor in store.plantSeed(plotIndex: i) }
             }
+            return
+        }
+
+        if let bar = warehouseBar {
+            let barLocal = bar.convert(location, from: self)
+            if bar.expandButtonContains(barLocal) {
+                Task { @MainActor in store.expandWarehouse() }
+                return
+            }
+        }
+
+        for node in shopWorkerNodes {
+            if node.contains(location) {
+                if node.name == "shopWorkerHint" {
+                    Task { @MainActor in store.assignWorkerToShop() }
+                } else {
+                    Task { @MainActor in store.removeWorkerFromShop() }
+                }
+                lastShopWorkers = -1
+                return
+            }
+        }
+
+        if let btn = cookButton, btn.contains(location) {
+            Task { @MainActor in store.batchCook() }
             return
         }
     }
@@ -461,21 +625,21 @@ final class MainStallScene: SKScene {
             guard let self, let store = self.store else { return }
             store.tick(deltaTime: delta)
             if let label = self.childNode(withName: "coinLabel") as? SKLabelNode {
-                let formatted = Self.formatCoins(Int(store.stall.coins))
-                label.text = "₩\(formatted)"
+                label.text = "₩\(Self.formatCoins(Int(store.stall.coins)))"
             }
             if let label = self.childNode(withName: "rateLabel") as? SKLabelNode {
                 let rate = EarningsSystem.coinsPerSecond(for: store.stall)
                 label.text = "⚡ \(String(format: "%.1f", rate))/s"
             }
             if let label = self.childNode(withName: "stockLabel") as? SKLabelNode {
-                let stock = Int(store.stall.stock)
-                let maxStock = EarningsSystem.maxStock(for: store.stall)
-                label.text = "🥬 \(stock)/\(maxStock)"
+                label.text = "🥬 창고: \(store.stall.warehouse)/\(store.stall.warehouseCapacity)"
             }
-            self.syncProductStack(stock: Int(store.stall.stock), menuTier: store.stall.menuTier)
+            self.syncProductStack(menuStock: store.stall.menuStock, menuTier: store.stall.menuTier)
             let activePlots = FarmSystem.activePlotCount(for: store.farm)
             self.syncFarmPlots(farm: store.farm, activePlots: activePlots)
+            self.syncWarehouse(store: store)
+            self.syncCookButtons(store: store)
+            self.syncShopWorkers(store: store)
             let shopName = store.progress.shopName
             if shopName != self.lastShopName {
                 self.lastShopName = shopName

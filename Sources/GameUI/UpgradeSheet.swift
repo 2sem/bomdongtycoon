@@ -13,7 +13,7 @@ public struct UpgradeSheet: View {
         NavigationStack {
             List {
                 upgradeSection(
-                    title: "메뉴 업그레이드",
+                    title: "메뉴 추가",
                     type: .menu,
                     definitions: UpgradeDefinitions.menu,
                     currentTier: store.stall.menuTier + 1
@@ -24,7 +24,7 @@ public struct UpgradeSheet: View {
                     definitions: UpgradeDefinitions.staff,
                     currentTier: store.stall.staffTier
                 )
-                workerSection
+                hireSection
                 upgradeSection(
                     title: "가게 업그레이드",
                     type: .stall,
@@ -69,42 +69,41 @@ public struct UpgradeSheet: View {
         }
     }
 
-    private var workerSection: some View {
-        Section("직원 배치") {
-            workerRow(label: "농장", icon: "leaf",
-                      count: store.stall.farmWorkers,
-                      onMinus: { store.assignWorkerToShop() },
-                      minusDisabled: store.stall.farmWorkers == 0,
-                      onPlus:  { store.assignWorkerToFarm() },
-                      plusDisabled:  store.stall.shopWorkers == 0)
-            workerRow(label: "가게", icon: "storefront",
-                      count: store.stall.shopWorkers,
-                      onMinus: { store.assignWorkerToFarm() },
-                      minusDisabled: store.stall.shopWorkers == 0,
-                      onPlus:  { store.assignWorkerToShop() },
-                      plusDisabled:  store.stall.farmWorkers == 0)
-            if store.stall.staffTier == 0 {
-                Text("직원을 고용하면 배치할 수 있어요")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+    // hireSection uses a Group wrapper to avoid @ViewBuilder if/let rendering bug
+    private var hireSection: some View {
+        Group {
+            if store.stall.staffTier > 0 {
+                Section("직원 추가 고용") {
+                    hireRow
+                }
             }
         }
     }
 
-    private func workerRow(label: String, icon: String,
-                           count: Int,
-                           onMinus: @escaping () -> Void, minusDisabled: Bool,
-                           onPlus:  @escaping () -> Void, plusDisabled: Bool) -> some View {
-        HStack {
-            Label(label, systemImage: icon)
+    private var hireRow: some View {
+        let idx      = store.stall.staffTier - 1
+        let tierName = UpgradeDefinitions.staff[idx].name
+        let cost     = UpgradeDefinitions.staff[idx].coinCost
+        let canAfford = store.stall.coins >= cost
+        let assigned  = store.stall.shopWorkers + store.stall.farmWorkers
+        let available = store.stall.staffCount - assigned
+        return HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tierName).font(.headline)
+                Text("현재 \(store.stall.staffCount)명 · 여유 \(max(0, available))명")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Spacer()
-            Button("-", action: onMinus)
-                .disabled(minusDisabled)
-                .sensoryFeedback(.impact(weight: .light), trigger: count)
-            Text("\(count)").frame(width: 28)
-            Button("+", action: onPlus)
-                .disabled(plusDisabled)
-                .sensoryFeedback(.impact(weight: .light), trigger: count)
+            Button {
+                store.hireWorker()
+            } label: {
+                Text("₩\(Int(cost))")
+                    .font(.subheadline.bold())
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(canAfford ? .orange : .gray)
+            .disabled(!canAfford)
         }
     }
 }
@@ -124,8 +123,7 @@ private struct UpgradeRowView: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(upgrade.name)
-                    .font(.headline)
+                Text(upgrade.name).font(.headline)
                 Text(upgrade.description)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -144,21 +142,16 @@ private struct UpgradeRowView: View {
     @ViewBuilder
     private var trailingView: some View {
         if isOwned {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
         } else if isNext {
-            Button {
-                onPurchase()
-            } label: {
-                Text("₩\(Int(upgrade.coinCost))")
-                    .font(.subheadline.bold())
+            Button { onPurchase() } label: {
+                Text("₩\(Int(upgrade.coinCost))").font(.subheadline.bold())
             }
             .buttonStyle(.borderedProminent)
             .tint(canAfford ? .orange : .gray)
             .disabled(!canAfford)
         } else {
-            Image(systemName: "lock.fill")
-                .foregroundStyle(.tertiary)
+            Image(systemName: "lock.fill").foregroundStyle(.tertiary)
         }
     }
 }

@@ -80,21 +80,18 @@ final class FarmPlotNode: SKNode {
     private var wasReady    = false
     private var wasPlanted  = false
 
-    func update(plot: FarmPlot) {
+    func update(plot: FarmPlot, warehouseFull: Bool = false, workerAvailable: Bool = false) {
         let isEmpty = !plot.isPlanted
 
-        // Show/hide hint vs emoji
         hintPlus.isHidden   = !isEmpty
         hintCost.isHidden   = !isEmpty
         stageLabel.isHidden =  isEmpty
 
         stageLabel.text = stageEmoji(for: plot.stage)
 
-        // Background colour transitions
         if plot.isReady && !wasReady {
             bg.fillColor = Self.readyColor
             stageLabel.removeAllActions()
-            // One-shot burst then gentle pulse
             stageLabel.run(SKAction.sequence([
                 SKAction.scale(to: 1.4, duration: 0.10),
                 SKAction.scale(to: 1.0, duration: 0.12),
@@ -109,7 +106,6 @@ final class FarmPlotNode: SKNode {
             stageLabel.setScale(1.0)
         }
 
-        // Dashed border on empty slot
         if isEmpty && wasPlanted {
             bg.strokeColor = SKColor(white: 1.0, alpha: 0.30)
             bg.lineWidth   = 1.5
@@ -118,10 +114,16 @@ final class FarmPlotNode: SKNode {
             bg.lineWidth   = 2
         }
 
+        // Dim ready plots when warehouse is full
+        if plot.isReady && warehouseFull {
+            alpha = 0.45
+        } else {
+            alpha = 1.0
+        }
+
         wasReady   = plot.isReady
         wasPlanted = plot.isPlanted
 
-        // Progress bar — only while growing
         let showBar = plot.isPlanted && !plot.isReady
         barBg.isHidden   = !showBar
         barFill.isHidden = !showBar
@@ -134,7 +136,17 @@ final class FarmPlotNode: SKNode {
             )
         }
 
-        workerLabel.text = plot.hasWorker ? "👷" : ""
+        // Worker badge: solid when assigned, dim hint when worker available
+        if plot.hasWorker {
+            workerLabel.text  = "👷"
+            workerLabel.alpha = 1.0
+        } else if workerAvailable {
+            workerLabel.text  = "👷"
+            workerLabel.alpha = 0.25
+        } else {
+            workerLabel.text  = ""
+            workerLabel.alpha = 1.0
+        }
     }
 
     func animateHarvest() {

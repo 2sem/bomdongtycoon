@@ -48,7 +48,7 @@ public struct UpgradeDefinition {
     public var displayEffect: String {
         var parts: [String] = []
         if productionMultiplier != 1.0 {
-            parts.append("⚡ ×\(String(format: "%.1f", productionMultiplier)) 생산속도")
+            parts.append("🍳 \(Int(round(productionMultiplier)))개 일괄조리")
         }
         if priceMultiplier != 1.0 {
             parts.append("₩ ×\(String(format: "%.1f", priceMultiplier)) 판매가")
@@ -69,11 +69,11 @@ public enum UpgradeDefinitions {
         .init(name: "봄동비빔밥", coinCost: 10_000, description: "시그니처 메뉴",  priceMultiplier: 6.0)
     ]
 
-    /// Staff upgrades — increase items produced per second
+    /// Staff upgrades — increase items produced per batch cook
     public static let staff: [UpgradeDefinition] = [
-        .init(name: "알바생",       coinCost: 500,    description: "첫 번째 직원", productionMultiplier: 1.5),
-        .init(name: "경력 아주머니", coinCost: 3_000,  description: "베테랑",       productionMultiplier: 3.0),
-        .init(name: "봄동 요리사",  coinCost: 15_000, description: "전문가",       productionMultiplier: 7.0)
+        .init(name: "알바생",      coinCost: 500,    description: "조리 1개씩 도와줘요", productionMultiplier: 2.0),
+        .init(name: "이모님",      coinCost: 3_000,  description: "빠르게 조리해요",     productionMultiplier: 4.0),
+        .init(name: "봄동 요리사", coinCost: 15_000, description: "전문 조리사",         productionMultiplier: 7.0)
     ]
 
     /// Stall upgrades — increase maximum stock capacity

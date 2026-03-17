@@ -12,7 +12,7 @@ public struct SeasonBanner: View {
                 .font(.caption)
             Text(store.season.currentSeason.rawValue)
                 .font(.caption.bold())
-            Text("×\(String(format: "%.1f", multiplier))")
+            Text("💰×\(String(format: "%.1f", multiplier))배")
                 .font(.caption)
                 .foregroundStyle(.orange)
             if store.season.daysRemaining > 0 {

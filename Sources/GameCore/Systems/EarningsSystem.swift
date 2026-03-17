@@ -3,7 +3,7 @@ import Foundation
 public enum EarningsSystem {
 
     static let baseProductionRate: Double = 1.0   // items per second
-    static let basePricePerItem: Double = 10.0    // coins per item sold
+    static let basePricePerItem: Double = 30.0    // coins per item sold
 
     /// Items produced per second based on staff and location upgrades
     public static func productionRate(for stall: StallState) -> Double {

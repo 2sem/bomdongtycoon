@@ -1,22 +1,12 @@
 import Foundation
 import Combine
 
-// MARK: - UpgradeType
-
 public enum UpgradeType {
-    case staff
-    case menu
-    case stall
-    case location
-    case farm
+    case staff, menu, stall, location, farm
 }
-
-// MARK: - GameStore
 
 @MainActor
 public final class GameStore: ObservableObject {
-
-    // MARK: Published state
 
     @Published public var stall: StallState
     @Published public var farm: FarmState
@@ -24,22 +14,18 @@ public final class GameStore: ObservableObject {
     @Published public var season: SeasonState
     @Published public var offlineEarnings: Double = 0
 
-    // MARK: Persistence keys
-
     private enum DefaultsKey {
         static let stall = "gameStore.stall"
-        static let farm = "gameStore.farm"
+        static let farm  = "gameStore.farm"
         static let progress = "gameStore.progress"
     }
 
     private let defaults: UserDefaults
-
-    // MARK: Init
+    private var cookAccumulator: Double = 0
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
-        // Load persisted stall
         if let data = defaults.data(forKey: DefaultsKey.stall),
            let saved = try? JSONDecoder().decode(StallState.self, from: data) {
             self.stall = saved
@@ -47,7 +33,6 @@ public final class GameStore: ObservableObject {
             self.stall = StallState()
         }
 
-        // Load persisted farm
         if let data = defaults.data(forKey: DefaultsKey.farm),
            let saved = try? JSONDecoder().decode(FarmState.self, from: data) {
             self.farm = saved
@@ -55,7 +40,6 @@ public final class GameStore: ObservableObject {
             self.farm = FarmState()
         }
 
-        // Load persisted progress into a local so we can mutate before assigning to self
         var loadedProgress: PlayerProgress
         if let data = defaults.data(forKey: DefaultsKey.progress),
            let saved = try? JSONDecoder().decode(PlayerProgress.self, from: data) {
@@ -63,50 +47,71 @@ public final class GameStore: ObservableObject {
         } else {
             loadedProgress = PlayerProgress()
         }
-
-        // Set seasonStartDate on first launch
         if loadedProgress.seasonStartDate == nil {
             loadedProgress.seasonStartDate = Date()
         }
-
-        // Derive initial season before assigning self properties
         let seasonStart = loadedProgress.seasonStartDate!
         self.progress = loadedProgress
         self.season = SeasonSystem.currentState(seasonStart: seasonStart)
+
+        // Migration: old saves have staffCount == 0 but staffTier > 0
+        if self.stall.staffCount == 0 && self.stall.staffTier > 0 {
+            self.stall.staffCount = self.stall.staffTier
+        }
     }
 
-    // MARK: Tick
+    // MARK: - Tick
 
     public func tick(deltaTime: Double) {
         let seasonMult = SeasonSystem.earningsMultiplier(for: season.currentSeason)
         let rate = FarmSystem.growthRate(for: farm) * seasonMult
         let activePlots = FarmSystem.activePlotCount(for: farm)
 
-        // Grow only planted plots
         for i in 0..<min(activePlots, farm.plots.count) {
             guard farm.plots[i].isPlanted, !farm.plots[i].isReady else { continue }
             farm.plots[i].growth = min(farm.plots[i].growth + rate * deltaTime, 1.0)
         }
 
-        // Farm workers auto-harvest ready plots then auto-replant
-        if farm.farmWorkers > 0 {
-            let yield = FarmSystem.harvestYield
-            let maxStock = Double(EarningsSystem.maxStock(for: stall))
-            for i in 0..<min(activePlots, farm.plots.count) {
-                if farm.plots[i].isReady {
-                    stall.stock = min(stall.stock + Double(yield), maxStock)
-                    farm.plots[i].growth = 0
-                    farm.plots[i].isPlanted = false
+        // Per-plot workers auto-harvest and auto-replant
+        for i in 0..<min(activePlots, farm.plots.count) {
+            guard farm.plots[i].hasWorker else { continue }
+            if farm.plots[i].isReady {
+                guard stall.warehouse < stall.warehouseCapacity else { continue }
+                stall.warehouse += FarmSystem.harvestYield
+                farm.plots[i].growth = 0
+                farm.plots[i].isPlanted = false
+            }
+            if !farm.plots[i].isPlanted, stall.coins >= FarmSystem.seedCost {
+                stall.coins -= FarmSystem.seedCost
+                farm.plots[i].isPlanted = true
+            }
+        }
+
+        // Shop workers auto-cook: warehouse → menuStock
+        if stall.shopWorkers > 0, stall.warehouse > 0 {
+            let rate = EarningsSystem.productionRate(for: stall) * Double(stall.shopWorkers)
+            cookAccumulator += rate * deltaTime
+            while cookAccumulator >= 1.0, stall.warehouse > 0 {
+                cookAccumulator -= 1.0
+                let menus = stall.menuTier + 1
+                let maxStock = EarningsSystem.maxStock(for: stall)
+                // Find menu with least stock to distribute evenly
+                var distributed = false
+                for i in 0..<menus {
+                    guard i < stall.menuStock.count,
+                          stall.menuStock[i] < maxStock,
+                          stall.warehouse > 0 else { continue }
+                    stall.menuStock[i] += 1
+                    stall.warehouse -= 1
+                    distributed = true
+                    break
                 }
-                if !farm.plots[i].isPlanted, stall.coins >= FarmSystem.seedCost {
-                    stall.coins -= FarmSystem.seedCost
-                    farm.plots[i].isPlanted = true
-                }
+                if !distributed { cookAccumulator = 0 }
             }
         }
     }
 
-    // MARK: Collect
+    // MARK: - Collect
 
     public func collectCoins() {
         stall.coins += stall.pendingCoins
@@ -115,9 +120,20 @@ public final class GameStore: ObservableObject {
         save()
     }
 
-    // MARK: Farm
+    // MARK: - Sell
 
-    /// Plant a seed in an empty plot. Costs `FarmSystem.seedCost` coins.
+    /// Called by CustomerNode. Returns sale price or nil if out of stock.
+    public func sellItem(menuIndex: Int) -> Double? {
+        guard menuIndex < stall.menuStock.count,
+              stall.menuStock[menuIndex] > 0 else { return nil }
+        stall.menuStock[menuIndex] -= 1
+        let price = EarningsSystem.pricePerItem(for: stall)
+        stall.pendingCoins += price
+        return price
+    }
+
+    // MARK: - Farm
+
     public func plantSeed(plotIndex: Int) {
         guard plotIndex < farm.plots.count,
               !farm.plots[plotIndex].isPlanted,
@@ -128,43 +144,93 @@ public final class GameStore: ObservableObject {
         save()
     }
 
-    /// Harvest a fully-grown plot. Resets to empty.
     public func harvest(plotIndex: Int) {
         guard plotIndex < farm.plots.count,
-              farm.plots[plotIndex].isReady else { return }
-        let yield = FarmSystem.harvestYield
-        let maxStock = Double(EarningsSystem.maxStock(for: stall))
-        stall.stock = min(stall.stock + Double(yield), maxStock)
+              farm.plots[plotIndex].isReady,
+              stall.warehouse < stall.warehouseCapacity else { return }
+        stall.warehouse += FarmSystem.harvestYield
         farm.plots[plotIndex].growth = 0
         farm.plots[plotIndex].isPlanted = false
         save()
     }
 
-    public func assignWorkerToFarm() {
-        guard stall.shopWorkers > 0 else { return }
-        stall.shopWorkers -= 1
-        stall.farmWorkers += 1
-        farm.farmWorkers = stall.farmWorkers
-        syncWorkerMarkers()
+    // MARK: - Warehouse
+
+    public func expandWarehouse() {
+        guard let cost = WarehouseSystem.costForNextExpansion(current: stall.warehouseCapacity),
+              stall.coins >= cost else { return }
+        stall.coins -= cost
+        stall.warehouseCapacity += WarehouseSystem.expansionStep
+        save()
+    }
+
+    // MARK: - Batch cook (manual)
+
+    public func batchCook() {
+        guard stall.warehouse > 0 else { return }
+        let menus = stall.menuTier + 1
+        let maxStock = EarningsSystem.maxStock(for: stall)
+        let perWorker = stall.staffTier > 0
+            ? max(1, Int(round(UpgradeDefinitions.staff[stall.staffTier - 1].productionMultiplier)))
+            : 1
+        let batchTotal = min(perWorker * max(1, stall.shopWorkers), stall.warehouse)
+        let base = batchTotal / menus
+        let rem  = batchTotal % menus
+        var changed = false
+        for i in 0..<menus {
+            guard stall.warehouse > 0, i < stall.menuStock.count else { break }
+            let want   = base + (i >= menus - rem ? 1 : 0)
+            let amount = min(want, maxStock - stall.menuStock[i], stall.warehouse)
+            guard amount > 0 else { continue }
+            stall.warehouse    -= amount
+            stall.menuStock[i] += amount
+            changed = true
+        }
+        if changed { save() }
+    }
+
+    // MARK: - Workers
+
+    private var availableWorkers: Int {
+        let assignedToPlots = farm.plots.filter { $0.hasWorker }.count
+        return stall.staffCount - stall.shopWorkers - assignedToPlots
+    }
+
+    public func toggleWorker(plotIndex: Int) {
+        guard plotIndex < farm.plots.count else { return }
+        if farm.plots[plotIndex].hasWorker {
+            farm.plots[plotIndex].hasWorker = false
+        } else {
+            guard availableWorkers > 0 else { return }
+            farm.plots[plotIndex].hasWorker = true
+        }
+        stall.farmWorkers = farm.plots.filter { $0.hasWorker }.count
         save()
     }
 
     public func assignWorkerToShop() {
-        guard stall.farmWorkers > 0 else { return }
-        stall.farmWorkers -= 1
+        guard availableWorkers > 0 else { return }
         stall.shopWorkers += 1
-        farm.farmWorkers = stall.farmWorkers
-        syncWorkerMarkers()
         save()
     }
 
-    private func syncWorkerMarkers() {
-        for i in 0..<farm.plots.count {
-            farm.plots[i].hasWorker = i < stall.farmWorkers
-        }
+    public func removeWorkerFromShop() {
+        guard stall.shopWorkers > 0 else { return }
+        stall.shopWorkers -= 1
+        save()
     }
 
-    // MARK: Offline earnings
+    public func hireWorker() {
+        guard stall.staffTier > 0 else { return }
+        let idx = stall.staffTier - 1
+        let cost = UpgradeDefinitions.staff[idx].coinCost
+        guard stall.coins >= cost else { return }
+        stall.coins -= cost
+        stall.staffCount += 1
+        save()
+    }
+
+    // MARK: - Offline
 
     public func applyOfflineEarnings(multiplier: Double = 1.0) {
         let earned = OfflineProgressSystem.calculateOfflineEarnings(
@@ -180,11 +246,9 @@ public final class GameStore: ObservableObject {
         save()
     }
 
-    public func clearOfflineEarnings() {
-        offlineEarnings = 0
-    }
+    public func clearOfflineEarnings() { offlineEarnings = 0 }
 
-    // MARK: Upgrades
+    // MARK: - Upgrades
 
     public func purchaseUpgrade(_ type: UpgradeType) {
         switch type {
@@ -195,7 +259,8 @@ public final class GameStore: ObservableObject {
             guard stall.coins >= cost else { return }
             stall.coins -= cost
             stall.staffTier += 1
-            stall.shopWorkers += 1  // new worker defaults to shop
+            stall.staffCount += 1
+            stall.shopWorkers += 1
 
         case .menu:
             let nextTier = stall.menuTier + 1
@@ -230,7 +295,7 @@ public final class GameStore: ObservableObject {
         save()
     }
 
-    // MARK: Lifecycle
+    // MARK: - Lifecycle
 
     public func markFirstLaunchComplete() {
         progress.isFirstLaunch = false
@@ -248,17 +313,9 @@ public final class GameStore: ObservableObject {
         save()
     }
 
-    // MARK: Persistence
-
     private func save() {
-        if let stallData = try? JSONEncoder().encode(stall) {
-            defaults.set(stallData, forKey: DefaultsKey.stall)
-        }
-        if let farmData = try? JSONEncoder().encode(farm) {
-            defaults.set(farmData, forKey: DefaultsKey.farm)
-        }
-        if let progressData = try? JSONEncoder().encode(progress) {
-            defaults.set(progressData, forKey: DefaultsKey.progress)
-        }
+        if let d = try? JSONEncoder().encode(stall)    { defaults.set(d, forKey: DefaultsKey.stall) }
+        if let d = try? JSONEncoder().encode(farm)     { defaults.set(d, forKey: DefaultsKey.farm) }
+        if let d = try? JSONEncoder().encode(progress) { defaults.set(d, forKey: DefaultsKey.progress) }
     }
 }
