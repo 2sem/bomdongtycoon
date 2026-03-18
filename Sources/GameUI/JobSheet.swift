@@ -233,16 +233,15 @@ private struct MenuSlotRow: View {
     var body: some View {
         HStack(spacing: 12) {
             // Slot icon
-            ZStack(alignment: .topTrailing) {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(red: 0.93, green: 0.70, blue: 0.18))
-                    .frame(width: 40, height: 40)
-                Text(Self.menuEmojis[safe: menuIndex] ?? "🍽")
-                    .font(.system(size: 22))
-                if let w = assignedWorker, w.energy < 0.05 {
-                    Text("⚠️").font(.system(size: 11)).offset(x: 6, y: -6)
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(red: 0.93, green: 0.70, blue: 0.18))
+                .frame(width: 40, height: 40)
+                .overlay { Text(Self.menuEmojis[safe: menuIndex] ?? "🍽").font(.system(size: 22)) }
+                .overlay(alignment: .topTrailing) {
+                    if let w = assignedWorker, w.energy < 0.05 {
+                        Text("⚠️").font(.system(size: 11)).offset(x: 6, y: -6)
+                    }
                 }
-            }
 
             // Name + energy
             VStack(alignment: .leading, spacing: 4) {
@@ -364,15 +363,15 @@ private struct CashierSlotRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ZStack(alignment: .topTrailing) {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(red: 0.62, green: 0.80, blue: 0.95))
-                    .frame(width: 40, height: 40)
-                Text("🧾").font(.system(size: 22))
-                if assignedWorker != nil, energy < 0.05 {
-                    Text("⚠️").font(.system(size: 11)).offset(x: 6, y: -6)
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(red: 0.62, green: 0.80, blue: 0.95))
+                .frame(width: 40, height: 40)
+                .overlay { Text("🧾").font(.system(size: 22)) }
+                .overlay(alignment: .topTrailing) {
+                    if assignedWorker != nil, energy < 0.05 {
+                        Text("⚠️").font(.system(size: 11)).offset(x: 6, y: -6)
+                    }
                 }
-            }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("계산대").font(.headline)
