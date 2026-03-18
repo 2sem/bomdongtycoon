@@ -7,6 +7,7 @@ struct GameRootView: View {
     @Environment(\.scenePhase) var scenePhase
     @State private var showUpgrades = false
     @State private var showStaff = false
+    @State private var showJob = false
 
     var body: some View {
         ZStack {
@@ -43,8 +44,18 @@ struct GameRootView: View {
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(24)
         }
+        .sheet(isPresented: $showJob) {
+            JobSheet(isPresented: $showJob)
+                .environmentObject(store)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(24)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .openStaffSheet)) { _ in
             showStaff = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openJobSheet)) { _ in
+            showJob = true
         }
         .onAppear {
             store.applyOfflineEarnings()
