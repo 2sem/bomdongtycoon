@@ -4,7 +4,13 @@ import GameCore
 public struct OfflineEarningsPopup: View {
     @EnvironmentObject var store: GameStore
 
-    public init() {}
+    /// Called when user taps the 2× button. App layer shows the rewarded ad,
+    /// then calls the completion with `true` if reward was earned, `false` to skip.
+    let onWatchAd: (@escaping (Bool) -> Void) -> Void
+
+    public init(onWatchAd: @escaping (@escaping (Bool) -> Void) -> Void) {
+        self.onWatchAd = onWatchAd
+    }
 
     private func formattedEarnings(_ amount: Double) -> String {
         let value = Int(amount)
@@ -32,9 +38,11 @@ public struct OfflineEarningsPopup: View {
                     .foregroundStyle(.orange)
 
                 Button {
-                    // AdManager.shared.showRewardedAd called from App layer before reaching here
-                    store.applyOfflineEarnings(multiplier: 2.0)
-                    store.clearOfflineEarnings()
+                    onWatchAd { rewarded in
+                        let multiplier = rewarded ? 2.0 : 1.0
+                        store.applyOfflineEarnings(multiplier: multiplier)
+                        store.clearOfflineEarnings()
+                    }
                 } label: {
                     Label("광고 보고 2배 받기", systemImage: "play.circle.fill")
                         .font(.headline)

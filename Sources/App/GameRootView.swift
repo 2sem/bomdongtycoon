@@ -19,7 +19,9 @@ struct GameRootView: View {
                 ShopNameOverlay()
             }
             if store.offlineEarnings > 0 {
-                OfflineEarningsPopup()
+                OfflineEarningsPopup { completion in
+                    AdManager.shared.showRewardedAd(completion: completion)
+                }
             }
         }
         .safeAreaInset(edge: .top) {
