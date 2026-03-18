@@ -52,6 +52,7 @@ public final class GameStore: ObservableObject {
             loadedProgress = PlayerProgress()
         }
         self.progress = loadedProgress
+        normalizeIdlePools()
     }
 
     // MARK: - Energy
@@ -80,6 +81,32 @@ public final class GameStore: ObservableObject {
         case 2: stall.tier2IdleEnergies.append(snapped)
         case 3: stall.tier3IdleEnergies.append(snapped)
         default: break
+        }
+    }
+
+    /// Fix any pool size mismatch left by old bugs: trim excess (oldest entries) or pad with 1.0.
+    private func normalizeIdlePools() {
+        let menu1 = stall.menuCooks.filter { $0 == 1 }.count
+        let menu2 = stall.menuCooks.filter { $0 == 2 }.count
+        let menu3 = stall.menuCooks.filter { $0 == 3 }.count
+        let cashier1 = stall.cashierTier == 1 ? stall.cashierCount : 0
+        let cashier2 = stall.cashierTier == 2 ? stall.cashierCount : 0
+        let farm1 = farmAssigned
+
+        let expected1 = max(0, stall.tier1Count - menu1 - cashier1 - farm1)
+        let expected2 = max(0, stall.tier2Count - menu2 - cashier2)
+        let expected3 = max(0, stall.tier3Count - menu3)
+
+        normalize(pool: &stall.tier1IdleEnergies, to: expected1)
+        normalize(pool: &stall.tier2IdleEnergies, to: expected2)
+        normalize(pool: &stall.tier3IdleEnergies, to: expected3)
+    }
+
+    private func normalize(pool: inout [Double], to expected: Int) {
+        if pool.count > expected {
+            pool.removeFirst(pool.count - expected)
+        } else if pool.count < expected {
+            pool.append(contentsOf: Array(repeating: 1.0, count: expected - pool.count))
         }
     }
 
