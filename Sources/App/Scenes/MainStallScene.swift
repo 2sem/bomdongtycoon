@@ -3,6 +3,7 @@ import GameCore
 
 extension Notification.Name {
     static let openStaffSheet = Notification.Name("openStaffSheet")
+    static let openJobSheet = Notification.Name("openJobSheet")
 }
 
 final class MainStallScene: SKScene {
@@ -411,7 +412,7 @@ final class MainStallScene: SKScene {
         gearBg.name        = "gearIcon"
         addChild(gearBg)
 
-        let gear = SKLabelNode(text: "⚙️")
+        let gear = SKLabelNode(text: "👤")
         gear.fontSize = 16
         gear.verticalAlignmentMode = .center
         gear.horizontalAlignmentMode = .center
@@ -419,6 +420,25 @@ final class MainStallScene: SKScene {
         gear.zPosition = 4
         gear.name      = "gearIcon"
         addChild(gear)
+
+        // Dish icon — placed 26pt left of the person icon
+        let dishBg = SKShapeNode(circleOfRadius: 13)
+        dishBg.fillColor   = SKColor(red: 0.08, green: 0.32, blue: 0.15, alpha: 1)
+        dishBg.strokeColor = SKColor(white: 1.0, alpha: 0.25)
+        dishBg.lineWidth   = 1
+        dishBg.position    = CGPoint(x: frame.midX + 67, y: signY)
+        dishBg.zPosition   = 3
+        dishBg.name        = "dishIcon"
+        addChild(dishBg)
+
+        let dishLabel = SKLabelNode(text: "🍽")
+        dishLabel.fontSize = 16
+        dishLabel.verticalAlignmentMode = .center
+        dishLabel.horizontalAlignmentMode = .center
+        dishLabel.position  = dishBg.position
+        dishLabel.zPosition = 4
+        dishLabel.name      = "dishIcon"
+        addChild(dishLabel)
 
         // Notification badge — shown when availableWorkers > 0
         let badge = SKShapeNode(circleOfRadius: 8)
@@ -626,6 +646,12 @@ final class MainStallScene: SKScene {
                 Task { @MainActor in store.manualCook(menuIndex: i) }
                 return
             }
+        }
+
+        let dishCenter = CGPoint(x: frame.midX + 67, y: stallY + 80)
+        if hypot(location.x - dishCenter.x, location.y - dishCenter.y) <= 22 {
+            NotificationCenter.default.post(name: .openJobSheet, object: nil)
+            return
         }
 
         let gearCenter = CGPoint(x: frame.midX + 93, y: stallY + 80)
