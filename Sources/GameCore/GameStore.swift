@@ -149,7 +149,7 @@ public final class GameStore: ObservableObject {
         // Grow planted plots
         for i in 0..<min(activePlots, farm.plots.count) {
             guard farm.plots[i].isPlanted, !farm.plots[i].isReady else { continue }
-            let boost = farm.plots[i].hasWorker ? (0.5 + 0.5 * farm.plots[i].workerEnergy) : 1.0;
+            let boost = 1.0; // alba auto-harvests but doesn't boost growth speed
             farm.plots[i].growth = min(farm.plots[i].growth + growRate * boost * deltaTime, 1.0);
         }
 
