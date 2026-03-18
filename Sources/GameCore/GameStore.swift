@@ -325,9 +325,11 @@ public final class GameStore: ObservableObject {
         stall.staffCount - farmAssigned - stall.cashierCount - stall.menuCooks.filter { $0 > 0 }.count
     }
 
-    /// Only tier1 workers can be on farm
+    /// Only unassigned tier-1 workers can go to farm
     public var availableForFarm: Int {
-        stall.tier1Count - farmAssigned
+        let menu1    = stall.menuCooks.filter { $0 == 1 }.count
+        let cashier1 = stall.cashierTier == 1 ? stall.cashierCount : 0
+        return stall.tier1Count - farmAssigned - menu1 - cashier1
     }
 
     public func toggleWorker(plotIndex: Int, displayedEnergy: Double? = nil, addToIdle: Bool = true, directEnergy: Double? = nil) {
