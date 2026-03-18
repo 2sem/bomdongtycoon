@@ -213,7 +213,7 @@ public final class GameStore: ObservableObject {
         guard menuIndex < stall.menuStock.count,
               stall.menuStock[menuIndex] > 0 else { return nil }
         stall.menuStock[menuIndex] -= 1
-        let price = EarningsSystem.pricePerItem(for: stall)
+        let price = EarningsSystem.pricePerItem(for: stall, menuIndex: menuIndex)
         stall.pendingCoins += price
         return price
     }

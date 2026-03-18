@@ -16,9 +16,13 @@ public enum EarningsSystem {
 
     /// Coins earned per item sold based on menu and location upgrades
     public static func pricePerItem(for stall: StallState) -> Double {
-        var price = basePricePerItem
-        price *= UpgradeDefinitions.menu[stall.menuTier].priceMultiplier
-        return price
+        basePricePerItem * UpgradeDefinitions.menu[stall.menuTier].priceMultiplier
+    }
+
+    /// Price for a specific menu slot (겉절이=30, 봄동김치=75, 봄동비빔밥=180)
+    public static func pricePerItem(for stall: StallState, menuIndex: Int) -> Double {
+        guard menuIndex < UpgradeDefinitions.menu.count else { return basePricePerItem }
+        return basePricePerItem * UpgradeDefinitions.menu[menuIndex].priceMultiplier
     }
 
     /// Maximum stock the stall can hold at once
