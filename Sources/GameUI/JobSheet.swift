@@ -300,8 +300,7 @@ private struct MenuSlotRow: View {
 
     private var pickerLabel: String {
         guard let w = assignedWorker else { return "비어있음" }
-        let prefix = w.energy < 0.05 ? "⚠️ " : ""
-        return prefix + workerName(w)
+        return workerName(w)
     }
 
     private var eligibleWorkers: [JobWorkerItem] {
@@ -415,8 +414,7 @@ private struct CashierSlotRow: View {
 
     private var pickerLabel: String {
         guard let w = assignedWorker else { return "비어있음" }
-        let prefix = energy < 0.05 ? "⚠️ " : ""
-        return prefix + workerName(w)
+        return workerName(w)
     }
 
     private func workerLabel(_ worker: JobWorkerItem) -> String { workerName(worker) }

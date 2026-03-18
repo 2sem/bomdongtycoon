@@ -20,6 +20,7 @@ final class FarmPlotNode: SKNode {
     private let barBg           = SKShapeNode(rectOf: CGSize(width: barWidth, height: barHeight), cornerRadius: 3);
     private let barFill         = SKShapeNode();
     private let workerLabel     = SKLabelNode();
+    private let workerWarning   = SKLabelNode();
     private let workerEnergyBar = SKShapeNode();
     private let hintPlus        = SKLabelNode();
     private let hintCost        = SKLabelNode();
@@ -54,13 +55,24 @@ final class FarmPlotNode: SKNode {
         addChild(barFill)
 
         // Worker badge
-        workerLabel.fontSize = 13;
-        workerLabel.position = CGPoint(x: 20, y: 22);
+        workerLabel.fontSize = 20;
+        workerLabel.verticalAlignmentMode   = .center;
+        workerLabel.horizontalAlignmentMode = .center;
+        workerLabel.position = CGPoint(x: 18, y: 20);
         addChild(workerLabel);
+
+        // ⚠️ pinned to top-right of worker badge
+        workerWarning.text = "⚠️";
+        workerWarning.fontSize = 11;
+        workerWarning.verticalAlignmentMode   = .center;
+        workerWarning.horizontalAlignmentMode = .center;
+        workerWarning.position = CGPoint(x: 28, y: 29);
+        workerWarning.isHidden = true;
+        addChild(workerWarning);
 
         // Worker energy bar (20×3pt strip below worker badge)
         workerEnergyBar.strokeColor = .clear;
-        workerEnergyBar.position = CGPoint(x: 20, y: 13);
+        workerEnergyBar.position = CGPoint(x: 18, y: 9);
         workerEnergyBar.isHidden = true;
         addChild(workerEnergyBar);
 
@@ -154,6 +166,7 @@ final class FarmPlotNode: SKNode {
             workerLabel.text  = "";
             workerLabel.alpha = 1.0;
         }
+        workerWarning.isHidden = !(plot.hasWorker && workerEnergy < 0.05);
 
         // Worker energy bar
         workerEnergyBar.isHidden = !plot.hasWorker;

@@ -5,10 +5,10 @@ public enum FarmSystem {
     public static let harvestYield: Int = 1
     public static let seedCost: Double = 10
     public static let startingPlots: Int = 2
-    public static let maxPlots: Int = 8
+    public static let maxPlots: Int = 10
 
     /// Exponential cost curve for adding each additional plot (index 0 = 3rd plot, etc.)
-    private static let plotCosts: [Double] = [500, 1_500, 4_000, 10_000, 25_000, 60_000]
+    private static let plotCosts: [Double] = [500, 1_500, 4_000, 10_000, 25_000, 60_000, 150_000, 400_000]
 
     public static func growthRate(for farm: FarmState) -> Double {
         1.0 / baseGrowthDuration

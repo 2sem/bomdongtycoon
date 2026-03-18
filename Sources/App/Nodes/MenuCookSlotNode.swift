@@ -17,7 +17,8 @@ final class MenuCookSlotNode: SKNode {
     private let stockLabel = SKLabelNode()
     private let barBg      = SKShapeNode(rectOf: CGSize(width: barW, height: barH), cornerRadius: 3)
     private let barFill    = SKShapeNode()
-    private let tierBadge  = SKLabelNode()   // tiny tier emoji top-right
+    private let tierBadge    = SKLabelNode()   // tiny tier emoji top-right
+    private let warningLabel = SKLabelNode()   // ⚠️ top-left when energy critical
 
     // colors
     private static let bgIdle    = SKColor(red: 0.12, green: 0.40, blue: 0.18, alpha: 1)
@@ -63,12 +64,21 @@ final class MenuCookSlotNode: SKNode {
         barFill.position    = CGPoint(x: -Self.barW / 2, y: -24)
         addChild(barFill)
 
-        // Tier badge (top-right corner)
-        tierBadge.fontSize = 11
+        // Cook emoji (top-right area, larger so it's readable at a glance)
+        tierBadge.fontSize = 20
         tierBadge.verticalAlignmentMode   = .center
         tierBadge.horizontalAlignmentMode = .center
-        tierBadge.position = CGPoint(x: 21, y: 26)
+        tierBadge.position = CGPoint(x: 14, y: 22)
         addChild(tierBadge)
+
+        // ⚠️ badge pinned to top-right of the cook emoji
+        warningLabel.text = "⚠️"
+        warningLabel.fontSize = 11
+        warningLabel.verticalAlignmentMode   = .center
+        warningLabel.horizontalAlignmentMode = .center
+        warningLabel.position = CGPoint(x: 25, y: 31)
+        warningLabel.isHidden = true
+        addChild(warningLabel)
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -77,7 +87,7 @@ final class MenuCookSlotNode: SKNode {
         menuLabel.text = menuEmoji
     }
 
-    func update(cookTier: Int, cookEmoji: String, progress: Double, stock: Int, maxStock: Int) {
+    func update(cookTier: Int, cookEmoji: String, progress: Double, stock: Int, maxStock: Int, cookEnergy: Double = 1.0) {
         let hasAutoCook = cookTier > 0
 
         // Background tint
@@ -102,6 +112,9 @@ final class MenuCookSlotNode: SKNode {
         // Tier badge
         tierBadge.text    = hasAutoCook ? cookEmoji : ""
         tierBadge.isHidden = !hasAutoCook
+
+        // Warning badge
+        warningLabel.isHidden = !(hasAutoCook && cookEnergy < 0.05)
     }
 
     /// Brief pop animation when the player manually cooks.

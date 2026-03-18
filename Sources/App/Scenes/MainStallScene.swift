@@ -39,6 +39,13 @@ final class MainStallScene: SKScene {
     private var menuCookSlots: [MenuCookSlotNode] = []
     private var lastCookMenuTier = -1
 
+    // Cashier at the shop counter
+    private var cashierEmojiNode:   SKLabelNode?
+    private var cashierWarningNode: SKLabelNode?
+    private var lastCashierCount  = -1
+    private var lastCashierTier   = -1
+    private var lastCashierEnergy = -1.0
+
     private static func formatCoins(_ value: Int) -> String {
         if value >= 1_000_000 { return String(format: "%.1fM", Double(value) / 1_000_000) }
         if value >= 1_000     { return String(format: "%.1fK", Double(value) / 1_000) }
@@ -105,6 +112,7 @@ final class MainStallScene: SKScene {
         setupWarehouse()
         setupStall()
         setupCookSlots()
+        setupCashier()
         setupHUD()
         startCustomerSpawning()
     }
@@ -205,10 +213,10 @@ final class MainStallScene: SKScene {
     }
 
     // MARK: - Farm grid layout constants
-    private static let farmCols     = 4
-    private static let farmSpacingX: CGFloat = 68
-    private static let farmSpacingY: CGFloat = 68
-    private static let farmRowY: [CGFloat] = [34, -34]
+    private static let farmCols     = 5
+    private static let farmSpacingX: CGFloat = 62
+    private static let farmSpacingY: CGFloat = 62
+    private static let farmRowY: [CGFloat] = [32, -32]
     private static let farmOriginX: CGFloat = -CGFloat(farmCols - 1) * farmSpacingX / 2
 
     private func gridPosition(for index: Int) -> CGPoint {
@@ -367,8 +375,51 @@ final class MainStallScene: SKScene {
             let cookTier = i < store.stall.menuCooks.count ? store.stall.menuCooks[i] : 0
             let stock    = i < store.stall.menuStock.count ? store.stall.menuStock[i] : 0
             let prog     = i < progress.count ? progress[i] : 0
+            let energy   = i < store.stall.menuCookEnergy.count ? store.stall.menuCookEnergy[i] : 1.0
             menuCookSlots[i].update(cookTier: cookTier, cookEmoji: cookEmoji(menuIndex: i, store: store),
-                                    progress: prog, stock: stock, maxStock: maxStock)
+                                    progress: prog, stock: stock, maxStock: maxStock, cookEnergy: energy)
+        }
+    }
+
+    // MARK: - Cashier
+
+    private func setupCashier() {
+        let node = SKLabelNode(text: "🧑")
+        node.fontSize = 30
+        node.verticalAlignmentMode   = .center
+        node.horizontalAlignmentMode = .center
+        node.position  = CGPoint(x: frame.midX, y: groundY + 38)
+        node.zPosition = 3
+        node.name      = "cashierEmoji"
+        node.isHidden  = true
+        addChild(node)
+        cashierEmojiNode = node
+
+        let warning = SKLabelNode(text: "⚠️")
+        warning.fontSize = 13
+        warning.verticalAlignmentMode   = .center
+        warning.horizontalAlignmentMode = .center
+        warning.position  = CGPoint(x: frame.midX + 16, y: groundY + 52)
+        warning.zPosition = 4
+        warning.isHidden  = true
+        addChild(warning)
+        cashierWarningNode = warning
+    }
+
+    private func syncCashier(store: GameStore) {
+        let count  = store.stall.cashierCount
+        let tier   = store.stall.cashierTier
+        let energy = store.stall.cashierEnergy
+        guard count != lastCashierCount || tier != lastCashierTier || energy != lastCashierEnergy else { return }
+        lastCashierCount  = count
+        lastCashierTier   = tier
+        lastCashierEnergy = energy
+
+        let visible = count > 0
+        cashierEmojiNode?.isHidden  = !visible
+        cashierWarningNode?.isHidden = !(visible && energy < 0.05)
+        if visible {
+            cashierEmojiNode?.text = staffEmoji(tier: tier, indexInTier: 0)
         }
     }
 
@@ -421,12 +472,12 @@ final class MainStallScene: SKScene {
         gear.name      = "gearIcon"
         addChild(gear)
 
-        // Dish icon — placed 26pt left of the person icon
+        // Dish icon — placed on the left end of the sign (mirrors staff icon on right)
         let dishBg = SKShapeNode(circleOfRadius: 13)
         dishBg.fillColor   = SKColor(red: 0.08, green: 0.32, blue: 0.15, alpha: 1)
         dishBg.strokeColor = SKColor(white: 1.0, alpha: 0.25)
         dishBg.lineWidth   = 1
-        dishBg.position    = CGPoint(x: frame.midX + 67, y: signY)
+        dishBg.position    = CGPoint(x: frame.midX - 93, y: signY)
         dishBg.zPosition   = 3
         dishBg.name        = "dishIcon"
         addChild(dishBg)
@@ -648,7 +699,7 @@ final class MainStallScene: SKScene {
             }
         }
 
-        let dishCenter = CGPoint(x: frame.midX + 67, y: stallY + 80)
+        let dishCenter = CGPoint(x: frame.midX - 93, y: stallY + 80)
         if hypot(location.x - dishCenter.x, location.y - dishCenter.y) <= 22 {
             NotificationCenter.default.post(name: .openJobSheet, object: nil)
             return
@@ -684,6 +735,7 @@ final class MainStallScene: SKScene {
             self.syncFarmPlots(farm: store.farm, activePlots: activePlots)
             self.syncWarehouse(store: store)
             self.syncCookSlots(store: store)
+            self.syncCashier(store: store)
             self.syncGearBadge(store: store)
             let shopName = store.progress.shopName
             if shopName != self.lastShopName {

@@ -378,12 +378,14 @@ private struct WorkerRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ZStack(alignment: .topTrailing) {
+            ZStack {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(tierColor(worker.tier))
                     .frame(width: 40, height: 40)
                 Text(workerEmoji(tier: worker.tier, indexInTier: worker.indexInTier))
                     .font(.system(size: 22))
+            }
+            .overlay(alignment: .topTrailing) {
                 if worker.energy < 0.05, worker.assignment != .unassigned {
                     Text("⚠️")
                         .font(.system(size: 11))
