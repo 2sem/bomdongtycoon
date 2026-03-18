@@ -363,7 +363,7 @@ private struct WorkerRow: View {
 
     private func assignmentLabel(_ a: WorkerItem.Assignment, energy: Double = 1.0) -> String {
         if case .unassigned = a, energy < 0.2 { return "😴 휴식" }
-        let prefix = energy < 0.05 ? "💤 " : ""
+        let prefix = energy < 0.05 ? "⚠️ " : ""
         switch a {
         case .menu(let i): return prefix + (UpgradeDefinitions.menu[safe: i]?.name ?? "메뉴 \(i + 1)")
         default:           return prefix + a.label
@@ -385,7 +385,7 @@ private struct WorkerRow: View {
                 Text(workerEmoji(tier: worker.tier, indexInTier: worker.indexInTier))
                     .font(.system(size: 22))
                 if worker.energy < 0.05 {
-                    Text("💤")
+                    Text("⚠️")
                         .font(.system(size: 11))
                         .offset(x: 6, y: -6)
                         .transition(.scale.combined(with: .opacity))
