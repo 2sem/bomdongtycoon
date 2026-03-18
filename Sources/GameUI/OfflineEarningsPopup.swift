@@ -6,6 +6,19 @@ public struct OfflineEarningsPopup: View {
 
     public init() {}
 
+    private func formattedEarnings(_ amount: Double) -> String {
+        let value = Int(amount)
+        if value >= 100_000_000 {
+            let uk = (value + 50_000_000) / 100_000_000
+            return "약 \(uk)억원"
+        } else if value >= 10_000 {
+            let man = (value + 5_000) / 10_000
+            return "약 \(man)만원"
+        } else {
+            return "₩\(value.formatted())원"
+        }
+    }
+
     public var body: some View {
         ZStack {
             Color.black.opacity(0.55).ignoresSafeArea()
@@ -14,7 +27,7 @@ public struct OfflineEarningsPopup: View {
                     .font(.title2.bold())
                 Text("가게를 비운 동안 번 돈:")
                     .foregroundStyle(.secondary)
-                Text("₩\(Int(store.offlineEarnings).formatted())원")
+                Text(formattedEarnings(store.offlineEarnings))
                     .font(.system(size: 48, weight: .bold))
                     .foregroundStyle(.orange)
 
