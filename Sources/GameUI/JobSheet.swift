@@ -285,7 +285,6 @@ private struct MenuSlotRow: View {
                         Text(workerLabel(worker))
                     }
                 }
-                .disabled(!canAssign(worker))
             }
         } label: {
             HStack(spacing: 4) {
@@ -306,24 +305,13 @@ private struct MenuSlotRow: View {
     }
 
     private var eligibleWorkers: [JobWorkerItem] {
-        // Slot 2 (봄동비빔밥) is tier 3 only
-        if menuIndex == 2 {
-            return workers.filter { $0.tier == 3 }
-        }
-        return workers
+        let base = menuIndex == 2
+            ? workers.filter { $0.tier == 3 }
+            : workers
+        return base.filter { $0.assignment == .menu(menuIndex) || $0.assignment == .unassigned }
     }
 
-    private func canAssign(_ worker: JobWorkerItem) -> Bool {
-        worker.assignment == .menu(menuIndex) || worker.assignment == .unassigned
-    }
-
-    private func workerLabel(_ worker: JobWorkerItem) -> String {
-        var label = workerName(worker)
-        if worker.assignment != .menu(menuIndex), worker.assignment != .unassigned {
-            label += " (\(worker.assignment.shortLabel))"
-        }
-        return label
-    }
+    private func workerLabel(_ worker: JobWorkerItem) -> String { workerName(worker) }
 
     private func workerName(_ worker: JobWorkerItem) -> String {
         let names = ["", "알바생", "이모님", "봄동 요리사"]
@@ -402,7 +390,7 @@ private struct CashierSlotRow: View {
 
             Divider()
 
-            ForEach(workers, id: \.id) { worker in
+            ForEach(workers.filter { $0.assignment == .cashier || $0.assignment == .unassigned }, id: \.id) { worker in
                 Button {
                     onAssign(worker.id)
                 } label: {
@@ -412,7 +400,6 @@ private struct CashierSlotRow: View {
                         Text(workerLabel(worker))
                     }
                 }
-                .disabled(!canAssign(worker))
             }
         } label: {
             HStack(spacing: 4) {
@@ -432,17 +419,7 @@ private struct CashierSlotRow: View {
         return prefix + workerName(w)
     }
 
-    private func canAssign(_ worker: JobWorkerItem) -> Bool {
-        worker.assignment == .cashier || worker.assignment == .unassigned
-    }
-
-    private func workerLabel(_ worker: JobWorkerItem) -> String {
-        var label = workerName(worker)
-        if worker.assignment != .cashier, worker.assignment != .unassigned {
-            label += " (\(worker.assignment.shortLabel))"
-        }
-        return label
-    }
+    private func workerLabel(_ worker: JobWorkerItem) -> String { workerName(worker) }
 
     private func workerName(_ worker: JobWorkerItem) -> String {
         let names = ["", "알바생", "이모님", "봄동 요리사"]
