@@ -206,9 +206,9 @@ public struct StaffSheet: View {
         var tier2Idx = 0;
         for _ in 0..<store.stall.tier2Count {
             let a: WorkerItem.Assignment;
-            if !t2.isEmpty               { a = .menu(t2.removeFirst()) }
-            else if remainingCashiers > 0 { remainingCashiers -= 1; a = .cashier }
-            else                          { a = .unassigned }
+            if !t2.isEmpty                                                  { a = .menu(t2.removeFirst()) }
+            else if remainingCashiers > 0 && store.stall.cashierTier == 2  { remainingCashiers -= 1; a = .cashier }
+            else                                                            { a = .unassigned }
             let e: Double;
             switch a {
             case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0
@@ -227,10 +227,10 @@ public struct StaffSheet: View {
         var tier1Idx = 0;
         for _ in 0..<store.stall.tier1Count {
             let a: WorkerItem.Assignment;
-            if !t1.isEmpty               { a = .menu(t1.removeFirst()) }
-            else if farmWorkers > 0       { farmWorkers -= 1; a = .farm }
-            else if remainingCashiers > 0 { remainingCashiers -= 1; a = .cashier }
-            else                          { a = .unassigned }
+            if !t1.isEmpty                                                  { a = .menu(t1.removeFirst()) }
+            else if farmWorkers > 0                                         { farmWorkers -= 1; a = .farm }
+            else if remainingCashiers > 0 && store.stall.cashierTier == 1  { remainingCashiers -= 1; a = .cashier }
+            else                                                            { a = .unassigned }
             let e: Double;
             switch a {
             case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0
