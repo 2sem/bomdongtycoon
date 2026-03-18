@@ -349,8 +349,8 @@ public final class GameStore: ObservableObject {
     }
 
     public func assignToCashier(tier: Int = 0, directEnergy: Double? = nil) {
-        guard availableWorkers > 0, stall.cashierCount == 0 else { return }
         let t = tier > 0 ? tier : 1
+        guard unassignedCount(for: t) > 0, stall.cashierCount == 0 else { return }
         stall.cashierEnergy = directEnergy ?? popIdleEnergy(for: t)
         stall.cashierTier   = t
         stall.cashierCount += 1
@@ -381,9 +381,7 @@ public final class GameStore: ObservableObject {
         guard menuIndex <= stall.menuTier,
               menuIndex < stall.menuCooks.count,
               stall.menuCooks[menuIndex] == 0 else { return }
-        let total = tierCount(for: tier)
-        let used  = stall.menuCooks.filter { $0 == tier }.count
-        guard total > used else { return }
+        guard unassignedCount(for: tier) > 0 else { return }
         stall.menuCooks[menuIndex] = tier
         stall.menuCookEnergy[menuIndex] = directEnergy ?? popIdleEnergy(for: tier)
         save()
@@ -396,6 +394,14 @@ public final class GameStore: ObservableObject {
         case 3: stall.tier3Count
         default: 0
         }
+    }
+
+    /// Number of unassigned (idle) workers for a given tier.
+    private func unassignedCount(for tier: Int) -> Int {
+        let menuUsed    = stall.menuCooks.filter { $0 == tier }.count
+        let cashierUsed = stall.cashierTier == tier ? stall.cashierCount : 0
+        let farmUsed    = tier == 1 ? farmAssigned : 0
+        return tierCount(for: tier) - menuUsed - cashierUsed - farmUsed
     }
 
     public func removeMenuCook(menuIndex: Int, displayedEnergy: Double? = nil, addToIdle: Bool = true) {
