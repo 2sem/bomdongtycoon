@@ -384,7 +384,7 @@ private struct WorkerRow: View {
                     .frame(width: 40, height: 40)
                 Text(workerEmoji(tier: worker.tier, indexInTier: worker.indexInTier))
                     .font(.system(size: 22))
-                if worker.energy < 0.05 {
+                if worker.energy < 0.05, worker.assignment != .unassigned {
                     Text("⚠️")
                         .font(.system(size: 11))
                         .offset(x: 6, y: -6)
