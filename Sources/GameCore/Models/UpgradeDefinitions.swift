@@ -83,7 +83,14 @@ public enum UpgradeDefinitions {
         .init(name: "봄동 전문점", coinCost: 25_000, description: "최고급",    maxStock: 60)
     ]
 
-/// Farm upgrades — increase plot count, growth speed, and harvest yield
+/// Farm worker training — unlocks growth speed boost for farm-assigned 알바생
+    public static let farmWorker: [UpgradeDefinition] = [
+        .init(name: "알바생",   coinCost: 0,      description: "기본 알바 — 자동 수확만 가능", productionMultiplier: 1.0),
+        .init(name: "고참 알바", coinCost: 3_000,  description: "농장 경험자",               productionMultiplier: 1.4),
+        .init(name: "알바 달인", coinCost: 12_000, description: "농장 전문가, 최고 속도",      productionMultiplier: 2.0),
+    ]
+
+    /// Farm upgrades — increase plot count, growth speed, and harvest yield
     public static let farm: [FarmUpgradeDefinition] = [
         .init(name: "텃밭",     coinCost: 0,      description: "작은 시작",  plotCount: 2, growthMultiplier: 1.0, harvestYield: 1),
         .init(name: "주말농장", coinCost: 3_000,  description: "더 넓은 밭", plotCount: 3, growthMultiplier: 1.5, harvestYield: 2),

@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 public enum UpgradeType {
-    case staff, menu, stall, farm
+    case staff, menu, stall, farm, farmWorker
 }
 
 @MainActor
@@ -149,7 +149,10 @@ public final class GameStore: ObservableObject {
         // Grow planted plots
         for i in 0..<min(activePlots, farm.plots.count) {
             guard farm.plots[i].isPlanted, !farm.plots[i].isReady else { continue }
-            let boost = 1.0; // alba auto-harvests but doesn't boost growth speed
+            let workerDef = stall.farmWorkerTier - 1 < UpgradeDefinitions.farmWorker.count
+                ? UpgradeDefinitions.farmWorker[stall.farmWorkerTier - 1]
+                : nil
+            let boost = farm.plots[i].hasWorker ? (workerDef?.productionMultiplier ?? 1.0) : 1.0
             farm.plots[i].growth = min(farm.plots[i].growth + growRate * boost * deltaTime, 1.0);
         }
 
@@ -554,6 +557,14 @@ public final class GameStore: ObservableObject {
             guard stall.coins >= cost else { return }
             stall.coins -= cost
             farm.plots.append(FarmPlot())
+
+        case .farmWorker:
+            let nextTier = stall.farmWorkerTier
+            guard nextTier < UpgradeDefinitions.farmWorker.count else { return }
+            let cost = UpgradeDefinitions.farmWorker[nextTier].coinCost
+            guard stall.coins >= cost else { return }
+            stall.coins -= cost
+            stall.farmWorkerTier += 1
         }
         save()
     }

@@ -41,6 +41,9 @@ public struct StallState: Codable {
     // Legacy — kept for FarmState compatibility only
     public var farmWorkers: Int = 0
 
+    // Farm worker training level (global, shared by all farm-assigned 알바생)
+    public var farmWorkerTier: Int = 1
+
     private enum CodingKeys: String, CodingKey {
         case coins, menuTier, staffTier, stallTier, pendingCoins
         case tier1Count, tier2Count, tier3Count
@@ -49,6 +52,7 @@ public struct StallState: Codable {
         case tier1IdleEnergies, tier2IdleEnergies, tier3IdleEnergies
         case warehouse, warehouseCapacity, menuStock
         case farmWorkers
+        case farmWorkerTier
     }
 
     public init() {}

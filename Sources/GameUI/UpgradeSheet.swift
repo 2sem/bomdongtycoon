@@ -24,6 +24,7 @@ public struct UpgradeSheet: View {
                     definitions: UpgradeDefinitions.stall,
                     currentTier: store.stall.stallTier + 1
                 )
+                farmWorkerSection
             }
             .navigationTitle("업그레이드")
             .navigationBarTitleDisplayMode(.inline)
@@ -51,6 +52,29 @@ public struct UpgradeSheet: View {
                     isNext: index == currentTier,
                     canAfford: coins >= definitions[index].coinCost,
                     onPurchase: { store.purchaseUpgrade(type) }
+                )
+            }
+        }
+    }
+
+    private var farmWorkerSection: some View {
+        let currentTier = store.stall.farmWorkerTier
+        let coins = store.stall.coins
+        return Section("농장 인력") {
+            ForEach(UpgradeDefinitions.farmWorker.indices, id: \.self) { index in
+                let def = UpgradeDefinitions.farmWorker[index]
+                let isOwned = index < currentTier
+                let isNext  = index == currentTier
+                let effect  = index == 0
+                    ? "자동 수확 · 속도 기본"
+                    : "🌱 ×\(String(format: "%.1f", def.productionMultiplier)) 성장 속도"
+                UpgradeRowView(
+                    upgrade: def,
+                    displayEffect: effect,
+                    isOwned: isOwned,
+                    isNext: isNext,
+                    canAfford: coins >= def.coinCost,
+                    onPurchase: { store.purchaseUpgrade(.farmWorker) }
                 )
             }
         }
