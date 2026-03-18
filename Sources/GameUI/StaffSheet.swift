@@ -257,46 +257,60 @@ public struct StaffSheet: View {
     private func reassign(worker: WorkerItem, to new: WorkerItem.Assignment) {
         guard new != worker.assignment else { return }
 
-        let movingToIdle = (new == .unassigned)
+        if worker.assignment == .unassigned {
+            // Idle → position: pop from idle pool (correctly picks this worker's energy by FIFO order)
+            switch new {
+            case .menu(let i):   store.assignMenuCook(menuIndex: i, tier: worker.tier)
+            case .cashier:       store.assignToCashier(tier: worker.tier)
+            case .farm:
+                let active = FarmSystem.activePlotCount(for: store.farm)
+                if let idx = (0..<active).first(where: { !store.farm.plots[$0].hasWorker }) {
+                    store.toggleWorker(plotIndex: idx)
+                }
+            case .unassigned: break
+            }
 
-        // Read the worker's LIVE energy from the store right now — not from the
-        // stale WorkerItem snapshot, which may have been captured at render time
-        // before several ticks of depletion.
-        let liveEnergy: Double = {
+        } else if new == .unassigned {
+            // Position → idle: read LIVE slot energy, push to idle pool
             switch worker.assignment {
-            case .menu(let i):  return store.stall.menuCookEnergy[safe: i] ?? 1.0
-            case .cashier:      return store.stall.cashierEnergy
-            case .farm:         return store.farm.plots.first(where: { $0.hasWorker })?.workerEnergy ?? 1.0
-            case .unassigned:   return store.stall.tier1IdleEnergies.first ?? 1.0
+            case .menu(let i):   store.removeMenuCook(menuIndex: i, addToIdle: true)
+            case .cashier:       store.removeFromCashier(addToIdle: true)
+            case .farm:
+                if let idx = store.farm.plots.firstIndex(where: { $0.hasWorker }) {
+                    store.toggleWorker(plotIndex: idx, addToIdle: true)
+                }
+            case .unassigned: break
             }
-        }()
 
-        // Remove from current position (no displayedEnergy — live value already captured above)
-        switch worker.assignment {
-        case .menu(let i):
-            store.removeMenuCook(menuIndex: i, addToIdle: movingToIdle)
-        case .cashier:
-            store.removeFromCashier(addToIdle: movingToIdle)
-        case .farm:
-            if let idx = store.farm.plots.firstIndex(where: { $0.hasWorker }) {
-                store.toggleWorker(plotIndex: idx, addToIdle: movingToIdle)
+        } else {
+            // Position → different position: carry LIVE energy directly, skip the idle pool
+            let liveEnergy: Double = {
+                switch worker.assignment {
+                case .menu(let i):  return store.stall.menuCookEnergy[safe: i] ?? 1.0
+                case .cashier:      return store.stall.cashierEnergy
+                case .farm:         return store.farm.plots.first(where: { $0.hasWorker })?.workerEnergy ?? 1.0
+                case .unassigned:   return 1.0
+                }
+            }()
+            switch worker.assignment {
+            case .menu(let i):   store.removeMenuCook(menuIndex: i, addToIdle: false)
+            case .cashier:       store.removeFromCashier(addToIdle: false)
+            case .farm:
+                if let idx = store.farm.plots.firstIndex(where: { $0.hasWorker }) {
+                    store.toggleWorker(plotIndex: idx, addToIdle: false)
+                }
+            case .unassigned: break
             }
-        case .unassigned: break
-        }
-
-        // Assign to new position, carrying the live energy directly
-        let carry: Double? = movingToIdle ? nil : liveEnergy
-        switch new {
-        case .menu(let i):
-            store.assignMenuCook(menuIndex: i, tier: worker.tier, directEnergy: carry)
-        case .cashier:
-            store.assignToCashier(tier: worker.tier, directEnergy: carry)
-        case .farm:
-            let active = FarmSystem.activePlotCount(for: store.farm)
-            if let idx = (0..<active).first(where: { !store.farm.plots[$0].hasWorker }) {
-                store.toggleWorker(plotIndex: idx, directEnergy: carry)
+            switch new {
+            case .menu(let i):   store.assignMenuCook(menuIndex: i, tier: worker.tier, directEnergy: liveEnergy)
+            case .cashier:       store.assignToCashier(tier: worker.tier, directEnergy: liveEnergy)
+            case .farm:
+                let active = FarmSystem.activePlotCount(for: store.farm)
+                if let idx = (0..<active).first(where: { !store.farm.plots[$0].hasWorker }) {
+                    store.toggleWorker(plotIndex: idx, directEnergy: liveEnergy)
+                }
+            case .unassigned: break
             }
-        case .unassigned: break
         }
     }
 }
