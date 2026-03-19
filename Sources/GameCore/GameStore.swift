@@ -21,7 +21,8 @@ public final class GameStore: ObservableObject {
 
     private let defaults: UserDefaults
     private var cookAccumulators: [Double] = [0, 0, 0];   // per-menu
-    private var cashierAccumulator: Double = 0;
+    private var cashierAccumulator: Double = 0
+    private var activitySaveTimer: Double = 0            // flush lastActiveDate to disk every 5s
 
     // MARK: - Energy constants
     private static let energyDepletionRate: Double = 1.0 / 180.0;  // empties in 3 min
@@ -199,6 +200,16 @@ public final class GameStore: ObservableObject {
 
         // Rating slowly decays — active serving easily overcomes it, idle play drifts down
         progress.rating = max(1.0, progress.rating - 0.0002 * deltaTime)
+
+        // Persist lastActiveDate every 5 s so force-quit doesn't lose more than 5 s of play time
+        if offlineEarnings == 0 {
+            activitySaveTimer += deltaTime
+            if activitySaveTimer >= 5 {
+                activitySaveTimer = 0
+                progress.lastActiveDate = Date()
+                save()
+            }
+        }
     }
 
     // MARK: - Collect
