@@ -261,15 +261,19 @@ public final class GameStore: ObservableObject {
     /// Energy level for the cashier worker (0.0–1.0).
     public var cashierEnergy: Double { stall.cashierEnergy }
 
-    /// Base spawn interval in seconds, driven by shop rating.
-    /// ★1=15s  ★2=10s  ★3=5s  ★4=2.5s  ★5=1.2s
+    /// Base spawn interval in seconds, driven by shop rating (0.5-step tiers).
+    /// 1.0=20s  1.5=16s  2.0=12s  2.5=8s  3.0=5s  3.5=3.5s  4.0=2.5s  4.5=1.8s  5.0=1.2s
     public var customerSpawnInterval: Double {
         switch progress.rating {
-        case ..<1.5: return 15.0
-        case 1.5..<2.5: return 10.0
-        case 2.5..<3.5: return 5.0
-        case 3.5..<4.5: return 2.5
-        default:        return 1.2
+        case ..<1.5: return 20.0
+        case 1.5..<2.0: return 16.0
+        case 2.0..<2.5: return 12.0
+        case 2.5..<3.0: return 8.0
+        case 3.0..<3.5: return 5.0
+        case 3.5..<4.0: return 3.5
+        case 4.0..<4.5: return 2.5
+        case 4.5..<5.0: return 1.8
+        default:         return 1.2
         }
     }
 
