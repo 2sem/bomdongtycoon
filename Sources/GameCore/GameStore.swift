@@ -262,8 +262,15 @@ public final class GameStore: ObservableObject {
     public var cashierEnergy: Double { stall.cashierEnergy }
 
     /// Base spawn interval in seconds, driven by shop rating.
+    /// ★1=15s  ★2=10s  ★3=5s  ★4=2.5s  ★5=1.2s
     public var customerSpawnInterval: Double {
-        min(12.0, max(1.5, 4.0 * (3.0 / progress.rating)))
+        switch progress.rating {
+        case ..<1.5: return 15.0
+        case 1.5..<2.5: return 10.0
+        case 2.5..<3.5: return 5.0
+        case 3.5..<4.5: return 2.5
+        default:        return 1.2
+        }
     }
 
     /// Manually cook 1 item for the given menu (regardless of cook assignment).
