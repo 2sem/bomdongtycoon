@@ -4,7 +4,7 @@ import GameCore
 @main
 struct BomDongTycoonApp: App {
     @StateObject private var store = GameStore()
-    @StateObject private var rewardAd = SwiftUIRewardAdManager()
+    @StateObject private var adManager = SwiftUIAdManager()
     @Environment(\.scenePhase) private var scenePhase
     @State private var isSplashDone = false
     @State private var isLaunched = false
@@ -19,7 +19,7 @@ struct BomDongTycoonApp: App {
                 }
             }
             .environmentObject(store)
-            .environmentObject(rewardAd)
+            .environmentObject(adManager)
         }
         .onChange(of: scenePhase) { _, phase in
             handleScenePhaseChange(to: phase)
@@ -35,9 +35,11 @@ struct BomDongTycoonApp: App {
                 store.calculateOfflineEarnings()
                 isLaunched = true
             } else if isFromBackground {
-                print("[App] bg→fg → calculateOfflineEarnings")
-                store.calculateOfflineEarnings()
+                print("[App] bg→fg → app open ad → calculateOfflineEarnings")
                 isFromBackground = false
+                adManager.showAppOpen {
+                    store.calculateOfflineEarnings()
+                }
             } else {
                 print("[App] .active but skipped (isLaunched=\(isLaunched), isFromBackground=\(isFromBackground))")
             }

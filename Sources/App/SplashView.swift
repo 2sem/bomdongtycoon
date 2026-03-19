@@ -3,7 +3,7 @@ import GoogleMobileAds
 
 struct SplashView: View {
     @Binding var isDone: Bool
-    @EnvironmentObject var rewardAd: SwiftUIRewardAdManager
+    @EnvironmentObject var adManager: SwiftUIAdManager
 
     var body: some View {
         ZStack {
@@ -25,7 +25,7 @@ struct SplashView: View {
         NotificationManager.requestPermission()
         GADMobileAds.sharedInstance().start { status in
             print("[AdMob] SDK started — adapters: \(status.adapterStatusesByClassName.count)")
-            rewardAd.preload()
+            adManager.preload()
             DispatchQueue.main.async {
                 withAnimation(.easeOut(duration: 0.3)) {
                     isDone = true

@@ -4,7 +4,7 @@ import GameUI
 
 struct GameRootView: View {
     @EnvironmentObject var store: GameStore
-    @EnvironmentObject var rewardAd: SwiftUIRewardAdManager
+    @EnvironmentObject var adManager: SwiftUIAdManager
     @State private var showUpgrades = false
     @State private var showStaff = false
     @State private var showJob = false
@@ -20,7 +20,7 @@ struct GameRootView: View {
             }
             if store.offlineEarnings > 0 {
                 OfflineEarningsPopup { completion in
-                    rewardAd.show(completion: completion)
+                    adManager.showRewarded(completion: completion)
                 }
             }
         }
