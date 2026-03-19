@@ -55,5 +55,9 @@ public struct StallState: Codable {
         case farmWorkerTier
     }
 
-    public init() {}
+    public init() {
+        // Start with one 알바생 already assigned as cook so offline production works from day 1
+        tier1Count = 1
+        menuCooks[0] = 1
+    }
 }

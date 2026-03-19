@@ -31,13 +31,18 @@ struct BomDongTycoonApp: App {
         case .active:
             NotificationManager.cancelAll()
             if !isLaunched {
+                print("[App] cold start → calculateOfflineEarnings")
                 store.calculateOfflineEarnings()
                 isLaunched = true
             } else if isFromBackground {
+                print("[App] bg→fg → calculateOfflineEarnings")
                 store.calculateOfflineEarnings()
                 isFromBackground = false
+            } else {
+                print("[App] .active but skipped (isLaunched=\(isLaunched), isFromBackground=\(isFromBackground))")
             }
         case .background:
+            print("[App] → background, recordBackground")
             isFromBackground = true
             store.recordBackground()
             NotificationManager.scheduleStallFullNotification()

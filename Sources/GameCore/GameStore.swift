@@ -513,11 +513,19 @@ public final class GameStore: ObservableObject {
 
     /// Calculate offline earnings (cold start or bg→fg). Does NOT add coins or change lastActiveDate.
     public func calculateOfflineEarnings() {
-        guard let lastActive = progress.lastActiveDate else { return }
+        let cps = offlineCPS()
+        guard let lastActive = progress.lastActiveDate else {
+            print("[Offline] skip — lastActiveDate is nil")
+            return
+        }
         let elapsed = min(Date().timeIntervalSince(lastActive), OfflineProgressSystem.maxOfflineHours * 3600)
-        guard elapsed >= 60 else { return }
-
-        offlineEarnings = offlineCPS() * elapsed * OfflineProgressSystem.offlineEfficiency
+        guard elapsed >= 60 else {
+            print("[Offline] skip — elapsed \(Int(elapsed))s < 60s")
+            return
+        }
+        let earned = cps * elapsed * OfflineProgressSystem.offlineEfficiency
+        print("[Offline] lastActive=\(lastActive), elapsed=\(Int(elapsed))s, cps=\(String(format:"%.4f",cps)), earned=\(Int(earned))")
+        offlineEarnings = earned
     }
 
     /// Uses actual in-game cook rate (0.07/s base), not the display rate (1.0/s).
