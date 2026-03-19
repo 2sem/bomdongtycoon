@@ -30,9 +30,18 @@ public enum EarningsSystem {
         UpgradeDefinitions.stall[stall.stallTier].maxStock
     }
 
-    /// Derived coins per second = productionRate × pricePerItem (used for HUD and offline)
+    /// Coins per second summed across all assigned menu slots.
+    /// Each slot uses its cook's actual tier (production rate) and its own menu price.
     public static func coinsPerSecond(for stall: StallState) -> Double {
-        productionRate(for: stall) * pricePerItem(for: stall)
+        var total = 0.0
+        for i in 0...stall.menuTier {
+            let cookTier = i < stall.menuCooks.count ? stall.menuCooks[i] : 0
+            guard cookTier > 0, cookTier <= UpgradeDefinitions.staff.count else { continue }
+            let rate  = baseProductionRate * UpgradeDefinitions.staff[cookTier - 1].productionMultiplier
+            let price = pricePerItem(for: stall, menuIndex: i)
+            total += rate * price
+        }
+        return total
     }
 
     /// Returns the cheapest upgrade the player can currently afford
