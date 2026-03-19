@@ -497,21 +497,25 @@ public final class GameStore: ObservableObject {
 
     // MARK: - Offline
 
-    public func applyOfflineEarnings(multiplier: Double = 1.0) {
-        let earned = OfflineProgressSystem.calculateOfflineEarnings(
+    /// Calculate offline earnings (cold start only). Does NOT add coins or change lastActiveDate.
+    public func calculateOfflineEarnings() {
+        offlineEarnings = OfflineProgressSystem.calculateOfflineEarnings(
             stall: stall,
             lastActiveDate: progress.lastActiveDate,
-            multiplier: multiplier,
             seasonMultiplier: 1.0
         )
-        offlineEarnings = earned
-        stall.coins    += earned
-        progress.totalEarned += earned
-        progress.lastActiveDate = Date()
-        save()
     }
 
-    public func clearOfflineEarnings() { offlineEarnings = 0 }
+    /// Redeem the pre-calculated offline amount with a multiplier.
+    public func collectOfflineEarnings(multiplier: Double = 1.0) {
+        guard offlineEarnings > 0 else { return }
+        let earned = offlineEarnings * multiplier
+        stall.coins          += earned
+        progress.totalEarned += earned
+        progress.lastActiveDate = Date()
+        offlineEarnings = 0
+        save()
+    }
 
     public func recordServed(waitTime: Double) {
         progress.totalServed += 1
@@ -587,7 +591,11 @@ public final class GameStore: ObservableObject {
         save()
     }
 
-    public func recordBackground() { progress.lastActiveDate = Date(); save() }
+    public func recordBackground() {
+        guard offlineEarnings == 0 else { return }   // popup showing — don't corrupt lastActiveDate
+        progress.lastActiveDate = Date()
+        save()
+    }
 
     private func save() {
         if let d = try? JSONEncoder().encode(stall)    { defaults.set(d, forKey: DefaultsKey.stall) }

@@ -9,6 +9,8 @@ struct GameRootView: View {
     @State private var showUpgrades = false
     @State private var showStaff = false
     @State private var showJob = false
+    @State private var isFromBackground = false
+    @State private var isLaunched = false
 
     var body: some View {
         ZStack {
@@ -61,15 +63,24 @@ struct GameRootView: View {
             showJob = true
         }
         .onAppear {
-            store.applyOfflineEarnings()
+            // Cold start (terminated → active): view appears once, scene already active
+            if !isLaunched && !isFromBackground {
+                store.calculateOfflineEarnings()
+                isLaunched = true
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .background:
+                isFromBackground = true
                 store.recordBackground()
                 NotificationManager.scheduleStallFullNotification()
             case .active:
                 NotificationManager.cancelAll()
+                if isFromBackground {
+                    // Background resume: do not recalculate offline earnings
+                    isFromBackground = false
+                }
             default:
                 break
             }

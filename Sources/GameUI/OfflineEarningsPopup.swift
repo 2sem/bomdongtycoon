@@ -40,8 +40,7 @@ public struct OfflineEarningsPopup: View {
                 Button {
                     onWatchAd { rewarded in
                         let multiplier = rewarded ? 2.0 : 1.0
-                        store.applyOfflineEarnings(multiplier: multiplier)
-                        store.clearOfflineEarnings()
+                        store.collectOfflineEarnings(multiplier: multiplier)
                     }
                 } label: {
                     Label("광고 보고 2배 받기", systemImage: "play.circle.fill")
@@ -54,8 +53,7 @@ public struct OfflineEarningsPopup: View {
                 }
 
                 Button("그냥 받기") {
-                    store.applyOfflineEarnings(multiplier: 1.0)
-                    store.clearOfflineEarnings()
+                    store.collectOfflineEarnings(multiplier: 1.0)
                 }
                 .foregroundStyle(.secondary)
             }
