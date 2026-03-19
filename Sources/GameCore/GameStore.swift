@@ -196,6 +196,9 @@ public final class GameStore: ObservableObject {
                 collectCoins()
             }
         }
+
+        // Rating slowly decays — active serving easily overcomes it, idle play drifts down
+        progress.rating = max(1.0, progress.rating - 0.0002 * deltaTime)
     }
 
     // MARK: - Collect
