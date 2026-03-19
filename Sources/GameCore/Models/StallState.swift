@@ -1,7 +1,7 @@
 import Foundation
 
 public struct StallState: Codable {
-    public var coins: Double = 0
+    public var coins: Double = 50
     public var menuTier: Int = 0
     public var staffTier: Int = 0       // highest tier purchased
     public var stallTier: Int = 0
@@ -27,7 +27,7 @@ public struct StallState: Codable {
     public var tier3IdleEnergies: [Double] = []
 
     // Warehouse
-    public var warehouse: Int = 0
+    public var warehouse: Int = 5
     public var warehouseCapacity: Int = 10
     public var menuStock: [Int] = [0, 0, 0]
 

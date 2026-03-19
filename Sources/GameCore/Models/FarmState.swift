@@ -30,7 +30,7 @@ public struct FarmState: Codable {
     public init() {
         var starter = FarmPlot()
         starter.isPlanted = true
-        starter.growth = 0.0
+        starter.growth = 0.5
         plots = Array(repeating: starter, count: FarmSystem.startingPlots)
     }
 }
