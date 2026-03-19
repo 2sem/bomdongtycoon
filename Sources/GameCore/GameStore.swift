@@ -497,13 +497,11 @@ public final class GameStore: ObservableObject {
 
     // MARK: - Offline
 
-    /// Calculate offline earnings (cold start only). Does NOT add coins or change lastActiveDate.
+    /// Calculate offline earnings (cold start or bg→fg). Does NOT add coins or change lastActiveDate.
     public func calculateOfflineEarnings() {
-        guard let lastActive = progress.lastActiveDate else {
-            print("[Offline] skipped — lastActiveDate is nil")
-            return
-        }
+        guard let lastActive = progress.lastActiveDate else { return }
         let elapsed = min(Date().timeIntervalSince(lastActive), OfflineProgressSystem.maxOfflineHours * 3600)
+        guard elapsed >= 60 else { return }   // skip if away less than 1 minute
 
         // Prefer per-slot auto-cook CPS; fall back to staffTier-based rate when no cooks assigned
         var cps = EarningsSystem.coinsPerSecond(for: stall)
@@ -511,9 +509,7 @@ public final class GameStore: ObservableObject {
             cps = EarningsSystem.productionRate(for: stall) * EarningsSystem.pricePerItem(for: stall)
         }
 
-        let earned = cps * elapsed
-        print("[Offline] lastActiveDate=\(lastActive), cps=\(cps), elapsed=\(Int(elapsed))s, earned=\(earned)")
-        offlineEarnings = earned
+        offlineEarnings = cps * elapsed
     }
 
     /// Redeem the pre-calculated offline amount with a multiplier.

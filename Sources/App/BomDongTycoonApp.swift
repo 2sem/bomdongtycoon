@@ -34,6 +34,7 @@ struct BomDongTycoonApp: App {
                 store.calculateOfflineEarnings()
                 isLaunched = true
             } else if isFromBackground {
+                store.calculateOfflineEarnings()
                 isFromBackground = false
             }
         case .background:
