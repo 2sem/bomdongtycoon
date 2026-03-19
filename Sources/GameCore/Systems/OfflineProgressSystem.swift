@@ -3,6 +3,8 @@ import Foundation
 public enum OfflineProgressSystem {
 
     static let maxOfflineHours: Double = 8
+    /// Offline earnings rate relative to real-time — keeps progression rewarding but not trivial
+    public static let offlineEfficiency: Double = 0.25
 
     public static func calculateOfflineEarnings(
         stall: StallState,

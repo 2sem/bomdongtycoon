@@ -501,15 +501,24 @@ public final class GameStore: ObservableObject {
     public func calculateOfflineEarnings() {
         guard let lastActive = progress.lastActiveDate else { return }
         let elapsed = min(Date().timeIntervalSince(lastActive), OfflineProgressSystem.maxOfflineHours * 3600)
-        guard elapsed >= 60 else { return }   // skip if away less than 1 minute
+        guard elapsed >= 60 else { return }
 
-        // Prefer per-slot auto-cook CPS; fall back to staffTier-based rate when no cooks assigned
-        var cps = EarningsSystem.coinsPerSecond(for: stall)
-        if cps == 0 {
-            cps = EarningsSystem.productionRate(for: stall) * EarningsSystem.pricePerItem(for: stall)
+        offlineEarnings = offlineCPS() * elapsed * OfflineProgressSystem.offlineEfficiency
+    }
+
+    /// Uses actual in-game cook rate (0.07/s base), not the display rate (1.0/s).
+    /// Falls back to staffTier rate when no cooks are assigned to menu slots.
+    private func offlineCPS() -> Double {
+        var total = 0.0
+        for i in 0...stall.menuTier {
+            let tier = i < stall.menuCooks.count ? stall.menuCooks[i] : 0
+            guard tier > 0 else { continue }
+            total += cookRate(forTier: tier) * EarningsSystem.pricePerItem(for: stall, menuIndex: i)
         }
-
-        offlineEarnings = cps * elapsed
+        if total == 0, stall.staffTier > 0 {
+            total = cookRate(forTier: stall.staffTier) * EarningsSystem.pricePerItem(for: stall)
+        }
+        return total
     }
 
     /// Redeem the pre-calculated offline amount with a multiplier.
