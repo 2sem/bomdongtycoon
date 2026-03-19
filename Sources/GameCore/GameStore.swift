@@ -515,7 +515,9 @@ public final class GameStore: ObservableObject {
     public func calculateOfflineEarnings() {
         let cps = offlineCPS()
         guard let lastActive = progress.lastActiveDate else {
-            print("[Offline] skip — lastActiveDate is nil")
+            print("[Offline] first launch — seeding lastActiveDate")
+            progress.lastActiveDate = Date()
+            save()
             return
         }
         let elapsed = min(Date().timeIntervalSince(lastActive), OfflineProgressSystem.maxOfflineHours * 3600)
