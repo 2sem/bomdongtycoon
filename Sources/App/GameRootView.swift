@@ -5,12 +5,9 @@ import GameUI
 struct GameRootView: View {
     @EnvironmentObject var store: GameStore
     @EnvironmentObject var rewardAd: SwiftUIRewardAdManager
-    @Environment(\.scenePhase) var scenePhase
     @State private var showUpgrades = false
     @State private var showStaff = false
     @State private var showJob = false
-    @State private var isFromBackground = false
-    @State private var isLaunched = false
 
     var body: some View {
         ZStack {
@@ -61,27 +58,6 @@ struct GameRootView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .openJobSheet)) { _ in
             showJob = true
-        }
-        .onChange(of: scenePhase) { _, phase in
-            switch phase {
-            case .background:
-                isFromBackground = true
-                store.recordBackground()
-                NotificationManager.scheduleStallFullNotification()
-            case .active:
-                NotificationManager.cancelAll()
-                if !isLaunched {
-                    // Cold start (terminated → active): show offline earnings popup once
-                    store.calculateOfflineEarnings()
-                    isLaunched = true
-                }
-                if isFromBackground {
-                    // Background resume: do not recalculate
-                    isFromBackground = false
-                }
-            default:
-                break
-            }
         }
     }
 }

@@ -6,14 +6,15 @@ import GoogleMobileAds
 struct BomDongTycoonApp: App {
     @StateObject private var store = GameStore()
     @StateObject private var rewardAd = SwiftUIRewardAdManager()
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var isLaunched = false
+    @State private var isFromBackground = false
 
     init() {
         NotificationManager.requestPermission()
-        // Start AdMob SDK as early as possible so the rewarded ad can preload
-        GADMobileAds.sharedInstance().start { [weak rewardAd = rewardAd] status in
+        GADMobileAds.sharedInstance().start { status in
             let adapters = status.adapterStatusesByClassName.count
             print("[AdMob] SDK started — adapters: \(adapters)")
-            // @StateObject not yet available in init — preload happens in onAppear
         }
     }
 
@@ -25,6 +26,32 @@ struct BomDongTycoonApp: App {
                 .onAppear {
                     rewardAd.preload()
                 }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            handleScenePhaseChange(to: phase)
+        }
+    }
+
+    private func handleScenePhaseChange(to phase: ScenePhase) {
+        switch phase {
+        case .active:
+            NotificationManager.cancelAll()
+            if !isLaunched {
+                // Cold start (terminated → active): calculate offline earnings once
+                store.calculateOfflineEarnings()
+                isLaunched = true
+            } else if isFromBackground {
+                // Background resume: do not recalculate
+                isFromBackground = false
+            }
+        case .background:
+            isFromBackground = true
+            store.recordBackground()
+            NotificationManager.scheduleStallFullNotification()
+        case .inactive:
+            break
+        @unknown default:
+            break
         }
     }
 }
