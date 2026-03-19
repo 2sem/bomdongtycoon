@@ -62,13 +62,6 @@ struct GameRootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openJobSheet)) { _ in
             showJob = true
         }
-        .onAppear {
-            // Cold start (terminated → active): view appears once, scene already active
-            if !isLaunched && !isFromBackground {
-                store.calculateOfflineEarnings()
-                isLaunched = true
-            }
-        }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .background:
@@ -77,8 +70,13 @@ struct GameRootView: View {
                 NotificationManager.scheduleStallFullNotification()
             case .active:
                 NotificationManager.cancelAll()
+                if !isLaunched {
+                    // Cold start (terminated → active): show offline earnings popup once
+                    store.calculateOfflineEarnings()
+                    isLaunched = true
+                }
                 if isFromBackground {
-                    // Background resume: do not recalculate offline earnings
+                    // Background resume: do not recalculate
                     isFromBackground = false
                 }
             default:
