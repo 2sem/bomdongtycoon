@@ -64,7 +64,8 @@ let project = Project(
                 .target(name: "GameCore"),
                 .target(name: "GameUI"),
                 .external(name: "GoogleMobileAds")
-            ]
+            ],
+            settings: .settings(base: ["OTHER_LDFLAGS": "$(inherited) -ObjC"])
         )
     ],
     schemes: [
