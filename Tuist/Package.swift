@@ -5,9 +5,7 @@ import PackageDescription
     import struct ProjectDescription.PackageSettings
 
     let packageSettings = PackageSettings(
-        productTypes: [
-            "GoogleMobileAds": .framework
-        ]
+        productTypes: [:]
     )
 #endif
 
