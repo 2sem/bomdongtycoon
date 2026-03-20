@@ -9,6 +9,7 @@ struct BomDongTycoonApp: App {
     @State private var isSplashDone = false
     @State private var isLaunched = false
     @State private var isFromBackground = false
+    @State private var pendingOfflineCalc = false
 
     var body: some Scene {
         WindowGroup {
@@ -20,6 +21,14 @@ struct BomDongTycoonApp: App {
             }
             .environmentObject(store)
             .environmentObject(adManager)
+            .onChange(of: isSplashDone) { _, done in
+                guard done, pendingOfflineCalc else { return }
+                pendingOfflineCalc = false
+                print("[App] splash done → app open ad → calculateOfflineEarnings")
+                adManager.showAppOpen {
+                    store.calculateOfflineEarnings()
+                }
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             handleScenePhaseChange(to: phase)
@@ -31,12 +40,13 @@ struct BomDongTycoonApp: App {
         case .active:
             NotificationManager.cancelAll()
             if !isLaunched {
-                print("[App] cold start → calculateOfflineEarnings")
-                store.calculateOfflineEarnings()
+                print("[App] cold start → pending until splash done")
                 isLaunched = true
+                pendingOfflineCalc = true
             } else if isFromBackground {
                 print("[App] bg→fg → app open ad → calculateOfflineEarnings")
                 isFromBackground = false
+                pendingOfflineCalc = false
                 adManager.showAppOpen {
                     store.calculateOfflineEarnings()
                 }
