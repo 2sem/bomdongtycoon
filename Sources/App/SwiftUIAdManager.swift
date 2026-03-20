@@ -19,6 +19,8 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     private var rewardedAd: GADRewardedAd?
     private var appOpenAd: GADAppOpenAd?
     private var isShowingAd = false
+    private var isLoadingRewarded = false
+    private var isLoadingAppOpen = false
     private var pendingRewardCompletion: ((Bool) -> Void)?
     private var pendingAppOpenCompletion: (() -> Void)?
 
@@ -30,8 +32,11 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     }
 
     private func preloadRewarded() {
+        guard !isLoadingRewarded, rewardedAd == nil else { return }
+        isLoadingRewarded = true
         print("[RewardAd] preloading — unit: \(rewardedUnitID)")
         GADRewardedAd.load(withAdUnitID: rewardedUnitID, request: GADRequest()) { [weak self] ad, error in
+            self?.isLoadingRewarded = false
             if let error { print("[RewardAd] preload failed: \(error.localizedDescription)"); return }
             print("[RewardAd] preloaded ✓")
             self?.rewardedAd = ad
@@ -40,8 +45,11 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     }
 
     private func preloadAppOpen() {
+        guard !isLoadingAppOpen, appOpenAd == nil else { return }
+        isLoadingAppOpen = true
         print("[AppOpenAd] preloading — unit: \(appOpenUnitID)")
         GADAppOpenAd.load(withAdUnitID: appOpenUnitID, request: GADRequest()) { [weak self] ad, error in
+            self?.isLoadingAppOpen = false
             if let error { print("[AppOpenAd] preload failed: \(error.localizedDescription)"); return }
             print("[AppOpenAd] preloaded ✓")
             self?.appOpenAd = ad
@@ -78,8 +86,8 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     func showRewarded(completion: @escaping (Bool) -> Void) {
         guard !isShowingAd else { completion(false); return }
         guard let ad = rewardedAd else {
-            print("[RewardAd] no ad ready — rewarding anyway")
-            completion(true)
+            print("[RewardAd] no ad ready — skipping bonus")
+            completion(false)
             preloadRewarded()
             return
         }
@@ -144,7 +152,7 @@ extension SwiftUIAdManager: GADFullScreenContentDelegate {
                 self?.preloadAppOpen()
             } else {
                 print("[RewardAd] failed: \(error.localizedDescription)")
-                self?.pendingRewardCompletion?(true)  // fail gracefully → reward anyway
+                self?.pendingRewardCompletion?(false)  // no ad shown → no bonus
                 self?.pendingRewardCompletion = nil
                 self?.preloadRewarded()
             }
