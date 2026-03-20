@@ -547,9 +547,9 @@ final class MainStallScene: SKScene {
         scheduleNextCustomer()
     }
 
-    private func scheduleNextCustomer() {
-        let interval = store?.customerSpawnInterval ?? 4.0
-        let jitter   = interval * 0.2
+    private func scheduleNextCustomer(firstCustomer: Bool = false) {
+        let interval = firstCustomer ? 1.0 : (store?.customerSpawnInterval ?? 4.0)
+        let jitter   = firstCustomer ? 0.0 : interval * 0.2
         run(SKAction.sequence([
             SKAction.wait(forDuration: interval, withRange: jitter),
             SKAction.run { [weak self] in
@@ -739,7 +739,7 @@ final class MainStallScene: SKScene {
 
             // Customers only spawn once the shop name is set (tutorial complete)
             if store.progress.isShopNameSet && self.action(forKey: "customerSpawn") == nil {
-                self.scheduleNextCustomer()
+                self.scheduleNextCustomer(firstCustomer: true)
             }
             let shopName = store.progress.shopName
             if shopName != self.lastShopName {
