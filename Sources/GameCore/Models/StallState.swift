@@ -56,8 +56,7 @@ public struct StallState: Codable {
     }
 
     public init() {
-        // Start with one 알바생 already assigned as cook so offline production works from day 1
+        // Start with one 알바생 assigned to farm — auto-harvests and is more useful than slow cooking for newbies
         tier1Count = 1
-        menuCooks[0] = 1
     }
 }
