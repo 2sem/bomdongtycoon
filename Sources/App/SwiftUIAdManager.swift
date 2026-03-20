@@ -23,6 +23,10 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     private var isLoadingAppOpen = false
     private var pendingRewardCompletion: ((Bool) -> Void)?
     private var pendingAppOpenCompletion: (() -> Void)?
+    private var lastAppOpenShownDate: Date?
+
+    /// Minimum seconds between App Open ad impressions (4 hours)
+    private static let appOpenInterval: TimeInterval = 4 * 3600
 
     // MARK: - Preload
 
@@ -62,6 +66,12 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     /// Show the app open ad. `completion` is called when the ad is dismissed (or immediately if none is ready).
     func showAppOpen(completion: @escaping () -> Void) {
         guard !isShowingAd else { completion(); return }
+        if let last = lastAppOpenShownDate,
+           Date().timeIntervalSince(last) < Self.appOpenInterval {
+            print("[AppOpenAd] skipping — shown \(Int(Date().timeIntervalSince(last) / 60))m ago")
+            completion()
+            return
+        }
         guard let ad = appOpenAd else {
             print("[AppOpenAd] no ad ready — skipping")
             completion()
@@ -76,6 +86,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
         print("[AppOpenAd] presenting...")
         isShowingAd = true
         appOpenAd = nil
+        lastAppOpenShownDate = Date()
         pendingAppOpenCompletion = completion
         ad.present(fromRootViewController: rootVC)
     }
