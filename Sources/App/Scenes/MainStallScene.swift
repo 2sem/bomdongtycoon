@@ -738,7 +738,7 @@ final class MainStallScene: SKScene {
             self.syncGearBadge(store: store)
 
             // Customers only spawn once the shop name is set (tutorial complete)
-            if store.progress.isShopNameSet && !self.hasActions(forKey: "customerSpawn") {
+            if store.progress.isShopNameSet && self.action(forKey: "customerSpawn") == nil {
                 self.scheduleNextCustomer()
             }
             let shopName = store.progress.shopName
