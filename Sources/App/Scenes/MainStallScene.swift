@@ -114,7 +114,6 @@ final class MainStallScene: SKScene {
         setupCookSlots()
         setupCashier()
         setupHUD()
-        startCustomerSpawning()
     }
 
     // MARK: - Background
@@ -737,6 +736,13 @@ final class MainStallScene: SKScene {
             self.syncCookSlots(store: store)
             self.syncCashier(store: store)
             self.syncGearBadge(store: store)
+
+            // Start / stop customer spawning based on shop open state
+            if store.stall.isShopOpen {
+                if !self.hasActions(forKey: "customerSpawn") { self.scheduleNextCustomer() }
+            } else {
+                self.removeAction(forKey: "customerSpawn")
+            }
             let shopName = store.progress.shopName
             if shopName != self.lastShopName {
                 self.lastShopName = shopName

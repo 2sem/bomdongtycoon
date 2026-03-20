@@ -35,6 +35,20 @@ struct GameRootView: View {
             .padding(.horizontal, 12)
             .padding(.top, 4)
         }
+        .safeAreaInset(edge: .bottom) {
+            Button {
+                if store.stall.isShopOpen { store.closeShop() } else { store.openShop() }
+            } label: {
+                Text(store.stall.isShopOpen ? "🟢 영업 중" : "🔴 개업하기")
+                    .font(.headline)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 10)
+                    .background(store.stall.isShopOpen ? Color.green.opacity(0.85) : Color.orange.opacity(0.9))
+                    .foregroundStyle(.white)
+                    .clipShape(Capsule())
+            }
+            .padding(.bottom, 8)
+        }
         .sheet(isPresented: $showUpgrades) {
             UpgradeSheet(isPresented: $showUpgrades)
                 .environmentObject(store)
