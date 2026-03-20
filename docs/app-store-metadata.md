@@ -5,6 +5,18 @@
 
 ---
 
+## Category
+
+| Field | Value |
+|---|---|
+| Primary Category | Games |
+| Primary Subcategory | Casual |
+| Secondary Subcategory | Simulation |
+
+> Note: Game apps use two subcategories within Games — there is no separate "Secondary Category" slot (that only applies to non-game app categories).
+
+---
+
 ## Competitive Landscape Notes
 
 - **로드마마** (4.1 stars, 12 reviews): Closest direct competitor — Korean street food stall with RPG elements. Weak ASO and thin review base = clear opportunity.
