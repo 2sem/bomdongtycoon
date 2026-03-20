@@ -31,9 +31,6 @@ public struct StallState: Codable {
     public var warehouseCapacity: Int = 10
     public var menuStock: [Int] = [0, 0, 0]
 
-    // Shop open state — ephemeral, intentionally excluded from CodingKeys (resets to false on each launch)
-    public var isShopOpen: Bool = false
-
     // Computed
     public var staffCount: Int { tier1Count + tier2Count + tier3Count }
     /// Number of shop-side workers (cashier + one cook per assigned menu slot)

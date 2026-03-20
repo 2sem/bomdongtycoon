@@ -681,11 +681,7 @@ public final class GameStore: ObservableObject {
         save()
     }
 
-    public func openShop()  { stall.isShopOpen = true  }
-    public func closeShop() { stall.isShopOpen = false }
-
     public func recordBackground() {
-        stall.isShopOpen = false
         guard offlineEarnings == 0 else { return }   // popup showing — don't corrupt lastActiveDate
         progress.lastActiveDate = Date()
         save()

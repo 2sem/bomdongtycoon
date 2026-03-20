@@ -737,11 +737,9 @@ final class MainStallScene: SKScene {
             self.syncCashier(store: store)
             self.syncGearBadge(store: store)
 
-            // Start / stop customer spawning based on shop open state
-            if store.stall.isShopOpen {
-                if !self.hasActions(forKey: "customerSpawn") { self.scheduleNextCustomer() }
-            } else {
-                self.removeAction(forKey: "customerSpawn")
+            // Customers only spawn once the shop name is set (tutorial complete)
+            if store.progress.isShopNameSet && !self.hasActions(forKey: "customerSpawn") {
+                self.scheduleNextCustomer()
             }
             let shopName = store.progress.shopName
             if shopName != self.lastShopName {
