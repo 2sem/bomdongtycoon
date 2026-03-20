@@ -25,8 +25,12 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     private var pendingAppOpenCompletion: (() -> Void)?
     private var lastAppOpenShownDate: Date?
 
-    /// Minimum seconds between App Open ad impressions (4 hours)
-    private static let appOpenInterval: TimeInterval = 4 * 3600
+    /// Minimum seconds between App Open ad impressions
+    #if DEBUG
+    private static let appOpenInterval: TimeInterval = 60       // 1 min for debugging
+    #else
+    private static let appOpenInterval: TimeInterval = 4 * 3600 // 4 hours in production
+    #endif
 
     // MARK: - Preload
 
