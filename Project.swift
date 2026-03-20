@@ -52,11 +52,7 @@ let project = Project(
             bundleId: "com.leesam.bomdongtycoon",
             deploymentTargets: .iOS("17.0"),
             infoPlist: .extendingDefault(with: [
-                "UILaunchScreen": .dictionary([
-                    "UIImageName": "Splash",
-                    "UIImageRespectsSafeAreaInsets": false,
-                    "UIColorName": ""
-                ]),
+                "UILaunchStoryboardName": "LaunchScreen",
                 "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
                 "NSUserNotificationUsageDescription": "봄동 가게 알림을 보내드려요 🥬",
                 "GADApplicationIdentifier": "ca-app-pub-9684378399371172~8825318408",
