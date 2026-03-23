@@ -280,6 +280,8 @@ final class MainStallScene: SKScene {
         let nextCost = FarmSystem.costForNextPlot(currentCount: activePlots)
         let warehouseFull = (store?.stall.warehouse ?? 0) >= (store?.stall.warehouseCapacity ?? 1)
         let workerAvailable = (store?.availableForFarm ?? 0) > 0
+                           || (store?.availableFarmers ?? 0) > 0
+                           || (store?.availableVeteranAlbas ?? 0) > 0
 
         let tier1InMenus = store?.stall.menuCooks.filter { $0 == 1 }.count ?? 0
         var albaOnFarmIdx = 0

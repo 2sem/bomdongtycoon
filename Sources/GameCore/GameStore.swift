@@ -103,6 +103,11 @@ public final class GameStore: ObservableObject {
         normalize(pool: &stall.tier1IdleEnergies, to: expected1)
         normalize(pool: &stall.tier2IdleEnergies, to: expected2)
         normalize(pool: &stall.tier3IdleEnergies, to: expected3)
+
+        let expectedFarmers  = max(0, stall.farmerCount - farmersAssigned)
+        let expectedVetAlbas = max(0, stall.veteranAlbaCount - veteranAlbasAssigned)
+        normalize(pool: &stall.farmerIdleEnergies,      to: expectedFarmers)
+        normalize(pool: &stall.veteranAlbaIdleEnergies, to: expectedVetAlbas)
     }
 
     private func normalize(pool: inout [Double], to expected: Int) {
