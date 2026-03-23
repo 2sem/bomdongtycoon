@@ -24,7 +24,6 @@ public struct UpgradeSheet: View {
                     definitions: UpgradeDefinitions.stall,
                     currentTier: store.stall.stallTier + 1
                 )
-                farmWorkerSection
             }
             .navigationTitle("업그레이드")
             .navigationBarTitleDisplayMode(.inline)

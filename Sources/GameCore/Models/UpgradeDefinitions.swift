@@ -83,7 +83,17 @@ public enum UpgradeDefinitions {
         .init(name: "봄동 전문점", coinCost: 25_000, description: "최고급",    maxStock: 60)
     ]
 
-/// Farm worker training — unlocks growth speed boost for farm-assigned 알바생
+    /// Farmer staff — farm-only, 2× growth speed
+    public static let farmer: [UpgradeDefinition] = [
+        .init(name: "농부", coinCost: 2_000, description: "농장 전문 — 빠른 수확", productionMultiplier: 2.0)
+    ]
+
+    /// Veteran alba staff — farm-only, 1.4× growth speed
+    public static let veteranAlba: [UpgradeDefinition] = [
+        .init(name: "고참 알바", coinCost: 800, description: "경험 많은 알바생", productionMultiplier: 1.4)
+    ]
+
+    /// Farm worker training — legacy, kept for backward compat
     public static let farmWorker: [UpgradeDefinition] = [
         .init(name: "알바생",   coinCost: 0,      description: "기본 알바 — 자동 수확만 가능", productionMultiplier: 1.0),
         .init(name: "고참 알바", coinCost: 3_000,  description: "농장 경험자",               productionMultiplier: 1.4),
