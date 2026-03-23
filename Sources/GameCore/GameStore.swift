@@ -129,6 +129,12 @@ public final class GameStore: ObservableObject {
         for i in 0..<stall.tier3IdleEnergies.count {
             stall.tier3IdleEnergies[i] = min(1, stall.tier3IdleEnergies[i] + Self.energyRestoreRate * deltaTime)
         }
+        for i in 0..<stall.farmerIdleEnergies.count {
+            stall.farmerIdleEnergies[i] = min(1, stall.farmerIdleEnergies[i] + Self.energyRestoreRate * deltaTime)
+        }
+        for i in 0..<stall.veteranAlbaIdleEnergies.count {
+            stall.veteranAlbaIdleEnergies[i] = min(1, stall.veteranAlbaIdleEnergies[i] + Self.energyRestoreRate * deltaTime)
+        }
         for i in 0..<stall.menuCookEnergy.count {
             if i < stall.menuCooks.count, stall.menuCooks[i] > 0 {
                 stall.menuCookEnergy[i] = max(0, stall.menuCookEnergy[i] - Self.energyDepletionRate * deltaTime);
@@ -152,10 +158,12 @@ public final class GameStore: ObservableObject {
         // Grow planted plots
         for i in 0..<min(activePlots, farm.plots.count) {
             guard farm.plots[i].isPlanted, !farm.plots[i].isReady else { continue }
-            let workerDef = stall.farmWorkerTier - 1 < UpgradeDefinitions.farmWorker.count
-                ? UpgradeDefinitions.farmWorker[stall.farmWorkerTier - 1]
-                : nil
-            let boost = farm.plots[i].hasWorker ? (workerDef?.productionMultiplier ?? 1.0) : 1.0
+            let boost: Double
+            switch farm.plots[i].workerType {
+            case .farmer:      boost = UpgradeDefinitions.farmer[0].productionMultiplier
+            case .veteranAlba: boost = UpgradeDefinitions.veteranAlba[0].productionMultiplier
+            default:           boost = 1.0
+            }
             farm.plots[i].growth = min(farm.plots[i].growth + growRate * boost * deltaTime, 1.0);
         }
 
@@ -356,34 +364,82 @@ public final class GameStore: ObservableObject {
 
     // MARK: - Staff workers
 
-    private var farmAssigned: Int { farm.plots.filter { $0.hasWorker }.count }
+    private var farmAssigned: Int        { farm.plots.filter { $0.workerType == .alba }.count }
+    private var farmersAssigned: Int     { farm.plots.filter { $0.workerType == .farmer }.count }
+    private var veteranAlbasAssigned: Int { farm.plots.filter { $0.workerType == .veteranAlba }.count }
 
     /// Workers not yet placed anywhere
     public var availableWorkers: Int {
         stall.staffCount - farmAssigned - stall.cashierCount - stall.menuCooks.filter { $0 > 0 }.count
     }
 
-    /// Only unassigned tier-1 workers can go to farm
+    /// Only unassigned tier-1 albas can go to farm
     public var availableForFarm: Int {
         let menu1    = stall.menuCooks.filter { $0 == 1 }.count
         let cashier1 = stall.cashierTier == 1 ? stall.cashierCount : 0
         return stall.tier1Count - farmAssigned - menu1 - cashier1
     }
 
-    public func toggleWorker(plotIndex: Int, displayedEnergy: Double? = nil, addToIdle: Bool = true, directEnergy: Double? = nil) {
+    public var availableFarmers: Int     { stall.farmerCount - farmersAssigned }
+    public var availableVeteranAlbas: Int { stall.veteranAlbaCount - veteranAlbasAssigned }
+
+    public func hireFarmer() {
+        let cost = UpgradeDefinitions.farmer[0].coinCost
+        guard stall.coins >= cost else { return }
+        stall.coins -= cost
+        stall.farmerCount += 1
+        stall.farmerIdleEnergies.append(1.0)
+        save()
+    }
+
+    public func hireVeteranAlba() {
+        let cost = UpgradeDefinitions.veteranAlba[0].coinCost
+        guard stall.coins >= cost else { return }
+        stall.coins -= cost
+        stall.veteranAlbaCount += 1
+        stall.veteranAlbaIdleEnergies.append(1.0)
+        save()
+    }
+
+    /// Toggle a farm worker of any type on/off a plot.
+    public func toggleFarmWorker(plotIndex: Int, workerType: FarmWorkerType = .alba, displayedEnergy: Double? = nil, addToIdle: Bool = true, directEnergy: Double? = nil) {
         guard plotIndex < farm.plots.count else { return }
         if farm.plots[plotIndex].hasWorker {
             let energy = displayedEnergy ?? farm.plots[plotIndex].workerEnergy
-            if addToIdle { pushIdleEnergy(energy, for: 1) }
+            if addToIdle {
+                switch farm.plots[plotIndex].workerType {
+                case .alba:        pushIdleEnergy(energy, for: 1)
+                case .farmer:      stall.farmerIdleEnergies.append(energy)
+                case .veteranAlba: stall.veteranAlbaIdleEnergies.append(energy)
+                case .none: break
+                }
+            }
             farm.plots[plotIndex].workerEnergy = 1.0
-            farm.plots[plotIndex].hasWorker = false
+            farm.plots[plotIndex].workerType   = .none
         } else {
-            guard availableForFarm > 0 else { return }
-            farm.plots[plotIndex].workerEnergy = directEnergy ?? popIdleEnergy(for: 1)
-            farm.plots[plotIndex].hasWorker = true
+            let energy: Double
+            switch workerType {
+            case .alba:
+                guard availableForFarm > 0 else { return }
+                energy = directEnergy ?? popIdleEnergy(for: 1)
+            case .farmer:
+                guard availableFarmers > 0 else { return }
+                energy = directEnergy ?? (stall.farmerIdleEnergies.isEmpty ? 1.0 : stall.farmerIdleEnergies.removeFirst())
+            case .veteranAlba:
+                guard availableVeteranAlbas > 0 else { return }
+                energy = directEnergy ?? (stall.veteranAlbaIdleEnergies.isEmpty ? 1.0 : stall.veteranAlbaIdleEnergies.removeFirst())
+            case .none: return
+            }
+            farm.plots[plotIndex].workerEnergy = energy
+            farm.plots[plotIndex].workerType   = workerType
         }
         stall.farmWorkers = farmAssigned
         save()
+    }
+
+    /// Legacy shim — toggles an alba worker.
+    public func toggleWorker(plotIndex: Int, displayedEnergy: Double? = nil, addToIdle: Bool = true, directEnergy: Double? = nil) {
+        toggleFarmWorker(plotIndex: plotIndex, workerType: .alba, displayedEnergy: displayedEnergy, addToIdle: addToIdle, directEnergy: directEnergy)
     }
 
     public func assignToCashier(tier: Int = 0, directEnergy: Double? = nil) {

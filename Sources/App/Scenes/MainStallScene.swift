@@ -77,6 +77,15 @@ final class MainStallScene: SKScene {
         }
     }
 
+    private func farmWorkerEmoji(for plot: FarmPlot, albaIndex: Int) -> String? {
+        switch plot.workerType {
+        case .none:        return nil
+        case .alba:        return staffEmoji(tier: 1, indexInTier: albaIndex)
+        case .farmer:      return "👨‍🌾"
+        case .veteranAlba: return "🧑‍🌾"
+        }
+    }
+
     /// Emoji for the cook assigned to menu slot i (tier > 0).
     private func cookEmoji(menuIndex i: Int, store: GameStore) -> String {
         let tier = i < store.stall.menuCooks.count ? store.stall.menuCooks[i] : 0
@@ -273,16 +282,14 @@ final class MainStallScene: SKScene {
         let workerAvailable = (store?.availableForFarm ?? 0) > 0
 
         let tier1InMenus = store?.stall.menuCooks.filter { $0 == 1 }.count ?? 0
-        var farmWorkerIdx = 0
+        var albaOnFarmIdx = 0
         for i in 0..<activePlots {
             farmPlotNodes[i].position = gridPosition(for: i)
             farmPlotNodes[i].isHidden = false
             if i < farm.plots.count {
                 let plot = farm.plots[i]
-                let assignedEmoji: String? = plot.hasWorker
-                    ? staffEmoji(tier: 1, indexInTier: tier1InMenus + farmWorkerIdx)
-                    : nil
-                if plot.hasWorker { farmWorkerIdx += 1 }
+                let assignedEmoji: String? = farmWorkerEmoji(for: plot, albaIndex: tier1InMenus + albaOnFarmIdx)
+                if plot.workerType == .alba { albaOnFarmIdx += 1 }
                 farmPlotNodes[i].update(plot: plot, warehouseFull: warehouseFull,
                                         assignedEmoji: assignedEmoji, workerAvailable: workerAvailable,
                                         workerEnergy: plot.workerEnergy);

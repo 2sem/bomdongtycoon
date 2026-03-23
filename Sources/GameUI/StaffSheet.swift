@@ -147,8 +147,8 @@ public struct StaffSheet: View {
                     emoji: "👨‍🌾",
                     def: UpgradeDefinitions.farmer[0],
                     count: store.stall.farmerCount,
-                    isUnlocked: store.farm.plots.count >= 3,
-                    unlockHint: "주말농장 업그레이드 필요",
+                    isUnlocked: store.stall.stallTier >= 1,
+                    unlockHint: "봄동 식당 업그레이드 필요",
                     onHire: {
                         store.hireFarmer()
                         withAnimation { tab = 0 }
