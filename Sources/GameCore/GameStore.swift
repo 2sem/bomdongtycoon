@@ -532,10 +532,6 @@ public final class GameStore: ObservableObject {
             return
         }
         let elapsed = min(Date().timeIntervalSince(lastActive), OfflineProgressSystem.maxOfflineHours * 3600)
-        guard elapsed >= 60 else {
-            print("[Offline] skip — elapsed \(Int(elapsed))s < 60s")
-            return
-        }
         let earned = cps * elapsed * OfflineProgressSystem.offlineEfficiency
         print("[Offline] lastActive=\(lastActive), elapsed=\(Int(elapsed))s, cps=\(String(format:"%.4f",cps)), earned=\(Int(earned))")
         offlineEarnings = earned
