@@ -38,10 +38,16 @@ public struct StallState: Codable {
     public var stock: Double { Double(menuStock.reduce(0, +)) }
     public var autoCollectEnabled: Bool { cashierCount > 0 }
 
+    // Farm-only worker counts and idle energy pools
+    public var farmerCount: Int = 0
+    public var farmerIdleEnergies: [Double] = []
+    public var veteranAlbaCount: Int = 0
+    public var veteranAlbaIdleEnergies: [Double] = []
+
     // Legacy — kept for FarmState compatibility only
     public var farmWorkers: Int = 0
 
-    // Farm worker training level (global, shared by all farm-assigned 알바생)
+    // Farm worker training level — kept for backward compat with old saves; no longer surfaced in UI
     public var farmWorkerTier: Int = 1
 
     private enum CodingKeys: String, CodingKey {
@@ -51,6 +57,8 @@ public struct StallState: Codable {
         case menuCookEnergy, cashierEnergy, cashierTier
         case tier1IdleEnergies, tier2IdleEnergies, tier3IdleEnergies
         case warehouse, warehouseCapacity, menuStock
+        case farmerCount, farmerIdleEnergies
+        case veteranAlbaCount, veteranAlbaIdleEnergies
         case farmWorkers
         case farmWorkerTier
     }

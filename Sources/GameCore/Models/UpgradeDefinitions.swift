@@ -90,6 +90,16 @@ public enum UpgradeDefinitions {
         .init(name: "알바 달인", coinCost: 12_000, description: "농장 전문가, 최고 속도",      productionMultiplier: 2.0),
     ]
 
+        /// Farm-only hirable workers: farmer (농부) — 2× growth, 2 000 coins
+    public static let farmer: [UpgradeDefinition] = [
+        .init(name: "농부", coinCost: 2_000, description: "농장 전문 — 빠른 수확", productionMultiplier: 2.0)
+    ]
+
+    /// Farm-only hirable workers: veteran alba (고참 알바) — 1.4× growth, 800 coins
+    public static let veteranAlba: [UpgradeDefinition] = [
+        .init(name: "고참 알바", coinCost: 800, description: "경험 많은 알바생", productionMultiplier: 1.4)
+    ]
+
     /// Farm upgrades — increase plot count, growth speed, and harvest yield
     public static let farm: [FarmUpgradeDefinition] = [
         .init(name: "텃밭",     coinCost: 0,      description: "작은 시작",  plotCount: 2, growthMultiplier: 1.0, harvestYield: 1),

@@ -103,6 +103,12 @@ public final class GameStore: ObservableObject {
         normalize(pool: &stall.tier1IdleEnergies, to: expected1)
         normalize(pool: &stall.tier2IdleEnergies, to: expected2)
         normalize(pool: &stall.tier3IdleEnergies, to: expected3)
+
+        // Normalize farmer and veteran alba idle pools against their assigned counts
+        let expectedFarmer   = max(0, stall.farmerCount - farmersAssigned)
+        let expectedVetAlba  = max(0, stall.veteranAlbaCount - veteranAlbasAssigned)
+        normalize(pool: &stall.farmerIdleEnergies,      to: expectedFarmer)
+        normalize(pool: &stall.veteranAlbaIdleEnergies, to: expectedVetAlba)
     }
 
     private func normalize(pool: inout [Double], to expected: Int) {
@@ -149,17 +155,28 @@ public final class GameStore: ObservableObject {
             }
         }
 
-        // Grow planted plots
+        // Restore idle energy for farmer and veteran alba pools
+        for i in 0..<stall.farmerIdleEnergies.count {
+            stall.farmerIdleEnergies[i] = min(1, stall.farmerIdleEnergies[i] + Self.energyRestoreRate * deltaTime)
+        }
+        for i in 0..<stall.veteranAlbaIdleEnergies.count {
+            stall.veteranAlbaIdleEnergies[i] = min(1, stall.veteranAlbaIdleEnergies[i] + Self.energyRestoreRate * deltaTime)
+        }
+
+        // Grow planted plots — boost is per-plot based on assigned worker type
         for i in 0..<min(activePlots, farm.plots.count) {
             guard farm.plots[i].isPlanted, !farm.plots[i].isReady else { continue }
-            let workerDef = stall.farmWorkerTier - 1 < UpgradeDefinitions.farmWorker.count
-                ? UpgradeDefinitions.farmWorker[stall.farmWorkerTier - 1]
-                : nil
-            let boost = farm.plots[i].hasWorker ? (workerDef?.productionMultiplier ?? 1.0) : 1.0
+            let boost: Double
+            switch farm.plots[i].workerType {
+            case .farmer:      boost = UpgradeDefinitions.farmer[0].productionMultiplier
+            case .veteranAlba: boost = UpgradeDefinitions.veteranAlba[0].productionMultiplier
+            case .alba:        boost = 1.0
+            case .none:        boost = 1.0
+            }
             farm.plots[i].growth = min(farm.plots[i].growth + growRate * boost * deltaTime, 1.0);
         }
 
-        // Farm workers (tier1 only) auto-harvest and replant
+        // Farm workers (any type) auto-harvest and replant
         for i in 0..<min(activePlots, farm.plots.count) {
             guard farm.plots[i].hasWorker else { continue }
             if farm.plots[i].isReady {
@@ -356,34 +373,80 @@ public final class GameStore: ObservableObject {
 
     // MARK: - Staff workers
 
-    private var farmAssigned: Int { farm.plots.filter { $0.hasWorker }.count }
+    /// Number of farm plots occupied by plain alba (tier-1) workers.
+    private var farmAssigned: Int { farm.plots.filter { $0.workerType == .alba }.count }
+    /// Number of farm plots occupied by farmer workers.
+    private var farmersAssigned: Int { farm.plots.filter { $0.workerType == .farmer }.count }
+    /// Number of farm plots occupied by veteran alba workers.
+    private var veteranAlbasAssigned: Int { farm.plots.filter { $0.workerType == .veteranAlba }.count }
 
     /// Workers not yet placed anywhere
     public var availableWorkers: Int {
         stall.staffCount - farmAssigned - stall.cashierCount - stall.menuCooks.filter { $0 > 0 }.count
     }
 
-    /// Only unassigned tier-1 workers can go to farm
+    /// Only unassigned tier-1 (plain alba) workers can go to farm via the old path.
     public var availableForFarm: Int {
         let menu1    = stall.menuCooks.filter { $0 == 1 }.count
         let cashier1 = stall.cashierTier == 1 ? stall.cashierCount : 0
         return stall.tier1Count - farmAssigned - menu1 - cashier1
     }
 
-    public func toggleWorker(plotIndex: Int, displayedEnergy: Double? = nil, addToIdle: Bool = true, directEnergy: Double? = nil) {
+    /// Unassigned farmers available for farm placement.
+    public var availableFarmers: Int { stall.farmerCount - farmersAssigned }
+    /// Unassigned veteran albas available for farm placement.
+    public var availableVeteranAlbas: Int { stall.veteranAlbaCount - veteranAlbasAssigned }
+
+    /// Generalised farm-worker toggle. Pass `workerType` when assigning (.alba, .farmer, .veteranAlba).
+    /// When unassigning, `workerType` is ignored — the current plot's type is used to route energy back.
+    public func toggleFarmWorker(plotIndex: Int, workerType: FarmWorkerType = .alba, displayedEnergy: Double? = nil, addToIdle: Bool = true, directEnergy: Double? = nil) {
         guard plotIndex < farm.plots.count else { return }
         if farm.plots[plotIndex].hasWorker {
+            // Unassign — return energy to the correct idle pool
             let energy = displayedEnergy ?? farm.plots[plotIndex].workerEnergy
-            if addToIdle { pushIdleEnergy(energy, for: 1) }
+            if addToIdle {
+                switch farm.plots[plotIndex].workerType {
+                case .alba:
+                    pushIdleEnergy(energy, for: 1)
+                case .farmer:
+                    let snapped = energy < 0.05 ? 0.0 : energy
+                    stall.farmerIdleEnergies.append(snapped)
+                case .veteranAlba:
+                    let snapped = energy < 0.05 ? 0.0 : energy
+                    stall.veteranAlbaIdleEnergies.append(snapped)
+                case .none:
+                    break
+                }
+            }
             farm.plots[plotIndex].workerEnergy = 1.0
-            farm.plots[plotIndex].hasWorker = false
+            farm.plots[plotIndex].workerType   = .none
         } else {
-            guard availableForFarm > 0 else { return }
-            farm.plots[plotIndex].workerEnergy = directEnergy ?? popIdleEnergy(for: 1)
-            farm.plots[plotIndex].hasWorker = true
+            // Assign — validate availability and pull energy from the correct pool
+            let energy: Double
+            switch workerType {
+            case .alba:
+                guard availableForFarm > 0 else { return }
+                energy = directEnergy ?? popIdleEnergy(for: 1)
+            case .farmer:
+                guard availableFarmers > 0 else { return }
+                energy = directEnergy ?? (stall.farmerIdleEnergies.isEmpty ? 1.0 : stall.farmerIdleEnergies.removeFirst())
+            case .veteranAlba:
+                guard availableVeteranAlbas > 0 else { return }
+                energy = directEnergy ?? (stall.veteranAlbaIdleEnergies.isEmpty ? 1.0 : stall.veteranAlbaIdleEnergies.removeFirst())
+            case .none:
+                return
+            }
+            farm.plots[plotIndex].workerEnergy = energy
+            farm.plots[plotIndex].workerType   = workerType
         }
         stall.farmWorkers = farmAssigned
         save()
+    }
+
+    /// Legacy shim — forwards to `toggleFarmWorker` for plain alba assignments.
+    public func toggleWorker(plotIndex: Int, displayedEnergy: Double? = nil, addToIdle: Bool = true, directEnergy: Double? = nil) {
+        toggleFarmWorker(plotIndex: plotIndex, workerType: .alba,
+                         displayedEnergy: displayedEnergy, addToIdle: addToIdle, directEnergy: directEnergy)
     }
 
     public func assignToCashier(tier: Int = 0, directEnergy: Double? = nil) {
@@ -499,6 +562,26 @@ public final class GameStore: ObservableObject {
         default: break
         }
         stall.staffTier = max(stall.staffTier, tier)
+        save()
+    }
+
+    /// Hire a new 농부 (farmer). Farm-only worker with 2× growth boost.
+    public func hireFarmer() {
+        let cost = UpgradeDefinitions.farmer[0].coinCost
+        guard stall.coins >= cost else { return }
+        stall.coins -= cost
+        stall.farmerCount += 1
+        stall.farmerIdleEnergies.append(1.0)
+        save()
+    }
+
+    /// Hire a new 고참 알바 (veteran alba). Farm-only worker with 1.4× growth boost.
+    public func hireVeteranAlba() {
+        let cost = UpgradeDefinitions.veteranAlba[0].coinCost
+        guard stall.coins >= cost else { return }
+        stall.coins -= cost
+        stall.veteranAlbaCount += 1
+        stall.veteranAlbaIdleEnergies.append(1.0)
         save()
     }
 
