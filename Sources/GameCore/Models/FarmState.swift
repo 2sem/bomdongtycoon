@@ -44,9 +44,10 @@ public struct FarmPlot: Codable {
         if let wt = try c.decodeIfPresent(FarmWorkerType.self, forKey: .workerType) {
             workerType = wt
         } else {
-            // migrate old hasWorker: Bool
+            // migrate old hasWorker: Bool — reset energy so stale exhaustion doesn't carry over
             let had = try c.decodeIfPresent(Bool.self, forKey: .hasWorker) ?? false
-            workerType = had ? .alba : .none
+            workerType   = had ? .alba : .none
+            workerEnergy = 1.0
         }
     }
 }
