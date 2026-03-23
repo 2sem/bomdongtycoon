@@ -618,7 +618,7 @@ public final class GameStore: ObservableObject {
         let elapsed = min(Date().timeIntervalSince(lastActive), OfflineProgressSystem.maxOfflineHours * 3600)
         let earned = rate * elapsed * OfflineProgressSystem.offlineEfficiency
         print("[Offline] lastActive=\(lastActive), elapsed=\(Int(elapsed))s, rate=\(String(format:"%.4f",rate))/s, earned=\(Int(earned))")
-        offlineEarnings = earned
+        offlineEarnings = earned >= 1 ? earned : 0
     }
 
     /// Redeem the pre-calculated offline amount with a multiplier.
