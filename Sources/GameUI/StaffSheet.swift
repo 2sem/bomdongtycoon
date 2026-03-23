@@ -132,6 +132,28 @@ public struct StaffSheet: View {
                     HireTierRow(tier: tier, onHired: { withAnimation { tab = 0 } })
                         .environmentObject(store)
                 }
+                HireFarmWorkerRow(
+                    emoji: "🧑‍🌾",
+                    def: UpgradeDefinitions.veteranAlba[0],
+                    count: store.stall.veteranAlbaCount,
+                    isUnlocked: store.farm.plots.count > 2,
+                    unlockHint: "텃밭 확장 필요",
+                    onHire: {
+                        store.hireVeteranAlba()
+                        withAnimation { tab = 0 }
+                    }
+                )
+                HireFarmWorkerRow(
+                    emoji: "👨‍🌾",
+                    def: UpgradeDefinitions.farmer[0],
+                    count: store.stall.farmerCount,
+                    isUnlocked: store.farm.plots.count >= 3,
+                    unlockHint: "주말농장 업그레이드 필요",
+                    onHire: {
+                        store.hireFarmer()
+                        withAnimation { tab = 0 }
+                    }
+                )
             } header: {
                 Text("직원 고용").foregroundStyle(Color.staffAmber)
             }
@@ -223,12 +245,12 @@ public struct StaffSheet: View {
 
         // Tier 1 (알바생): menus → farm → cashier → unassigned
         var t1 = menuSlots(for: 1);
-        var farmWorkers = store.farm.plots.filter { $0.hasWorker }.count;
+        var albaFarmWorkers = store.farm.plots.filter { $0.workerType == .alba }.count;
         var tier1Idx = 0;
         for _ in 0..<store.stall.tier1Count {
             let a: WorkerItem.Assignment;
             if !t1.isEmpty                                                  { a = .menu(t1.removeFirst()) }
-            else if farmWorkers > 0                                         { farmWorkers -= 1; a = .farm }
+            else if albaFarmWorkers > 0                                     { albaFarmWorkers -= 1; a = .farm }
             else if remainingCashiers > 0 && store.stall.cashierTier == 1  { remainingCashiers -= 1; a = .cashier }
             else                                                            { a = .unassigned }
             let e: Double;
@@ -244,6 +266,32 @@ public struct StaffSheet: View {
             idCounter += 1; tier1Idx += 1;
         }
 
+        // Farmers (tier 4, farm-only)
+        let farmerPlotsOnFarm = store.farm.plots.filter { $0.workerType == .farmer }
+        var farmerIdx = 0
+        for _ in 0..<store.stall.farmerCount {
+            let isOnFarm = farmerIdx < farmerPlotsOnFarm.count
+            let a: WorkerItem.Assignment = isOnFarm ? .farm : .unassigned
+            let e: Double = isOnFarm
+                ? farmerPlotsOnFarm[farmerIdx].workerEnergy
+                : (store.stall.farmerIdleEnergies[safe: farmerIdx - farmerPlotsOnFarm.count] ?? 1.0)
+            items.append(WorkerItem(id: idCounter, indexInTier: farmerIdx, tier: 4, assignment: a, energy: e))
+            idCounter += 1; farmerIdx += 1
+        }
+
+        // Veteran albas (tier 5, farm-only)
+        let vetPlotsOnFarm = store.farm.plots.filter { $0.workerType == .veteranAlba }
+        var vetIdx = 0
+        for _ in 0..<store.stall.veteranAlbaCount {
+            let isOnFarm = vetIdx < vetPlotsOnFarm.count
+            let a: WorkerItem.Assignment = isOnFarm ? .farm : .unassigned
+            let e: Double = isOnFarm
+                ? vetPlotsOnFarm[vetIdx].workerEnergy
+                : (store.stall.veteranAlbaIdleEnergies[safe: vetIdx - vetPlotsOnFarm.count] ?? 1.0)
+            items.append(WorkerItem(id: idCounter, indexInTier: vetIdx, tier: 5, assignment: a, energy: e))
+            idCounter += 1; vetIdx += 1
+        }
+
         return items.sorted { a, b in
             let aUnassigned = a.assignment == .unassigned
             let bUnassigned = b.assignment == .unassigned
@@ -254,8 +302,33 @@ public struct StaffSheet: View {
 
     // MARK: - Reassign
 
+    /// Maps a WorkerItem tier to the FarmWorkerType used for plot assignment.
+    private func farmWorkerType(for tier: Int) -> FarmWorkerType {
+        switch tier {
+        case 4:  return .farmer
+        case 5:  return .veteranAlba
+        default: return .alba
+        }
+    }
+
     private func reassign(worker: WorkerItem, to new: WorkerItem.Assignment) {
         guard new != worker.assignment else { return }
+
+        // Farm-only workers (tiers 4 and 5) only support .farm ↔ .unassigned
+        if worker.tier == 4 || worker.tier == 5 {
+            let wt = farmWorkerType(for: worker.tier)
+            if worker.assignment == .unassigned, case .farm = new {
+                let active = FarmSystem.activePlotCount(for: store.farm)
+                if let idx = (0..<active).first(where: { !store.farm.plots[$0].hasWorker }) {
+                    store.toggleFarmWorker(plotIndex: idx, workerType: wt)
+                }
+            } else if case .farm = worker.assignment, new == .unassigned {
+                if let idx = store.farm.plots.firstIndex(where: { $0.workerType == wt }) {
+                    store.toggleFarmWorker(plotIndex: idx, workerType: wt, addToIdle: true)
+                }
+            }
+            return
+        }
 
         if worker.assignment == .unassigned {
             // Idle → position: pop from idle pool (correctly picks this worker's energy by FIFO order)
@@ -265,7 +338,7 @@ public struct StaffSheet: View {
             case .farm:
                 let active = FarmSystem.activePlotCount(for: store.farm)
                 if let idx = (0..<active).first(where: { !store.farm.plots[$0].hasWorker }) {
-                    store.toggleWorker(plotIndex: idx)
+                    store.toggleFarmWorker(plotIndex: idx, workerType: .alba)
                 }
             case .unassigned: break
             }
@@ -276,8 +349,8 @@ public struct StaffSheet: View {
             case .menu(let i):   store.removeMenuCook(menuIndex: i, addToIdle: true)
             case .cashier:       store.removeFromCashier(addToIdle: true)
             case .farm:
-                if let idx = store.farm.plots.firstIndex(where: { $0.hasWorker }) {
-                    store.toggleWorker(plotIndex: idx, addToIdle: true)
+                if let idx = store.farm.plots.firstIndex(where: { $0.workerType == .alba }) {
+                    store.toggleFarmWorker(plotIndex: idx, workerType: .alba, addToIdle: true)
                 }
             case .unassigned: break
             }
@@ -288,7 +361,7 @@ public struct StaffSheet: View {
                 switch worker.assignment {
                 case .menu(let i):  return store.stall.menuCookEnergy[safe: i] ?? 1.0
                 case .cashier:      return store.stall.cashierEnergy
-                case .farm:         return store.farm.plots.first(where: { $0.hasWorker })?.workerEnergy ?? 1.0
+                case .farm:         return store.farm.plots.first(where: { $0.workerType == .alba })?.workerEnergy ?? 1.0
                 case .unassigned:   return 1.0
                 }
             }()
@@ -296,8 +369,8 @@ public struct StaffSheet: View {
             case .menu(let i):   store.removeMenuCook(menuIndex: i, addToIdle: false)
             case .cashier:       store.removeFromCashier(addToIdle: false)
             case .farm:
-                if let idx = store.farm.plots.firstIndex(where: { $0.hasWorker }) {
-                    store.toggleWorker(plotIndex: idx, addToIdle: false)
+                if let idx = store.farm.plots.firstIndex(where: { $0.workerType == .alba }) {
+                    store.toggleFarmWorker(plotIndex: idx, workerType: .alba, addToIdle: false)
                 }
             case .unassigned: break
             }
@@ -307,7 +380,7 @@ public struct StaffSheet: View {
             case .farm:
                 let active = FarmSystem.activePlotCount(for: store.farm)
                 if let idx = (0..<active).first(where: { !store.farm.plots[$0].hasWorker }) {
-                    store.toggleWorker(plotIndex: idx, directEnergy: liveEnergy)
+                    store.toggleFarmWorker(plotIndex: idx, workerType: .alba, directEnergy: liveEnergy)
                 }
             case .unassigned: break
             }
@@ -326,7 +399,7 @@ private struct WorkerRow: View {
     let farmPlots: [FarmPlot];
     let onReassign: (WorkerItem.Assignment) -> Void;
 
-    private static let name  = ["", "알바생", "이모님", "봄동 요리사"];
+    private static let name  = ["", "알바생", "이모님", "봄동 요리사", "농부", "고참 알바"];
 
     private static let tier1Emojis = ["🧑", "👦", "👧", "👱‍♂️", "👱‍♀️", "🧑‍💼"]
     private static let tier3Emojis = ["👨‍🍳", "👩‍🍳"]
@@ -336,12 +409,21 @@ private struct WorkerRow: View {
         case 1:  Self.tier1Emojis[indexInTier % Self.tier1Emojis.count]
         case 2:  "👵"
         case 3:  Self.tier3Emojis[indexInTier % Self.tier3Emojis.count]
+        case 4:  "👨‍🌾"
+        case 5:  "🧑‍🌾"
         default: "🧑"
         }
     }
 
     private var options: [(WorkerItem.Assignment, Bool)] {
         var opts: [(WorkerItem.Assignment, Bool)] = [(.unassigned, true)]
+
+        // Farm-only workers (tiers 4 = 농부, 5 = 고참 알바)
+        if worker.tier == 4 || worker.tier == 5 {
+            let freeSlots = (0..<activeFarmPlots).filter { !farmPlots[$0].hasWorker }.count
+            opts.append((.farm, freeSlots > 0 || worker.assignment == .farm))
+            return opts
+        }
 
         if worker.tier == 1 {
             let freeSlots = (0..<activeFarmPlots).filter { !farmPlots[$0].hasWorker }.count
@@ -528,6 +610,60 @@ private struct HireTierRow: View {
                     .disabled(store.stall.coins < def.coinCost)
                     .controlSize(.small)
                 }
+            } else {
+                Image(systemName: "lock.fill").foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+// MARK: - HireFarmWorkerRow
+
+private struct HireFarmWorkerRow: View {
+    @EnvironmentObject var store: GameStore
+    let emoji: String
+    let def: UpgradeDefinition
+    let count: Int
+    let isUnlocked: Bool
+    let unlockHint: String
+    let onHire: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isUnlocked ? Color.staffAmber.opacity(0.8) : Color.gray.opacity(0.2))
+                    .frame(width: 40, height: 40)
+                Text(emoji).font(.system(size: 22))
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(def.name).font(.headline)
+                    .foregroundStyle(isUnlocked ? .primary : .secondary)
+                if isUnlocked {
+                    Text(def.description).font(.caption).foregroundStyle(.secondary)
+                    Text("🌱 ×\(String(format: "%.1f", def.productionMultiplier)) 성장 속도")
+                        .font(.caption2).foregroundStyle(.green)
+                    Text("현재 \(count)명").font(.caption2).foregroundStyle(Color.staffAmber)
+                } else {
+                    Text(unlockHint).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            if isUnlocked {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    onHire()
+                } label: {
+                    Text("₩\(Int(def.coinCost))").font(.caption.bold())
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(store.stall.coins >= def.coinCost ? Color.staffAmber : .gray)
+                .disabled(store.stall.coins < def.coinCost)
+                .controlSize(.small)
             } else {
                 Image(systemName: "lock.fill").foregroundStyle(.tertiary)
             }
