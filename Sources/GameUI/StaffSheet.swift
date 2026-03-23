@@ -138,6 +138,7 @@ public struct StaffSheet: View {
                     count: store.stall.veteranAlbaCount,
                     isUnlocked: store.farm.plots.count > 2,
                     unlockHint: "텃밭 확장 필요",
+                    cashierHint: "💰 계산대 배치 시 ×1.4 수입",
                     onHire: {
                         store.hireVeteranAlba()
                         withAnimation { tab = 0 }
@@ -314,9 +315,23 @@ public struct StaffSheet: View {
     private func reassign(worker: WorkerItem, to new: WorkerItem.Assignment) {
         guard new != worker.assignment else { return }
 
-        // Farm-only workers (tiers 4 and 5) only support .farm ↔ .unassigned
+        // Farm-only workers (tiers 4 and 5)
         if worker.tier == 4 || worker.tier == 5 {
             let wt = farmWorkerType(for: worker.tier)
+
+            // Tier 5 only: cashier ↔ unassigned
+            if worker.tier == 5 {
+                if worker.assignment == .unassigned, case .cashier = new {
+                    store.assignToCashier(tier: 5)
+                    return
+                }
+                if worker.assignment == .cashier, new == .unassigned {
+                    store.removeFromCashier(addToIdle: true)
+                    return
+                }
+            }
+
+            // Farm ↔ unassigned (both tier 4 and 5)
             if worker.assignment == .unassigned, case .farm = new {
                 let active = FarmSystem.activePlotCount(for: store.farm)
                 if let idx = (0..<active).first(where: { !store.farm.plots[$0].hasWorker }) {
@@ -418,10 +433,19 @@ private struct WorkerRow: View {
     private var options: [(WorkerItem.Assignment, Bool)] {
         var opts: [(WorkerItem.Assignment, Bool)] = [(.unassigned, true)]
 
-        // Farm-only workers (tiers 4 = 농부, 5 = 고참 알바)
-        if worker.tier == 4 || worker.tier == 5 {
+        // Farm-only workers (tier 4 = 농부)
+        if worker.tier == 4 {
             let freeSlots = (0..<activeFarmPlots).filter { !farmPlots[$0].hasWorker }.count
             opts.append((.farm, freeSlots > 0 || worker.assignment == .farm))
+            return opts
+        }
+
+        // Tier 5 (고참 알바): farm or cashier
+        if worker.tier == 5 {
+            let freeSlots = (0..<activeFarmPlots).filter { !farmPlots[$0].hasWorker }.count
+            opts.append((.farm, freeSlots > 0 || worker.assignment == .farm))
+            let cashierFree = cashierCount == 0 || worker.assignment == .cashier
+            opts.append((.cashier, cashierFree))
             return opts
         }
 
@@ -627,6 +651,7 @@ private struct HireFarmWorkerRow: View {
     let count: Int
     let isUnlocked: Bool
     let unlockHint: String
+    var cashierHint: String? = nil
     let onHire: () -> Void
 
     var body: some View {
@@ -645,6 +670,10 @@ private struct HireFarmWorkerRow: View {
                     Text(def.description).font(.caption).foregroundStyle(.secondary)
                     Text("🌱 ×\(String(format: "%.1f", def.productionMultiplier)) 성장 속도")
                         .font(.caption2).foregroundStyle(.green)
+                    if let hint = cashierHint {
+                        Text(hint)
+                            .font(.caption2).foregroundStyle(.blue)
+                    }
                     Text("현재 \(count)명").font(.caption2).foregroundStyle(Color.staffAmber)
                 } else {
                     Text(unlockHint).font(.caption).foregroundStyle(.secondary)

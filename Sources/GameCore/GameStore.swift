@@ -71,6 +71,7 @@ public final class GameStore: ObservableObject {
         case 1: return stall.tier1IdleEnergies.isEmpty ? 1.0 : stall.tier1IdleEnergies.removeFirst()
         case 2: return stall.tier2IdleEnergies.isEmpty ? 1.0 : stall.tier2IdleEnergies.removeFirst()
         case 3: return stall.tier3IdleEnergies.isEmpty ? 1.0 : stall.tier3IdleEnergies.removeFirst()
+        case 5: return stall.veteranAlbaIdleEnergies.isEmpty ? 1.0 : stall.veteranAlbaIdleEnergies.removeFirst()
         default: return 1.0
         }
     }
@@ -83,6 +84,7 @@ public final class GameStore: ObservableObject {
         case 1: stall.tier1IdleEnergies.append(snapped)
         case 2: stall.tier2IdleEnergies.append(snapped)
         case 3: stall.tier3IdleEnergies.append(snapped)
+        case 5: stall.veteranAlbaIdleEnergies.append(snapped)
         default: break
         }
     }
@@ -105,7 +107,8 @@ public final class GameStore: ObservableObject {
         normalize(pool: &stall.tier3IdleEnergies, to: expected3)
 
         let expectedFarmers  = max(0, stall.farmerCount - farmersAssigned)
-        let expectedVetAlbas = max(0, stall.veteranAlbaCount - veteranAlbasAssigned)
+        let cashier5         = stall.cashierTier == 5 ? stall.cashierCount : 0
+        let expectedVetAlbas = max(0, stall.veteranAlbaCount - veteranAlbasAssigned - cashier5)
         normalize(pool: &stall.farmerIdleEnergies,      to: expectedFarmers)
         normalize(pool: &stall.veteranAlbaIdleEnergies, to: expectedVetAlbas)
     }
@@ -252,7 +255,8 @@ public final class GameStore: ObservableObject {
         guard menuIndex < stall.menuStock.count,
               stall.menuStock[menuIndex] > 0 else { return nil }
         stall.menuStock[menuIndex] -= 1
-        let price = EarningsSystem.pricePerItem(for: stall, menuIndex: menuIndex)
+        let cashierBonus = stall.cashierTier == 5 ? 1.4 : 1.0
+        let price = EarningsSystem.pricePerItem(for: stall, menuIndex: menuIndex) * cashierBonus
         stall.pendingCoins += price
         earningWindowCoins += price
         return price
@@ -491,6 +495,7 @@ public final class GameStore: ObservableObject {
         case 1: stall.tier1Count
         case 2: stall.tier2Count
         case 3: stall.tier3Count
+        case 5: stall.veteranAlbaCount
         default: 0
         }
     }
@@ -499,7 +504,7 @@ public final class GameStore: ObservableObject {
     private func unassignedCount(for tier: Int) -> Int {
         let menuUsed    = stall.menuCooks.filter { $0 == tier }.count
         let cashierUsed = stall.cashierTier == tier ? stall.cashierCount : 0
-        let farmUsed    = tier == 1 ? farmAssigned : 0
+        let farmUsed    = tier == 1 ? farmAssigned : (tier == 5 ? veteranAlbasAssigned : 0)
         return tierCount(for: tier) - menuUsed - cashierUsed - farmUsed
     }
 
