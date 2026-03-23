@@ -271,6 +271,11 @@ final class MainStallScene: SKScene {
         } else {
             addPlotCell?.isHidden = true
         }
+
+        // Center the visible cells: shift farmNode so the active columns are centered.
+        let totalVisible = activePlots + (nextCost != nil ? 1 : 0)
+        let visibleCols  = min(max(totalVisible, 1), Self.farmCols)
+        farmNode.position.x = frame.midX - Self.farmOriginX - CGFloat(visibleCols - 1) * Self.farmSpacingX / 2
     }
 
     // MARK: - Fence
