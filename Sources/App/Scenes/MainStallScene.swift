@@ -717,7 +717,17 @@ final class MainStallScene: SKScene {
             let localInPlot = farmPlotNodes[i].convert(nodeLocation, from: farmNode)
             let workerBadgeDist = hypot(localInPlot.x - 20, localInPlot.y - 22)
             if workerBadgeDist <= 18 {
-                Task { @MainActor in store.toggleWorker(plotIndex: i) }
+                Task { @MainActor in
+                    if plot.hasWorker {
+                        store.toggleFarmWorker(plotIndex: i)
+                    } else {
+                        let type: FarmWorkerType
+                        if store.availableFarmers > 0          { type = .farmer }
+                        else if store.availableVeteranAlbas > 0 { type = .veteranAlba }
+                        else                                    { type = .alba }
+                        store.toggleFarmWorker(plotIndex: i, workerType: type)
+                    }
+                }
             } else if plot.isReady {
                 Task { @MainActor in store.harvest(plotIndex: i) }
                 farmPlotNodes[i].animateHarvest()
