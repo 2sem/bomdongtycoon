@@ -7,6 +7,7 @@ public struct PlayerProgress: Codable {
     public var lastActiveDate: Date? = nil
     public var seasonStartDate: Date? = nil
     public var totalEarned: Double = 0
+    public var earningRate: Double = 0     // coins/s rolling average, updated every 5s
     public var rating: Double = 3.0
     public var totalServed: Int = 0
     public var totalFailed: Int = 0

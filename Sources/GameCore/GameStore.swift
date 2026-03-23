@@ -22,7 +22,9 @@ public final class GameStore: ObservableObject {
     private let defaults: UserDefaults
     private var cookAccumulators: [Double] = [0, 0, 0];   // per-menu
     private var cashierAccumulator: Double = 0
-    private var activitySaveTimer: Double = 0            // flush lastActiveDate to disk every 5s
+    private var activitySaveTimer: Double = 0            // flush lastActiveDate + earningRate to disk every 5s
+    private var earningWindowCoins: Double = 0           // coins earned in current 5s window
+    private var earningWindowTime: Double = 0            // time elapsed in current window
 
     // MARK: - Energy constants
     private static let energyDepletionRate: Double = 1.0 / 180.0;  // empties in 3 min
@@ -201,11 +203,21 @@ public final class GameStore: ObservableObject {
         // Rating slowly decays — active serving easily overcomes it, idle play drifts down
         progress.rating = max(1.0, progress.rating - 0.0002 * deltaTime)
 
-        // Persist lastActiveDate every 5 s so force-quit doesn't lose more than 5 s of play time
+        // Persist lastActiveDate + earningRate every 5 s
         if offlineEarnings == 0 {
+            earningWindowTime += deltaTime
             activitySaveTimer += deltaTime
             if activitySaveTimer >= 5 {
-                activitySaveTimer = 0
+                if earningWindowTime > 0 {
+                    let sample = earningWindowCoins / earningWindowTime
+                    // Exponential moving average: weight new sample at 30%
+                    progress.earningRate = progress.earningRate == 0
+                        ? sample
+                        : progress.earningRate * 0.7 + sample * 0.3
+                }
+                earningWindowCoins = 0
+                earningWindowTime  = 0
+                activitySaveTimer  = 0
                 progress.lastActiveDate = Date()
                 save()
             }
@@ -229,6 +241,7 @@ public final class GameStore: ObservableObject {
         stall.menuStock[menuIndex] -= 1
         let price = EarningsSystem.pricePerItem(for: stall, menuIndex: menuIndex)
         stall.pendingCoins += price
+        earningWindowCoins += price
         return price
     }
 
@@ -522,74 +535,24 @@ public final class GameStore: ObservableObject {
 
     // MARK: - Offline
 
-    /// Calculate offline earnings (cold start or bg→fg). Does NOT add coins or change lastActiveDate.
+    /// Calculate offline earnings (cold start or bg→fg) using the stored live earning rate.
+    /// Does NOT add coins or change lastActiveDate.
     public func calculateOfflineEarnings() {
-        let cps = offlineCPS()
         guard let lastActive = progress.lastActiveDate else {
             print("[Offline] first launch — seeding lastActiveDate")
             progress.lastActiveDate = Date()
             save()
             return
         }
+        let rate = progress.earningRate
+        guard rate > 0 else {
+            print("[Offline] earningRate=0 — no earnings recorded yet")
+            return
+        }
         let elapsed = min(Date().timeIntervalSince(lastActive), OfflineProgressSystem.maxOfflineHours * 3600)
-        let earned = cps * elapsed * OfflineProgressSystem.offlineEfficiency
-        print("[Offline] lastActive=\(lastActive), elapsed=\(Int(elapsed))s, cps=\(String(format:"%.4f",cps)), earned=\(Int(earned))")
+        let earned = rate * elapsed * OfflineProgressSystem.offlineEfficiency
+        print("[Offline] lastActive=\(lastActive), elapsed=\(Int(elapsed))s, rate=\(String(format:"%.4f",rate))/s, earned=\(Int(earned))")
         offlineEarnings = earned
-    }
-
-    /// Steady-state offline coins/second, modelling the full production chain:
-    ///   farm → warehouse → cook → menuStock → customer → coins
-    /// Bottleneck = min(farm supply, cook rate, customer arrival rate).
-    private func offlineCPS() -> Double {
-        // 1. Collect active cook slots
-        var slots: [(rate: Double, price: Double)] = []
-        for i in 0...stall.menuTier {
-            let tier = i < stall.menuCooks.count ? stall.menuCooks[i] : 0
-            guard tier > 0 else { continue }
-            slots.append((cookRate(forTier: tier), EarningsSystem.pricePerItem(for: stall, menuIndex: i)))
-        }
-        // Fallback: no assigned cooks but staff tier unlocked
-        if slots.isEmpty, stall.staffTier > 0 {
-            slots.append((cookRate(forTier: stall.staffTier), EarningsSystem.pricePerItem(for: stall)))
-        }
-        guard !slots.isEmpty else { return 0 }
-
-        let totalCookRate = slots.map(\.rate).reduce(0, +)
-
-        // 2. Farm warehouse supply rate (raw items/s entering warehouse)
-        let farmSupply = offlineFarmItemsPerSec()
-        // Scale cook rate down proportionally if farm can't keep up
-        let farmScale = farmSupply >= totalCookRate ? 1.0 : farmSupply / totalCookRate
-        let effectiveCookRate = totalCookRate * farmScale
-
-        // 3. Customer arrival rate caps total sales (rating-driven)
-        let customerRate = 1.0 / customerSpawnInterval
-        let sellRate = min(effectiveCookRate, customerRate)
-
-        // 4. Weighted-average price (weighted by each slot's cook rate share)
-        let weightedPrice = slots.map { $0.rate * $0.price }.reduce(0, +) / totalCookRate
-
-        print("[Offline] farmSupply=\(String(format:"%.3f",farmSupply))/s cookRate=\(String(format:"%.3f",totalCookRate))/s customerRate=\(String(format:"%.3f",customerRate))/s sellRate=\(String(format:"%.3f",sellRate))/s price=\(Int(weightedPrice))")
-        return sellRate * weightedPrice
-    }
-
-    /// Raw ingredient items per second the farm adds to the warehouse.
-    private func offlineFarmItemsPerSec() -> Double {
-        let planted = farm.plots.filter { $0.isPlanted }
-        guard !planted.isEmpty else {
-            // No planted plots — existing warehouse stock is the only supply
-            return Double(stall.warehouse) / 60.0
-        }
-        // Blend growth speed: worker-boosted plots vs bare plots
-        let workerMult: Double = {
-            let tier = stall.farmWorkerTier
-            guard tier > 0, tier <= UpgradeDefinitions.farmWorker.count else { return 1.0 }
-            return UpgradeDefinitions.farmWorker[tier - 1].productionMultiplier
-        }()
-        let workered   = Double(planted.filter { $0.hasWorker }.count)
-        let unworkered = Double(planted.count) - workered
-        let blendedPlots = workered * workerMult + unworkered
-        return blendedPlots / FarmSystem.baseGrowthDuration * Double(FarmSystem.harvestYield)
     }
 
     /// Redeem the pre-calculated offline amount with a multiplier.
