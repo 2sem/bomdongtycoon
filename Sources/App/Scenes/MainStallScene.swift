@@ -107,7 +107,7 @@ final class MainStallScene: SKScene {
     override func didMove(to view: SKView) {
         backgroundColor = SKColor(red: 0.62, green: 0.85, blue: 1.0, alpha: 1)
         guard frame.width > 0, frame.height > 0 else { return }
-        setupScene()
+        clearAndRebuild()
     }
 
     /// Called when the scene is resized — fires with the correct frame after
@@ -115,13 +115,17 @@ final class MainStallScene: SKScene {
     override func didChangeSize(_ oldSize: CGSize) {
         super.didChangeSize(oldSize)
         guard frame.width > 0, frame.height > 0, oldSize != size else { return }
+        clearAndRebuild()
+    }
+
+    private func clearAndRebuild() {
         removeAllChildren()
         coinBubbles.removeAll()
         farmPlotNodes.removeAll()
-        addPlotCell    = nil
+        addPlotCell        = nil
         menuCookSlots.removeAll()
-        warehouseNode  = nil
-        cashierEmojiNode  = nil
+        warehouseNode      = nil
+        cashierEmojiNode   = nil
         cashierWarningNode = nil
         lastStallTier      = -1
         lastCookMenuTier   = -1
@@ -130,15 +134,10 @@ final class MainStallScene: SKScene {
         lastCashierCount   = -1
         lastCashierTier    = -1
         lastCashierEnergy  = -1.0
-        lastFarmUpgradeTier = -1
+        lastFarmUpgradeTier  = -1
         lastAvailableWorkers = -1
         lastShopName       = ""
         lastPendingCoins   = 0
-        setupScene()
-        updateSignLabel()
-    }
-
-    private func setupScene() {
         setupBackground()
         setupFarm()
         setupFence()
@@ -147,6 +146,7 @@ final class MainStallScene: SKScene {
         setupCookSlots()
         setupCashier()
         setupHUD()
+        updateSignLabel()
     }
 
     // MARK: - Background
