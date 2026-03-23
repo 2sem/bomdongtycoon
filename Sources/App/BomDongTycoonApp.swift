@@ -24,9 +24,10 @@ struct BomDongTycoonApp: App {
             .onChange(of: isSplashDone) { _, done in
                 guard done, pendingOfflineCalc else { return }
                 pendingOfflineCalc = false
+                let bgTime = store.progress.lastActiveDate
                 print("[App] splash done → app open ad → calculateOfflineEarnings")
                 adManager.showAppOpen {
-                    store.calculateOfflineEarnings()
+                    store.calculateOfflineEarnings(since: bgTime)
                 }
             }
         }
@@ -47,8 +48,9 @@ struct BomDongTycoonApp: App {
                 print("[App] bg→fg → app open ad → calculateOfflineEarnings")
                 isFromBackground = false
                 pendingOfflineCalc = false
+                let bgTime = store.progress.lastActiveDate
                 adManager.showAppOpen {
-                    store.calculateOfflineEarnings()
+                    store.calculateOfflineEarnings(since: bgTime)
                 }
             } else {
                 print("[App] .active but skipped (isLaunched=\(isLaunched), isFromBackground=\(isFromBackground))")

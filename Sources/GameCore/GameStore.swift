@@ -523,9 +523,11 @@ public final class GameStore: ObservableObject {
     // MARK: - Offline
 
     /// Calculate offline earnings (cold start or bg→fg). Does NOT add coins or change lastActiveDate.
-    public func calculateOfflineEarnings() {
+    /// Pass `since` to pin the reference timestamp before any ad is shown — otherwise the tick loop
+    /// can overwrite lastActiveDate while the App Open ad plays, making elapsed appear near-zero.
+    public func calculateOfflineEarnings(since overrideDate: Date? = nil) {
         let cps = offlineCPS()
-        guard let lastActive = progress.lastActiveDate else {
+        guard let lastActive = overrideDate ?? progress.lastActiveDate else {
             print("[Offline] first launch — seeding lastActiveDate")
             progress.lastActiveDate = Date()
             save()
