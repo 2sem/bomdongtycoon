@@ -105,6 +105,11 @@ private struct UpgradeRowView: View {
                         .font(.caption2)
                         .foregroundStyle(.green)
                 }
+                if let unlocks = upgrade.unlocks {
+                    Text("🔓 \(unlocks)")
+                        .font(.caption2)
+                        .foregroundStyle(.blue)
+                }
             }
             Spacer()
             trailingView

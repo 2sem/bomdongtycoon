@@ -27,6 +27,8 @@ public struct UpgradeDefinition {
     public let priceMultiplier: Double
     /// Maximum stock capacity (stall upgrades only; 0 = not applicable)
     public let maxStock: Int
+    /// Staff or features unlocked by purchasing this upgrade
+    public let unlocks: String?
 
     public init(
         name: String,
@@ -34,7 +36,8 @@ public struct UpgradeDefinition {
         description: String,
         productionMultiplier: Double = 1.0,
         priceMultiplier: Double = 1.0,
-        maxStock: Int = 0
+        maxStock: Int = 0,
+        unlocks: String? = nil
     ) {
         self.name = name
         self.coinCost = coinCost
@@ -42,6 +45,7 @@ public struct UpgradeDefinition {
         self.productionMultiplier = productionMultiplier
         self.priceMultiplier = priceMultiplier
         self.maxStock = maxStock
+        self.unlocks = unlocks
     }
 
     /// Human-readable effect summary for the upgrade sheet
@@ -79,8 +83,8 @@ public enum UpgradeDefinitions {
     /// Stall upgrades — increase maximum stock capacity
     public static let stall: [UpgradeDefinition] = [
         .init(name: "포장마차",    coinCost: 0,      description: "시작 가게", maxStock: 15),
-        .init(name: "봄동 식당",    coinCost: 5_000,  description: "업그레이드", maxStock: 30),
-        .init(name: "봄동 전문점", coinCost: 25_000, description: "최고급",    maxStock: 60)
+        .init(name: "봄동 식당",    coinCost: 5_000,  description: "재고 30개", maxStock: 30, unlocks: "이모님 · 농부 고용 가능"),
+        .init(name: "봄동 전문점", coinCost: 25_000, description: "재고 60개", maxStock: 60, unlocks: "봄동 요리사 고용 가능")
     ]
 
     /// Farmer staff — farm-only, 2× growth speed
