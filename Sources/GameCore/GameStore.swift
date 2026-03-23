@@ -224,9 +224,10 @@ public final class GameStore: ObservableObject {
             earningWindowTime += deltaTime
             activitySaveTimer += deltaTime
             if activitySaveTimer >= 5 {
-                if earningWindowTime > 0 {
+                if earningWindowTime > 0, earningWindowCoins > 0 {
                     let sample = earningWindowCoins / earningWindowTime
                     // Exponential moving average: weight new sample at 30%
+                    // Only update when coins were actually earned — idle windows must not decay the rate
                     progress.earningRate = progress.earningRate == 0
                         ? sample
                         : progress.earningRate * 0.7 + sample * 0.3
