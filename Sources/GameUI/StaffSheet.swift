@@ -99,6 +99,7 @@ public struct StaffSheet: View {
                             cashierCount: store.stall.cashierCount,
                             activeFarmPlots: FarmSystem.activePlotCount(for: store.farm),
                             farmPlots: store.farm.plots,
+                            farmWorkerTier: store.stall.farmWorkerTier,
                             onReassign: { reassign(worker: worker, to: $0) }
                         )
                         .swipeActions(edge: .leading, allowsFullSwipe: false) {
@@ -324,6 +325,7 @@ private struct WorkerRow: View {
     let cashierCount: Int;
     let activeFarmPlots: Int;
     let farmPlots: [FarmPlot];
+    let farmWorkerTier: Int;
     let onReassign: (WorkerItem.Assignment) -> Void;
 
     private static let name  = ["", "알바생", "이모님", "봄동 요리사"];
@@ -396,7 +398,10 @@ private struct WorkerRow: View {
             .animation(.spring(duration: 0.25), value: worker.energy < 0.05)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(Self.name[worker.tier]).font(.headline)
+                Text(worker.assignment == .farm
+                    ? (UpgradeDefinitions.farmWorker[safe: farmWorkerTier]?.name ?? "알바생")
+                    : Self.name[worker.tier]
+                ).font(.headline)
                 Text(assignmentLabel(worker.assignment, energy: worker.energy))
                     .font(.caption)
                     .foregroundStyle(.secondary)
