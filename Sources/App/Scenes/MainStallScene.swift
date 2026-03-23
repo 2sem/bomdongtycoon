@@ -106,6 +106,38 @@ final class MainStallScene: SKScene {
 
     override func didMove(to view: SKView) {
         backgroundColor = SKColor(red: 0.62, green: 0.85, blue: 1.0, alpha: 1)
+        guard frame.width > 0, frame.height > 0 else { return }
+        clearAndRebuild()
+    }
+
+    /// Called when the scene is resized — fires with the correct frame after
+    /// SwiftUI's layout pass settles, catching any stale frame from didMove.
+    override func didChangeSize(_ oldSize: CGSize) {
+        super.didChangeSize(oldSize)
+        guard frame.width > 0, frame.height > 0, oldSize != size else { return }
+        clearAndRebuild()
+    }
+
+    private func clearAndRebuild() {
+        removeAllChildren()
+        coinBubbles.removeAll()
+        farmPlotNodes.removeAll()
+        addPlotCell        = nil
+        menuCookSlots.removeAll()
+        warehouseNode      = nil
+        cashierEmojiNode   = nil
+        cashierWarningNode = nil
+        lastStallTier      = -1
+        lastCookMenuTier   = -1
+        lastWarehouse      = -1
+        lastWarehouseCapacity = -1
+        lastCashierCount   = -1
+        lastCashierTier    = -1
+        lastCashierEnergy  = -1.0
+        lastFarmUpgradeTier  = -1
+        lastAvailableWorkers = -1
+        lastShopName       = ""
+        lastPendingCoins   = 0
         setupBackground()
         setupFarm()
         setupFence()
@@ -114,6 +146,7 @@ final class MainStallScene: SKScene {
         setupCookSlots()
         setupCashier()
         setupHUD()
+        updateSignLabel()
     }
 
     // MARK: - Background
@@ -271,6 +304,11 @@ final class MainStallScene: SKScene {
         } else {
             addPlotCell?.isHidden = true
         }
+
+        // Center the visible cells: shift farmNode so the active columns are centered.
+        let totalVisible = activePlots + (nextCost != nil ? 1 : 0)
+        let visibleCols  = min(max(totalVisible, 1), Self.farmCols)
+        farmNode.position.x = frame.midX - Self.farmOriginX - CGFloat(visibleCols - 1) * Self.farmSpacingX / 2
     }
 
     // MARK: - Fence
