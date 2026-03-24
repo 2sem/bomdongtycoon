@@ -61,7 +61,7 @@ public struct JobSheet: View {
     private var cashierSection: some View {
         Section {
             CashierSlotRow(
-                workers: allWorkers.filter { $0.tier <= 2 },
+                workers: allWorkers.filter { $0.tier <= 2 || $0.tier == 5 },
                 onAssign: { assignCashier(workerID: $0) }
             )
             .environmentObject(store)
@@ -136,12 +136,12 @@ public struct JobSheet: View {
 
         // Tier 1 (알바생): menus → farm → cashier → unassigned
         var t1 = menuSlots(for: 1);
-        var farmWorkers = store.farm.plots.filter { $0.hasWorker }.count;
+        var albaFarmWorkers = store.farm.plots.filter { $0.workerType == .alba }.count;
         var tier1Idx = 0;
         for _ in 0..<store.stall.tier1Count {
             let a: JobAssignment;
             if !t1.isEmpty                                                  { a = .menu(t1.removeFirst()) }
-            else if farmWorkers > 0                                         { farmWorkers -= 1; a = .farm }
+            else if albaFarmWorkers > 0                                     { albaFarmWorkers -= 1; a = .farm }
             else if remainingCashiers > 0 && store.stall.cashierTier == 1  { remainingCashiers -= 1; a = .cashier }
             else                                                            { a = .unassigned }
             let e: Double;
@@ -155,6 +155,26 @@ public struct JobSheet: View {
             }
             items.append(JobWorkerItem(id: idCounter, indexInTier: tier1Idx, tier: 1, assignment: a, energy: e));
             idCounter += 1; tier1Idx += 1;
+        }
+
+        // Tier 5 (고참 알바): farm → cashier → unassigned
+        let vetPlotsOnFarm = store.farm.plots.filter { $0.workerType == .veteranAlba };
+        var vetIdx = 0; var vetIdleIdx = 0;
+        for _ in 0..<store.stall.veteranAlbaCount {
+            let a: JobAssignment;
+            if vetIdx < vetPlotsOnFarm.count                                { a = .farm }
+            else if remainingCashiers > 0 && store.stall.cashierTier == 5  { remainingCashiers -= 1; a = .cashier }
+            else                                                            { a = .unassigned }
+            let e: Double;
+            switch a {
+            case .farm:    e = vetPlotsOnFarm[vetIdx].workerEnergy
+            case .cashier: e = store.stall.cashierEnergy
+            default:
+                e = store.stall.veteranAlbaIdleEnergies[safe: vetIdleIdx] ?? 1.0;
+                vetIdleIdx += 1;
+            }
+            items.append(JobWorkerItem(id: idCounter, indexInTier: vetIdx, tier: 5, assignment: a, energy: e));
+            idCounter += 1; vetIdx += 1;
         }
 
         return items;
@@ -205,8 +225,9 @@ public struct JobSheet: View {
         case .cashier:
             store.removeFromCashier(addToIdle: true)
         case .farm:
-            if let idx = store.farm.plots.firstIndex(where: { $0.hasWorker }) {
-                store.toggleWorker(plotIndex: idx, addToIdle: true)
+            let wt: FarmWorkerType = worker.tier == 5 ? .veteranAlba : .alba
+            if let idx = store.farm.plots.firstIndex(where: { $0.workerType == wt }) {
+                store.toggleFarmWorker(plotIndex: idx, workerType: wt, addToIdle: true)
             }
         case .unassigned:
             break

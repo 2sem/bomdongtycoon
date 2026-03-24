@@ -280,15 +280,23 @@ public struct StaffSheet: View {
             idCounter += 1; farmerIdx += 1
         }
 
-        // Veteran albas (tier 5, farm-only)
+        // Veteran albas (tier 5): farm → cashier → unassigned
         let vetPlotsOnFarm = store.farm.plots.filter { $0.workerType == .veteranAlba }
-        var vetIdx = 0
+        var vetIdx = 0; var vetIdleIdx = 0
+        var remainingVetCashiers = (store.stall.cashierTier == 5) ? store.stall.cashierCount : 0
         for _ in 0..<store.stall.veteranAlbaCount {
-            let isOnFarm = vetIdx < vetPlotsOnFarm.count
-            let a: WorkerItem.Assignment = isOnFarm ? .farm : .unassigned
-            let e: Double = isOnFarm
-                ? vetPlotsOnFarm[vetIdx].workerEnergy
-                : (store.stall.veteranAlbaIdleEnergies[safe: vetIdx - vetPlotsOnFarm.count] ?? 1.0)
+            let a: WorkerItem.Assignment
+            if vetIdx < vetPlotsOnFarm.count                  { a = .farm }
+            else if remainingVetCashiers > 0                  { remainingVetCashiers -= 1; a = .cashier }
+            else                                              { a = .unassigned }
+            let e: Double
+            switch a {
+            case .farm:    e = vetPlotsOnFarm[vetIdx].workerEnergy
+            case .cashier: e = store.stall.cashierEnergy
+            default:
+                e = store.stall.veteranAlbaIdleEnergies[safe: vetIdleIdx] ?? 1.0
+                vetIdleIdx += 1
+            }
             items.append(WorkerItem(id: idCounter, indexInTier: vetIdx, tier: 5, assignment: a, energy: e))
             idCounter += 1; vetIdx += 1
         }
