@@ -1,10 +1,16 @@
 import SwiftUI
 import GameCore
+import FirebaseCore
+import FirebaseMessaging
 
 @main
 struct BomDongTycoonApp: App {
     @StateObject private var store = GameStore()
     @StateObject private var adManager = SwiftUIAdManager()
+
+    init() {
+        FirebaseApp.configure()
+    }
     @Environment(\.scenePhase) private var scenePhase
     @State private var isSplashDone = false
     @State private var isLaunched = false
