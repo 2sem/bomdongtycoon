@@ -63,7 +63,8 @@ let project = Project(
             dependencies: [
                 .target(name: "GameCore"),
                 .target(name: "GameUI"),
-                .external(name: "GoogleMobileAds")
+                .external(name: "GoogleMobileAds"),
+                .external(name: "FirebaseMessaging")
             ],
             settings: .settings(base: ["OTHER_LDFLAGS": "$(inherited) -ObjC"])
         )
