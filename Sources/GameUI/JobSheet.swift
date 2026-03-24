@@ -325,13 +325,13 @@ private struct MenuSlotRow: View {
     }
 
     private var eligibleWorkers: [JobWorkerItem] {
-        workers.filter { $0.assignment == .menu(menuIndex) || $0.assignment == .unassigned }
+        workers.filter { ($0.assignment == .menu(menuIndex) || $0.assignment == .unassigned) && $0.tier != 5 }
     }
 
     private func workerLabel(_ worker: JobWorkerItem) -> String { workerName(worker) }
 
     private func workerName(_ worker: JobWorkerItem) -> String {
-        let names = ["", "알바생", "이모님", "봄동 요리사"]
+        let names = ["", "알바생", "이모님", "봄동 요리사", "", "고참 알바"]
         return "\(names[safe: worker.tier] ?? "직원") #\(worker.indexInTier + 1)"
     }
 
@@ -438,7 +438,7 @@ private struct CashierSlotRow: View {
     private func workerLabel(_ worker: JobWorkerItem) -> String { workerName(worker) }
 
     private func workerName(_ worker: JobWorkerItem) -> String {
-        let names = ["", "알바생", "이모님", "봄동 요리사"]
+        let names = ["", "알바생", "이모님", "봄동 요리사", "", "고참 알바"]
         return "\(names[safe: worker.tier] ?? "직원") #\(worker.indexInTier + 1)"
     }
 
