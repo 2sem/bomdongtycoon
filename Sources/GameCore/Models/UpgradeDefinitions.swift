@@ -94,7 +94,7 @@ public enum UpgradeDefinitions {
 
     /// Veteran alba staff — farm-only, 1.4× growth speed
     public static let veteranAlba: [UpgradeDefinition] = [
-        .init(name: "고참 알바", coinCost: 800, description: "경험 많은 알바생", productionMultiplier: 1.4)
+        .init(name: "고참 알바", coinCost: 800, description: "농장·계산대 배치 가능", productionMultiplier: 1.4)
     ]
 
     /// Farm worker training — legacy, kept for backward compat
