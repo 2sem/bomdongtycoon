@@ -304,10 +304,7 @@ private struct MenuSlotRow: View {
     }
 
     private var eligibleWorkers: [JobWorkerItem] {
-        let base = menuIndex == 2
-            ? workers.filter { $0.tier == 3 }
-            : workers
-        return base.filter { $0.assignment == .menu(menuIndex) || $0.assignment == .unassigned }
+        workers.filter { $0.assignment == .menu(menuIndex) || $0.assignment == .unassigned }
     }
 
     private func workerLabel(_ worker: JobWorkerItem) -> String { workerName(worker) }
