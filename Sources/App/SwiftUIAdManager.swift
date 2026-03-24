@@ -21,6 +21,8 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     private var isShowingAd = false
     private var isLoadingRewarded = false
     private var isLoadingAppOpen = false
+    @Published private(set) var isAppOpenReady = false
+    @Published private(set) var isRewardedReady = false
     private var pendingRewardCompletion: ((Bool) -> Void)?
     private var pendingAppOpenCompletion: (() -> Void)?
     private var lastAppOpenShownDate: Date?
@@ -49,6 +51,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
             print("[RewardAd] preloaded ✓")
             self?.rewardedAd = ad
             self?.rewardedAd?.fullScreenContentDelegate = self
+            self?.isRewardedReady = true
         }
     }
 
@@ -62,6 +65,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
             print("[AppOpenAd] preloaded ✓")
             self?.appOpenAd = ad
             self?.appOpenAd?.fullScreenContentDelegate = self
+            self?.isAppOpenReady = true
         }
     }
 
@@ -90,6 +94,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
         print("[AppOpenAd] presenting...")
         isShowingAd = true
         appOpenAd = nil
+        isAppOpenReady = false
         lastAppOpenShownDate = Date()
         pendingAppOpenCompletion = completion
         ad.present(fromRootViewController: rootVC)
@@ -98,8 +103,24 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     // MARK: - Show Rewarded
 
     /// Show the rewarded ad. Calls `completion(true)` if reward earned, `completion(false)` if skipped/failed.
+    /// If the ad is still loading, waits up to 5s before giving up.
     func showRewarded(completion: @escaping (Bool) -> Void) {
         guard !isShowingAd else { completion(false); return }
+        if rewardedAd == nil && isLoadingRewarded {
+            print("[RewardAd] loading in progress — waiting up to 5s")
+            Task { @MainActor [weak self] in
+                let deadline = Date().addingTimeInterval(5)
+                while let self, self.rewardedAd == nil && Date() < deadline {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
+                self?.presentRewarded(completion: completion)
+            }
+            return
+        }
+        presentRewarded(completion: completion)
+    }
+
+    private func presentRewarded(completion: @escaping (Bool) -> Void) {
         guard let ad = rewardedAd else {
             print("[RewardAd] no ad ready — skipping bonus")
             completion(false)
@@ -114,6 +135,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
         print("[RewardAd] presenting...")
         isShowingAd = true
         rewardedAd = nil
+        isRewardedReady = false
         pendingRewardCompletion = completion
         ad.present(fromRootViewController: rootVC) { [weak self] in
             print("[RewardAd] reward earned ✓")
