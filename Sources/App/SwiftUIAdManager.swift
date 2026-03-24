@@ -21,6 +21,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     private var isShowingAd = false
     private var isLoadingRewarded = false
     private var isLoadingAppOpen = false
+    @Published private(set) var isAppOpenReady = false
     private var pendingRewardCompletion: ((Bool) -> Void)?
     private var pendingAppOpenCompletion: (() -> Void)?
     private var lastAppOpenShownDate: Date?
@@ -62,6 +63,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
             print("[AppOpenAd] preloaded ✓")
             self?.appOpenAd = ad
             self?.appOpenAd?.fullScreenContentDelegate = self
+            self?.isAppOpenReady = true
         }
     }
 
@@ -90,6 +92,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
         print("[AppOpenAd] presenting...")
         isShowingAd = true
         appOpenAd = nil
+        isAppOpenReady = false
         lastAppOpenShownDate = Date()
         pendingAppOpenCompletion = completion
         ad.present(fromRootViewController: rootVC)

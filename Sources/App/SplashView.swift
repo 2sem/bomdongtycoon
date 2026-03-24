@@ -27,10 +27,14 @@ struct SplashView: View {
 
     private func setup() {
         NotificationManager.requestPermission()
-        GADMobileAds.sharedInstance().start { status in
+        GADMobileAds.sharedInstance().start { [self] status in
             print("[AdMob] SDK started — adapters: \(status.adapterStatusesByClassName.count)")
             adManager.preload()
-            DispatchQueue.main.async {
+            Task { @MainActor in
+                let deadline = Date().addingTimeInterval(3)
+                while !adManager.isAppOpenReady && Date() < deadline {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
                 withAnimation(.easeOut(duration: 0.3)) {
                     isDone = true
                 }
