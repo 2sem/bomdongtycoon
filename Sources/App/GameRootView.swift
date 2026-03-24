@@ -27,11 +27,10 @@ struct GameRootView: View {
         .safeAreaInset(edge: .top) {
             HStack(alignment: .center) {
                 CoinBadge()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                RatingBadge()
+                Spacer()
                 GoalProgressBar(showUpgrades: $showUpgrades)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
+            .overlay { RatingBadge() }
             .padding(.horizontal, 12)
             .padding(.top, 4)
         }
