@@ -20,3 +20,4 @@ ProjectDescriptionHelpers/
 # Claude / agent session files
 .agents/
 .claude/
+.firebase/
