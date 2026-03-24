@@ -27,8 +27,10 @@ public final class GameStore: ObservableObject {
     private var earningWindowTime: Double = 0            // time elapsed in current window
 
     // MARK: - Energy constants
-    private static let energyDepletionRate: Double = 1.0 / 180.0;  // empties in 3 min
-    private static let energyRestoreRate:   Double = 1.0 / 90.0;   // full in 1.5 min
+    private static let energyRestoreRate:      Double = 1.0 / 90.0    // full in 1.5 min (when idle)
+    private static let energyPerCook:          Double = 1.0 / 300.0   // 300 items per full bar
+    private static let energyPerCashierCollect: Double = 1.0 / 60.0   // 60 collections per full bar
+    private static let energyPerHarvest:       Double = 1.0 / 8.0     // 8 harvests per full bar
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -144,23 +146,23 @@ public final class GameStore: ObservableObject {
             stall.veteranAlbaIdleEnergies[i] = min(1, stall.veteranAlbaIdleEnergies[i] + Self.energyRestoreRate * deltaTime)
         }
         for i in 0..<stall.menuCookEnergy.count {
-            if i < stall.menuCooks.count, stall.menuCooks[i] > 0 {
-                stall.menuCookEnergy[i] = max(0, stall.menuCookEnergy[i] - Self.energyDepletionRate * deltaTime);
-            } else {
-                stall.menuCookEnergy[i] = min(1, stall.menuCookEnergy[i] + Self.energyRestoreRate * deltaTime);
+            // Restore when unassigned OR warehouse empty (no work to do)
+            // Depletion happens per item cooked (see auto-cook loop below)
+            let isWorking = i < stall.menuCooks.count && stall.menuCooks[i] > 0 && stall.warehouse > 0
+            if !isWorking {
+                stall.menuCookEnergy[i] = min(1, stall.menuCookEnergy[i] + Self.energyRestoreRate * deltaTime)
             }
         }
-        if stall.cashierCount > 0 {
-            stall.cashierEnergy = max(0, stall.cashierEnergy - Self.energyDepletionRate * deltaTime);
-        } else {
-            stall.cashierEnergy = min(1, stall.cashierEnergy + Self.energyRestoreRate * deltaTime);
+        // Cashier restore when no pending coins; depletion per collection (see cashier loop below)
+        if stall.cashierCount == 0 || stall.pendingCoins == 0 {
+            stall.cashierEnergy = min(1, stall.cashierEnergy + Self.energyRestoreRate * deltaTime)
         }
         for i in 0..<farm.plots.count {
-            if farm.plots[i].hasWorker {
-                farm.plots[i].workerEnergy = max(0, farm.plots[i].workerEnergy - Self.energyDepletionRate * deltaTime);
-            } else {
-                farm.plots[i].workerEnergy = min(1, farm.plots[i].workerEnergy + Self.energyRestoreRate * deltaTime);
+            if !farm.plots[i].hasWorker || !farm.plots[i].isPlanted || !farm.plots[i].isReady {
+                // Restore when unassigned OR waiting for crop to grow
+                farm.plots[i].workerEnergy = min(1, farm.plots[i].workerEnergy + Self.energyRestoreRate * deltaTime)
             }
+            // Depletion happens per harvest (see auto-harvest loop below)
         }
 
         // Grow planted plots
@@ -183,6 +185,7 @@ public final class GameStore: ObservableObject {
                 stall.warehouse += FarmSystem.harvestYield
                 farm.plots[i].growth   = 0
                 farm.plots[i].isPlanted = false
+                farm.plots[i].workerEnergy = max(0, farm.plots[i].workerEnergy - Self.energyPerHarvest)
             }
             if !farm.plots[i].isPlanted, stall.coins >= FarmSystem.seedCost {
                 stall.coins -= FarmSystem.seedCost
@@ -204,6 +207,7 @@ public final class GameStore: ObservableObject {
                 cookAccumulators[i] -= 1.0
                 stall.warehouse    -= 1
                 stall.menuStock[i] += 1
+                stall.menuCookEnergy[i] = max(0, stall.menuCookEnergy[i] - Self.energyPerCook)
             }
         }
 
@@ -213,6 +217,7 @@ public final class GameStore: ObservableObject {
             if cashierAccumulator >= 1.0 {
                 cashierAccumulator = 0
                 collectCoins()
+                stall.cashierEnergy = max(0, stall.cashierEnergy - Self.energyPerCashierCollect)
             }
         }
 
