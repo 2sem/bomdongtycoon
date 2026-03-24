@@ -65,7 +65,11 @@ let project = Project(
                 .target(name: "GameUI"),
                 .external(name: "GoogleMobileAds")
             ],
-            settings: .settings(base: ["OTHER_LDFLAGS": "$(inherited) -ObjC"])
+            settings: .settings(base: [
+                "OTHER_LDFLAGS": "$(inherited) -ObjC",
+                "MARKETING_VERSION": "1.0.0",
+                "CURRENT_PROJECT_VERSION": "1"
+            ])
         )
     ],
     schemes: [
