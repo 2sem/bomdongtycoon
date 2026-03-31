@@ -14,7 +14,7 @@ struct SplashView: View {
 
             VStack {
                 Spacer()
-                Text("봄동 타이쿤")
+                Text(String(localized: "봄동 타이쿤"))
                     .font(.system(size: 36, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.6), radius: 4, x: 0, y: 2)

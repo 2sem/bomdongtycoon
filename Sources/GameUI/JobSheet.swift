@@ -18,11 +18,11 @@ public struct JobSheet: View {
                 cashierSection
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("배치 관리")
+            .navigationTitle(String(localized: "배치 관리"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("닫기") { isPresented = false }
+                    Button(String(localized: "닫기")) { isPresented = false }
                 }
             }
         }
@@ -45,14 +45,14 @@ public struct JobSheet: View {
                 }
             }
             if allWorkers.isEmpty {
-                Text("고용 탭에서 직원을 채용하면 여기서 배치할 수 있어요")
+                Text(String(localized: "고용 탭에서 직원을 채용하면 여기서 배치할 수 있어요"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 8)
             }
         } header: {
-            Text("🍳 주방").foregroundStyle(Color.jobAmber)
+            Text(String(localized: "🍳 주방")).foregroundStyle(Color.jobAmber)
         }
     }
 
@@ -66,7 +66,7 @@ public struct JobSheet: View {
             )
             .environmentObject(store)
         } header: {
-            Text("💰 계산대").foregroundStyle(Color.jobAmber)
+            Text(String(localized: "💰 계산대")).foregroundStyle(Color.jobAmber)
         }
     }
 
@@ -266,8 +266,8 @@ private struct MenuSlotRow: View {
 
             // Name + energy
             VStack(alignment: .leading, spacing: 4) {
-                Text(def?.name ?? "메뉴 \(menuIndex + 1)").font(.headline)
-                Text("메뉴 \(menuIndex + 1)").font(.caption).foregroundStyle(.secondary)
+                Text(def?.name ?? String(format: String(localized: "menu_slot_number"), menuIndex + 1)).font(.headline)
+                Text(String(format: String(localized: "menu_slot_number"), menuIndex + 1)).font(.caption).foregroundStyle(.secondary)
                 if assignedWorker != nil {
                     energyBar(energy)
                 }
@@ -288,9 +288,9 @@ private struct MenuSlotRow: View {
                 onAssign(nil)
             } label: {
                 if assignedWorker == nil {
-                    Label("비어있음", systemImage: "checkmark")
+                    Label(String(localized: "비어있음"), systemImage: "checkmark")
                 } else {
-                    Text("비어있음")
+                    Text(String(localized: "비어있음"))
                 }
             }
 
@@ -320,7 +320,7 @@ private struct MenuSlotRow: View {
     }
 
     private var pickerLabel: String {
-        guard let w = assignedWorker else { return "비어있음" }
+        guard let w = assignedWorker else { return String(localized: "비어있음") }
         return workerName(w)
     }
 
@@ -379,8 +379,8 @@ private struct CashierSlotRow: View {
                 }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("계산대").font(.headline)
-                Text("판매 자동 처리").font(.caption).foregroundStyle(.secondary)
+                Text(String(localized: "계산대")).font(.headline)
+                Text(String(localized: "판매 자동 처리")).font(.caption).foregroundStyle(.secondary)
                 if assignedWorker != nil {
                     energyBar(energy)
                 }
@@ -399,9 +399,9 @@ private struct CashierSlotRow: View {
                 onAssign(nil)
             } label: {
                 if assignedWorker == nil {
-                    Label("비어있음", systemImage: "checkmark")
+                    Label(String(localized: "비어있음"), systemImage: "checkmark")
                 } else {
-                    Text("비어있음")
+                    Text(String(localized: "비어있음"))
                 }
             }
 
@@ -431,7 +431,7 @@ private struct CashierSlotRow: View {
     }
 
     private var pickerLabel: String {
-        guard let w = assignedWorker else { return "비어있음" }
+        guard let w = assignedWorker else { return String(localized: "비어있음") }
         return workerName(w)
     }
 
@@ -488,7 +488,7 @@ private struct LockedMenuRow: View {
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(def?.name ?? "메뉴 \(menuIndex + 1)")
+                Text(def?.name ?? String(format: String(localized: "menu_slot_number"), menuIndex + 1))
                     .font(.headline)
                     .foregroundStyle(.secondary)
                 Text(unlockHint)
@@ -497,7 +497,7 @@ private struct LockedMenuRow: View {
             }
 
             Spacer()
-            Text("잠김").font(.caption).foregroundStyle(.tertiary)
+            Text(String(localized: "잠김")).font(.caption).foregroundStyle(.tertiary)
         }
         .padding(.vertical, 2)
     }

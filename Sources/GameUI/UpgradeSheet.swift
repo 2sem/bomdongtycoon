@@ -25,11 +25,11 @@ public struct UpgradeSheet: View {
                     currentTier: store.stall.stallTier + 1
                 )
             }
-            .navigationTitle("업그레이드")
+            .navigationTitle(String(localized: "업그레이드"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("닫기") { isPresented = false }
+                    Button(String(localized: "닫기")) { isPresented = false }
                 }
             }
         }

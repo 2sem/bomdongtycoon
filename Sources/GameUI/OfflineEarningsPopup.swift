@@ -29,9 +29,9 @@ public struct OfflineEarningsPopup: View {
         ZStack {
             Color.black.opacity(0.55).ignoresSafeArea()
             VStack(spacing: 20) {
-                Text("🥬 돌아오셨군요!")
+                Text(String(localized: "🥬 돌아오셨군요!"))
                     .font(.title2.bold())
-                Text("가게를 비운 동안 번 돈:")
+                Text(String(localized: "가게를 비운 동안 번 돈:"))
                     .foregroundStyle(.secondary)
                 Text(formattedEarnings(store.offlineEarnings))
                     .font(.system(size: 48, weight: .bold))
@@ -52,7 +52,7 @@ public struct OfflineEarningsPopup: View {
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
 
-                Button("그냥 받기") {
+                Button(String(localized: "그냥 받기")) {
                     store.collectOfflineEarnings(multiplier: 1.0)
                 }
                 .foregroundStyle(.secondary)
