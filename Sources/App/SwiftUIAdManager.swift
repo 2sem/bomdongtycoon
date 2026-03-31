@@ -1,5 +1,7 @@
 import GoogleMobileAds
+import AppTrackingTransparency
 import UIKit
+import GameCore
 
 @MainActor
 final class SwiftUIAdManager: NSObject, ObservableObject {
@@ -26,6 +28,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     private var pendingRewardCompletion: ((Bool) -> Void)?
     private var pendingAppOpenCompletion: (() -> Void)?
     private var lastAppOpenShownDate: Date?
+    private let attPromptShownKey = "ads.attPromptShownForRewarded"
 
     /// Minimum seconds between App Open ad impressions
     #if DEBUG
@@ -106,6 +109,17 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     /// If the ad is still loading, waits up to 5s before giving up.
     func showRewarded(completion: @escaping (Bool) -> Void) {
         guard !isShowingAd else { completion(false); return }
+
+        requestTrackingAuthorizationIfNeeded { [weak self] in
+            guard let self else {
+                completion(false)
+                return
+            }
+            self.showRewardedAfterTrackingPrompt(completion: completion)
+        }
+    }
+
+    private func showRewardedAfterTrackingPrompt(completion: @escaping (Bool) -> Void) {
         if rewardedAd == nil {
             if !isLoadingRewarded {
                 print("[RewardAd] not ready and not loading — triggering fresh load")
@@ -124,6 +138,40 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
             return
         }
         presentRewarded(completion: completion)
+    }
+
+    private func requestTrackingAuthorizationIfNeeded(completion: @escaping () -> Void) {
+        let hasRequestedBefore = UserDefaults.standard.bool(forKey: attPromptShownKey)
+        guard TrackingAuthorizationPolicy.shouldRequestPrompt(
+            currentStatus: currentTrackingAuthorizationState(),
+            hasRequestedBefore: hasRequestedBefore
+        ) else {
+            completion()
+            return
+        }
+
+        UserDefaults.standard.set(true, forKey: attPromptShownKey)
+        print("[ATT] requesting authorization before first rewarded-ad flow")
+
+        ATTrackingManager.requestTrackingAuthorization { _ in
+            Task { @MainActor in
+                completion()
+            }
+        }
+    }
+
+    private func currentTrackingAuthorizationState() -> TrackingAuthorizationState {
+        guard #available(iOS 14, *) else {
+            return .unsupported
+        }
+
+        switch ATTrackingManager.trackingAuthorizationStatus {
+        case .notDetermined: return .notDetermined
+        case .restricted: return .restricted
+        case .denied: return .denied
+        case .authorized: return .authorized
+        @unknown default: return .unsupported
+        }
     }
 
     private func presentRewarded(completion: @escaping (Bool) -> Void) {

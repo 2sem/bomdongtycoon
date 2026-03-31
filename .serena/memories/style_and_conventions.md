@@ -1,0 +1,1 @@
+Codebase is Swift/Tuist-based. Naming follows Swift conventions (UpperCamelCase types, lowerCamelCase members). Project configuration is centralized in Project.swift using Tuist `ProjectDescription` APIs. Keep target separation clear: core logic in GameCore, UI concerns in GameUI, app integration in Sources/App.

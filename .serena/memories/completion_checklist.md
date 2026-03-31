@@ -1,0 +1,1 @@
+Before claiming completion: (1) run relevant xcodebuild build/test command(s), (2) confirm pass/fail evidence from logs, (3) report any unverified behavior that requires manual simulator interaction, (4) summarize risks/flaky areas clearly.
