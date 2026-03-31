@@ -106,14 +106,20 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     /// If the ad is still loading, waits up to 5s before giving up.
     func showRewarded(completion: @escaping (Bool) -> Void) {
         guard !isShowingAd else { completion(false); return }
-        if rewardedAd == nil && isLoadingRewarded {
-            print("[RewardAd] loading in progress — waiting up to 5s")
+        if rewardedAd == nil {
+            if !isLoadingRewarded {
+                print("[RewardAd] not ready and not loading — triggering fresh load")
+                preloadRewarded()
+            } else {
+                print("[RewardAd] loading in progress — waiting up to 5s")
+            }
             Task { @MainActor [weak self] in
                 let deadline = Date().addingTimeInterval(5)
                 while let self, self.rewardedAd == nil && Date() < deadline {
                     try? await Task.sleep(nanoseconds: 100_000_000)
                 }
-                self?.presentRewarded(completion: completion)
+                guard let self else { completion(false); return }
+                self.presentRewarded(completion: completion)
             }
             return
         }
