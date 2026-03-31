@@ -17,7 +17,7 @@ public struct GoalProgressBar: View {
                     Image(systemName: ready ? "checkmark.circle.fill" : "arrow.up.circle")
                         .foregroundStyle(ready ? .green : .primary)
                         .font(.caption)
-                    Text("업그레이드")
+                    Text(String(localized: "upgrade_button_label"))
                         .font(.caption.bold())
                     Image(systemName: "chevron.up")
                         .font(.caption2.bold())

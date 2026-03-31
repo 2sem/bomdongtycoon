@@ -14,9 +14,9 @@ public struct ShopNameOverlay: View {
             VStack(spacing: 20) {
                 Text("⛺")
                     .font(.system(size: 64))
-                Text("가게 이름을 정해주세요!")
+                Text(String(localized: "가게 이름을 정해주세요!"))
                     .font(.title2.bold())
-                Text("당신만의 봄동 가게를 만들어보세요 🥬")
+                Text(String(localized: "당신만의 봄동 가게를 만들어보세요 🥬"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -28,7 +28,7 @@ public struct ShopNameOverlay: View {
                     .padding()
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
 
-                Button("시작하기! 🥬") {
+                Button(String(localized: "시작하기! 🥬")) {
                     store.setShopName(name)
                 }
                 .font(.headline)

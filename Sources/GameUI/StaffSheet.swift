@@ -46,11 +46,11 @@ public struct StaffSheet: View {
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut(duration: 0.25), value: tab)
             }
-            .navigationTitle("직원 관리")
+            .navigationTitle(String(localized: "직원 관리"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("닫기") { isPresented = false }
+                    Button(String(localized: "닫기")) { isPresented = false }
                 }
             }
         }
@@ -60,8 +60,8 @@ public struct StaffSheet: View {
 
     private var tabBar: some View {
         HStack(spacing: 0) {
-            tabButton("직원", tag: 0)
-            tabButton("고용", tag: 1)
+            tabButton(String(localized: "직원"), tag: 0)
+            tabButton(String(localized: "고용"), tag: 1)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -81,7 +81,7 @@ public struct StaffSheet: View {
                             Image(systemName: "person.slash")
                                 .font(.system(size: 36))
                                 .foregroundStyle(.tertiary)
-                            Text("고용 탭에서 직원을 채용하세요")
+                            Text(String(localized: "고용 탭에서 직원을 채용하세요"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -116,7 +116,7 @@ public struct StaffSheet: View {
                         }
                     }
                 } header: {
-                    Text("직원 목록")
+                    Text(String(localized: "직원 목록"))
                 }
             }
         }
@@ -156,7 +156,7 @@ public struct StaffSheet: View {
                     }
                 )
             } header: {
-                Text("직원 고용").foregroundStyle(Color.staffAmber)
+                Text(String(localized: "직원 고용")).foregroundStyle(Color.staffAmber)
             }
         }
         .listStyle(.insetGrouped)
@@ -618,7 +618,7 @@ private struct HireTierRow: View {
                     .foregroundStyle(isUnlocked ? .primary : .secondary)
                 if isUnlocked {
                     Text(def.description).font(.caption).foregroundStyle(.secondary)
-                    Text("현재 \(count)명").font(.caption2).foregroundStyle(Color.staffAmber)
+                    Text(String(format: String(localized: "staff_current_count"), count)).font(.caption2).foregroundStyle(Color.staffAmber)
                 } else {
                     Text(unlockHint).font(.caption).foregroundStyle(.secondary)
                 }
@@ -628,7 +628,7 @@ private struct HireTierRow: View {
 
             if isUnlocked {
                 if isAtCap {
-                    Text("최대").font(.caption).foregroundStyle(.tertiary)
+                    Text(String(localized: "최대")).font(.caption).foregroundStyle(.tertiary)
                 } else {
                     Button {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -676,13 +676,13 @@ private struct HireFarmWorkerRow: View {
                     .foregroundStyle(isUnlocked ? .primary : .secondary)
                 if isUnlocked {
                     Text(def.description).font(.caption).foregroundStyle(.secondary)
-                    Text("🌱 ×\(String(format: "%.1f", def.productionMultiplier)) 성장 속도")
+                    Text(String(format: String(localized: "growth_speed_format"), String(format: "%.1f", def.productionMultiplier)))
                         .font(.caption2).foregroundStyle(.green)
                     if let hint = cashierHint {
                         Text(hint)
                             .font(.caption2).foregroundStyle(.blue)
                     }
-                    Text("현재 \(count)명").font(.caption2).foregroundStyle(Color.staffAmber)
+                    Text(String(format: String(localized: "staff_current_count"), count)).font(.caption2).foregroundStyle(Color.staffAmber)
                 } else {
                     Text(unlockHint).font(.caption).foregroundStyle(.secondary)
                 }
