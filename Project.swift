@@ -52,6 +52,8 @@ let project = Project(
             bundleId: "com.leesam.bomdongtycoon",
             deploymentTargets: .iOS("17.0"),
             infoPlist: .extendingDefault(with: [
+                "CFBundleShortVersionString": "$(MARKETING_VERSION)",
+                "CFBundleVersion": "$(CURRENT_PROJECT_VERSION)",
                 "UILaunchStoryboardName": "LaunchScreen",
                 "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
                 "NSUserNotificationUsageDescription": "봄동 가게 알림을 보내드려요 🥬",
@@ -69,7 +71,7 @@ let project = Project(
             ],
             settings: .settings(base: [
                 "OTHER_LDFLAGS": "$(inherited) -ObjC",
-                "MARKETING_VERSION": "1.0.0",
+                "MARKETING_VERSION": "1.0.1",
                 "CURRENT_PROJECT_VERSION": "1"
             ])
         )
