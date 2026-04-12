@@ -2,10 +2,10 @@ ENV["FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT"] = "120"
 
 platform :ios do
   def load_ios_configs
-    @app_bundle_id = ENV.fetch("PACKAGE_NAME", ENV.fetch("APP_BUNDLE_ID", "com.leesam.bomdongtycoon"))
+    @app_bundle_id = ENV["PACKAGE_NAME"] || ENV["APP_BUNDLE_ID"] || "com.leesam.bomdongtycoon"
     @app_project_path = ENV.fetch("APP_PROJECT_PATH", "./BomDongTycoon.xcodeproj")
     @app_target = ENV.fetch("APP_SCHEME", "BomDongTycoon")
-    @api_key_path = ENV.fetch("IOS_KEY_PATH", ENV.fetch("ASC_API_KEY_PATH", "./signing/app-store-connect-api-key.json"))
+    @api_key_path = ENV["IOS_KEY_PATH"] || ENV["ASC_API_KEY_PATH"] || "./signing/app-store-connect-api-key.json"
     @certificate_path = ENV["IOS_CERT_PATH"]
     @certificate_password = ENV["IOS_CERT_PWD"]
     @provisioning_profile_path = ENV["IOS_PROFILE_PATH"]
