@@ -1,0 +1,124 @@
+ENV["FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT"] = "120"
+
+platform :ios do
+  def load_ios_configs
+    @app_bundle_id = ENV["PACKAGE_NAME"] || ENV["APP_BUNDLE_ID"] || "com.leesam.bomdongtycoon"
+    @app_project_path = ENV.fetch("APP_PROJECT_PATH", "./BomDongTycoon.xcodeproj")
+    @app_target = ENV.fetch("APP_SCHEME", "BomDongTycoon")
+    @api_key_path = ENV["IOS_KEY_PATH"] || ENV["ASC_API_KEY_PATH"] || "./signing/app-store-connect-api-key.json"
+    @certificate_path = ENV["IOS_CERT_PATH"]
+    @certificate_password = ENV["IOS_CERT_PWD"]
+    @provisioning_profile_path = ENV["IOS_PROFILE_PATH"]
+    @keychain_name = ENV["IOS_KEYCHAIN"]
+    @keychain_password = ENV["IOS_KEYCHAIN_PWD"]
+    @team_id = ENV["APPLE_TEAM_ID"]
+    @profile_name = ENV["PROFILE_NAME"] || ENV["IOS_PROFILE_NAME"]
+    @ipa_path = ENV["IOS_IPA_PATH"]
+    @ipa_dir = ENV.fetch("IOS_IPA_DIR", "./Output/IPA")
+  end
+
+  def install_certificate
+    create_keychain(
+      name: @keychain_name,
+      password: @keychain_password,
+      default_keychain: true,
+      unlock: true,
+      timeout: 3600,
+      lock_when_sleeps: true
+    )
+
+    import_certificate(
+      certificate_path: @certificate_path,
+      certificate_password: @certificate_password,
+      keychain_name: @keychain_name,
+      keychain_password: @keychain_password
+    )
+  end
+
+  def configure_signing
+    UI.user_error!("Missing IOS_CERT_PATH") unless @certificate_path
+    UI.user_error!("Missing IOS_CERT_PWD") unless @certificate_password
+    UI.user_error!("Missing IOS_PROFILE_PATH") unless @provisioning_profile_path
+    UI.user_error!("Missing IOS_KEYCHAIN") unless @keychain_name
+    UI.user_error!("Missing IOS_KEYCHAIN_PWD") unless @keychain_password
+    UI.user_error!("Missing APPLE_TEAM_ID") unless @team_id
+    UI.user_error!("Missing IOS_PROFILE_NAME") unless @profile_name
+
+    install_certificate
+
+    install_provisioning_profile(
+      path: @provisioning_profile_path
+    )
+
+    update_code_signing_settings(
+      use_automatic_signing: false,
+      path: @app_project_path,
+      team_id: @team_id,
+      code_sign_identity: "Apple Distribution",
+      profile_name: @profile_name,
+      targets: [@app_target]
+    )
+  end
+
+  def increment_ci_build_number
+    app_version = get_version_number(
+      xcodeproj: @app_project_path,
+      target: @app_target
+    )
+
+    latest_build = latest_testflight_build_number(
+      version: app_version,
+      api_key_path: @api_key_path,
+      app_identifier: @app_bundle_id,
+      initial_build_number: 0
+    )
+
+    increment_build_number(
+      xcodeproj: @app_project_path,
+      build_number: latest_build + 1
+    )
+  end
+
+  def resolved_ipa_path
+    return @ipa_path if @ipa_path && !@ipa_path.empty?
+
+    matches = Dir[File.join(@ipa_dir, "*.ipa")]
+    UI.user_error!("No IPA found in #{@ipa_dir}") if matches.empty?
+
+    matches.first
+  end
+
+  lane :setup do
+    load_ios_configs
+    configure_signing
+    increment_ci_build_number
+  end
+
+  lane :upload do
+    load_ios_configs
+
+    release_target = ENV.fetch("IOS_RELEASE_TARGET", "testflight")
+    changelog = ENV.fetch("IOS_CHANGELOG", "Manual release from fastlane")
+    ipa_path = resolved_ipa_path
+
+    if release_target == "app_store_review"
+      upload_to_app_store(
+        ipa: ipa_path,
+        api_key_path: @api_key_path,
+        app_identifier: @app_bundle_id,
+        skip_metadata: true,
+        skip_screenshots: true,
+        submit_for_review: true,
+        run_precheck_before_submit: false
+      )
+    else
+      upload_to_testflight(
+        ipa: ipa_path,
+        api_key_path: @api_key_path,
+        app_identifier: @app_bundle_id,
+        changelog: changelog,
+        skip_waiting_for_build_processing: true
+      )
+    end
+  end
+end
