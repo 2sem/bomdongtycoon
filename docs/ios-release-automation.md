@@ -14,16 +14,15 @@ This repo includes a manual GitHub Actions workflow for uploading `BomDongTycoon
 
 ## Required GitHub Secrets
 
+- `PACKAGE_NAME`: app bundle identifier, for example `com.leesam.bomdongtycoon`
+- `PROFILE_NAME`: provisioning profile name used for App Store export
 - `APPLE_TEAM_ID`: Apple Developer team ID
-- `IOS_CERT_P12_BASE64`: base64-encoded Apple Distribution `.p12`
-- `IOS_CERT_P12_PASSWORD`: password for the `.p12`
-- `IOS_PROFILE_BASE64`: base64-encoded App Store provisioning profile
-- `IOS_KEYCHAIN_PASSWORD`: password used for the temporary CI keychain
-- `ASC_API_KEY_JSON_BASE64`: base64-encoded App Store Connect API key JSON file used by Fastlane
-
-## Required GitHub Variables
-
-- `IOS_PROFILE_NAME`: provisioning profile name as shown in Apple Developer / Xcode export options
+- `IOS_CERT_P12_DATA`: base64-encoded Apple Distribution `.p12`
+- `IOS_CERT_P12_PWD`: password for the `.p12`
+- `IOS_PROFILE_DATA`: base64-encoded App Store provisioning profile
+- `IOS_KEYCHAIN`: temporary CI keychain name
+- `IOS_KEYCHAIN_PWD`: password used for the CI keychain
+- `IOS_API_KEY`: base64-encoded App Store Connect API key JSON file used by Fastlane
 
 ## Triggering The Workflow
 

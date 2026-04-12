@@ -26,21 +26,21 @@ jobs:
     name: Archive and Upload
     runs-on: macos-26
     env:
-      APP_NAME: BomDongTycoon
+      PRODUCT_NAME: BomDongTycoon
+      PACKAGE_NAME: ${{ secrets.PACKAGE_NAME }}
+      PROFILE_NAME: ${{ secrets.PROFILE_NAME }}
       APP_SCHEME: BomDongTycoon
-      APP_BUNDLE_ID: com.leesam.bomdongtycoon
       APP_PROJECT_PATH: ./BomDongTycoon.xcodeproj
       APP_WORKSPACE_PATH: ./BomDongTycoon.xcworkspace
       APP_EXPORT_METHOD: app-store
-      IOS_PROFILE_NAME: ${{ vars.IOS_PROFILE_NAME }}
-      IOS_KEYCHAIN: github-actions.keychain-db
+      IOS_KEYCHAIN: ${{ secrets.IOS_KEYCHAIN }}
       OUTPUT_DIR: ./Output
       ARCHIVE_PATH: ./Output/BomDongTycoon.xcarchive
       IPA_DIR: ./Output/IPA
       EXPORT_OPTIONS_PLIST: ./Output/exportOptions.plist
       IOS_CERT_PATH: ./signing/cert.p12
       IOS_PROFILE_PATH: ./signing/profile.mobileprovision
-      ASC_API_KEY_PATH: ./signing/app-store-connect-api-key.json
+      IOS_KEY_PATH: ./signing/app-store-connect-api-key.json
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
@@ -66,21 +66,25 @@ jobs:
 
       - name: Decode signing certificate
         env:
-          IOS_CERT_P12_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+          IOS_CERT_BASE64: ${{ env.IOS_CERT_PATH }}.base64
         run: |
-          printf '%s' "$IOS_CERT_P12_BASE64" | base64 -D > "$IOS_CERT_PATH"
+          echo "${{ secrets.IOS_CERT_P12_DATA }}" > "$IOS_CERT_BASE64"
+          base64 --decode -i "$IOS_CERT_BASE64" -o "$IOS_CERT_PATH"
 
       - name: Decode provisioning profile
         env:
-          IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+          IOS_PROFILE_BASE64: ${{ env.IOS_PROFILE_PATH }}.base64
         run: |
-          printf '%s' "$IOS_PROFILE_BASE64" | base64 -D > "$IOS_PROFILE_PATH"
+          echo "${{ secrets.IOS_PROFILE_DATA }}" > "$IOS_PROFILE_BASE64"
+          base64 --decode -i "$IOS_PROFILE_BASE64" -o "$IOS_PROFILE_PATH"
 
       - name: Decode App Store Connect API key
         env:
-          ASC_API_KEY_JSON_BASE64: ${{ secrets.ASC_API_KEY_JSON_BASE64 }}
+          IOS_KEY_BASE64: ${{ env.IOS_KEY_PATH }}.base64
         run: |
-          printf '%s' "$ASC_API_KEY_JSON_BASE64" | base64 -D > "$ASC_API_KEY_PATH"
+          echo '${{ secrets.IOS_API_KEY }}' > "$IOS_KEY_BASE64"
+          base64 --decode -i "$IOS_KEY_BASE64" -o "$IOS_KEY_PATH"
+          rm "$IOS_KEY_BASE64"
 
       - name: Install fastlane
         run: sudo gem install fastlane --no-document
@@ -88,8 +92,8 @@ jobs:
       - name: Configure signing and increment build number
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          IOS_CERT_PWD: ${{ secrets.IOS_CERT_P12_PASSWORD }}
-          IOS_KEYCHAIN_PWD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+          IOS_CERT_PWD: ${{ secrets.IOS_CERT_P12_PWD }}
+          IOS_KEYCHAIN_PWD: ${{ secrets.IOS_KEYCHAIN_PWD }}
         run: fastlane ios setup
 
       - name: Create export options plist
@@ -101,11 +105,11 @@ jobs:
           <dict>
             <key>method</key>
             <string>$APP_EXPORT_METHOD</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>$APP_BUNDLE_ID</key>
-              <string>$IOS_PROFILE_NAME</string>
-            </dict>
+              <key>provisioningProfiles</key>
+              <dict>
+                <key>$PACKAGE_NAME</key>
+                <string>$PROFILE_NAME</string>
+              </dict>
             <key>signingStyle</key>
             <string>manual</string>
             <key>stripSwiftSymbols</key>

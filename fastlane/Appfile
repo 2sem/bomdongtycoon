@@ -1,2 +1,2 @@
-app_identifier(ENV.fetch("APP_BUNDLE_ID", "com.leesam.bomdongtycoon"))
+app_identifier(ENV.fetch("PACKAGE_NAME", ENV.fetch("APP_BUNDLE_ID", "com.leesam.bomdongtycoon")))
 team_id(ENV["APPLE_TEAM_ID"]) if ENV["APPLE_TEAM_ID"]
