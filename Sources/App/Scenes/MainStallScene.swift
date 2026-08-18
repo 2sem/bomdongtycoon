@@ -40,8 +40,8 @@ final class MainStallScene: SKScene {
     private var lastCookMenuTier = -1
 
     // Cashier at the shop counter
-    private var cashierEmojiNode:   SKLabelNode?
-    private var cashierWarningNode: SKLabelNode?
+    private var cashierEmojiNode:   SKSpriteNode?
+    private var cashierWarningNode: SKSpriteNode?
     private var lastCashierCount  = -1
     private var lastCashierTier   = -1
     private var lastCashierEnergy = -1.0
@@ -177,16 +177,14 @@ final class MainStallScene: SKScene {
         grass.zPosition = -4
         addChild(grass)
 
-        let flowers = ["🌸", "🌺", "🌼", "🌸", "🌺", "🌼"]
-        for (i, flower) in flowers.enumerated() {
-            let label = SKLabelNode(text: flower)
-            label.fontSize = 13
-            label.position = CGPoint(
+        for i in 0..<6 {
+            let flower = EmojiArt.sprite(for: "🌸", size: CGSize(width: 14, height: 14))
+            flower.position = CGPoint(
                 x: frame.width * 0.05 + CGFloat(i) * (frame.width * 0.18),
                 y: groundY + 6
             )
-            label.zPosition = -3
-            addChild(label)
+            flower.zPosition = -3
+            addChild(flower)
         }
 
         addCloud(at: CGPoint(x: frame.width * 0.18, y: frame.height * 0.82), scale: 1.0)
@@ -430,10 +428,7 @@ final class MainStallScene: SKScene {
     // MARK: - Cashier
 
     private func setupCashier() {
-        let node = SKLabelNode(text: "🧑")
-        node.fontSize = 30
-        node.verticalAlignmentMode   = .center
-        node.horizontalAlignmentMode = .center
+        let node = EmojiArt.sprite(for: "🧑", size: CGSize(width: 32, height: 32))
         node.position  = CGPoint(x: frame.midX, y: groundY + 38)
         node.zPosition = 3
         node.name      = "cashierEmoji"
@@ -441,10 +436,7 @@ final class MainStallScene: SKScene {
         addChild(node)
         cashierEmojiNode = node
 
-        let warning = SKLabelNode(text: "⚠️")
-        warning.fontSize = 13
-        warning.verticalAlignmentMode   = .center
-        warning.horizontalAlignmentMode = .center
+        let warning = EmojiArt.sprite(for: "⚠️", size: CGSize(width: 14, height: 14))
         warning.position  = CGPoint(x: frame.midX + 16, y: groundY + 52)
         warning.zPosition = 4
         warning.isHidden  = true
@@ -464,17 +456,15 @@ final class MainStallScene: SKScene {
         let visible = count > 0
         cashierEmojiNode?.isHidden  = !visible
         cashierWarningNode?.isHidden = !(visible && energy < 0.05)
-        if visible {
-            cashierEmojiNode?.text = staffEmoji(tier: tier, indexInTier: 0)
+        if visible, let imageName = EmojiArt.imageName(for: staffEmoji(tier: tier, indexInTier: 0)) {
+            cashierEmojiNode?.texture = SKTexture(imageNamed: imageName)
         }
     }
 
     // MARK: - Stall
 
     private func setupStall() {
-        let stallEmoji = SKLabelNode(text: "⛺")
-        stallEmoji.fontSize = 110
-        stallEmoji.verticalAlignmentMode = .center
+        let stallEmoji = EmojiArt.sprite(for: "⛺", size: CGSize(width: 120, height: 120))
         stallEmoji.position = CGPoint(x: frame.midX, y: stallY + 10)
         stallEmoji.zPosition = 1
         stallEmoji.name = "stallEmoji"
@@ -489,7 +479,7 @@ final class MainStallScene: SKScene {
         signBg.zPosition   = 2
         addChild(signBg)
 
-        let signLabel = SKLabelNode(text: "🥬 봄동 가게")
+        let signLabel = SKLabelNode(text: "봄동 가게")
         signLabel.fontName = "AppleSDGothicNeo-Bold"
         signLabel.fontSize = 15
         signLabel.fontColor = .white
@@ -509,10 +499,7 @@ final class MainStallScene: SKScene {
         gearBg.name        = "gearIcon"
         addChild(gearBg)
 
-        let gear = SKLabelNode(text: "👤")
-        gear.fontSize = 16
-        gear.verticalAlignmentMode = .center
-        gear.horizontalAlignmentMode = .center
+        let gear = EmojiArt.sprite(for: "👤", size: CGSize(width: 18, height: 18))
         gear.position  = CGPoint(x: frame.midX + 93, y: signY)
         gear.zPosition = 4
         gear.name      = "gearIcon"
@@ -528,10 +515,7 @@ final class MainStallScene: SKScene {
         dishBg.name        = "dishIcon"
         addChild(dishBg)
 
-        let dishLabel = SKLabelNode(text: "🍽")
-        dishLabel.fontSize = 16
-        dishLabel.verticalAlignmentMode = .center
-        dishLabel.horizontalAlignmentMode = .center
+        let dishLabel = EmojiArt.sprite(for: "🍽", size: CGSize(width: 18, height: 18))
         dishLabel.position  = dishBg.position
         dishLabel.zPosition = 4
         dishLabel.name      = "dishIcon"
@@ -564,7 +548,7 @@ final class MainStallScene: SKScene {
     private func updateSignLabel() {
         guard let store,
               let label = childNode(withName: "signLabel") as? SKLabelNode else { return }
-        label.text = "🥬 \(store.progress.shopName)"
+        label.text = store.progress.shopName
     }
 
     private func syncGearBadge(store: GameStore) {
@@ -802,15 +786,16 @@ final class MainStallScene: SKScene {
             if shopName != self.lastShopName {
                 self.lastShopName = shopName
                 if let label = self.childNode(withName: "signLabel") as? SKLabelNode {
-                    label.text = "🥬 \(shopName)"
+                    label.text = shopName
                 }
             }
             let tier = store.stall.stallTier
             if tier != self.lastStallTier {
                 self.lastStallTier = tier
-                if let label = self.childNode(withName: "stallEmoji") as? SKLabelNode {
-                    label.text = Self.stallEmoji(for: tier)
-                    label.run(SKAction.sequence([
+                if let sprite = self.childNode(withName: "stallEmoji") as? SKSpriteNode,
+                   let imageName = EmojiArt.imageName(for: Self.stallEmoji(for: tier)) {
+                    sprite.texture = SKTexture(imageNamed: imageName)
+                    sprite.run(SKAction.sequence([
                         SKAction.scale(to: 1.25, duration: 0.15),
                         SKAction.scale(to: 1.0,  duration: 0.15),
                     ]))

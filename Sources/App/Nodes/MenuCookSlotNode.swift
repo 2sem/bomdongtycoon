@@ -13,12 +13,12 @@ final class MenuCookSlotNode: SKNode {
 
     // sub-nodes
     private let bg         = SKShapeNode(rectOf: size, cornerRadius: radius)
-    private let menuLabel  = SKLabelNode()
+    private let menuLabel  = SKSpriteNode(color: .clear, size: CGSize(width: 28, height: 28))
     private let stockLabel = SKLabelNode()
     private let barBg      = SKShapeNode(rectOf: CGSize(width: barW, height: barH), cornerRadius: 3)
     private let barFill    = SKShapeNode()
-    private let tierBadge    = SKLabelNode()   // tiny tier emoji top-right
-    private let warningLabel = SKLabelNode()   // ⚠️ top-left when energy critical
+    private let tierBadge    = SKSpriteNode(color: .clear, size: CGSize(width: 22, height: 22))   // tiny cook tier icon top-right
+    private let warningLabel = SKSpriteNode(color: .clear, size: CGSize(width: 12, height: 12))   // warning badge top-left when energy critical
 
     // colors
     private static let bgIdle    = SKColor(red: 0.12, green: 0.40, blue: 0.18, alpha: 1)
@@ -36,10 +36,7 @@ final class MenuCookSlotNode: SKNode {
         bg.lineWidth   = 1.5
         addChild(bg)
 
-        // Menu emoji
-        menuLabel.fontSize = 26
-        menuLabel.verticalAlignmentMode   = .center
-        menuLabel.horizontalAlignmentMode = .center
+        // Menu icon
         menuLabel.position = CGPoint(x: 0, y: 8)
         addChild(menuLabel)
 
@@ -64,18 +61,12 @@ final class MenuCookSlotNode: SKNode {
         barFill.position    = CGPoint(x: -Self.barW / 2, y: -24)
         addChild(barFill)
 
-        // Cook emoji (top-right area, larger so it's readable at a glance)
-        tierBadge.fontSize = 20
-        tierBadge.verticalAlignmentMode   = .center
-        tierBadge.horizontalAlignmentMode = .center
+        // Cook icon (top-right area, larger so it's readable at a glance)
         tierBadge.position = CGPoint(x: 14, y: 22)
         addChild(tierBadge)
 
-        // ⚠️ badge pinned to top-right of the cook emoji
-        warningLabel.text = "⚠️"
-        warningLabel.fontSize = 11
-        warningLabel.verticalAlignmentMode   = .center
-        warningLabel.horizontalAlignmentMode = .center
+        // Warning badge pinned to top-right of the cook icon
+        warningLabel.texture = SKTexture(imageNamed: EmojiArt.imageName(for: "⚠️")!)
         warningLabel.position = CGPoint(x: 25, y: 31)
         warningLabel.isHidden = true
         addChild(warningLabel)
@@ -84,7 +75,7 @@ final class MenuCookSlotNode: SKNode {
     required init?(coder: NSCoder) { fatalError() }
 
     func setup(menuEmoji: String) {
-        menuLabel.text = menuEmoji
+        menuLabel.texture = EmojiArt.imageName(for: menuEmoji).map { SKTexture(imageNamed: $0) }
     }
 
     func update(cookTier: Int, cookEmoji: String, progress: Double, stock: Int, maxStock: Int, cookEnergy: Double = 1.0) {
@@ -110,7 +101,9 @@ final class MenuCookSlotNode: SKNode {
         barFill.fillColor = hasAutoCook ? Self.barFill1 : Self.barFill0
 
         // Tier badge
-        tierBadge.text    = hasAutoCook ? cookEmoji : ""
+        if hasAutoCook, let imageName = EmojiArt.imageName(for: cookEmoji) {
+            tierBadge.texture = SKTexture(imageNamed: imageName)
+        }
         tierBadge.isHidden = !hasAutoCook
 
         // Warning badge

@@ -16,13 +16,13 @@ final class FarmPlotNode: SKNode {
 
     // MARK: - Nodes
     private let bg              = SKShapeNode(rectOf: size, cornerRadius: 10);
-    private let stageLabel      = SKLabelNode();
+    private let stageLabel      = SKSpriteNode(color: .clear, size: CGSize(width: 32, height: 32));
     private let barBg           = SKShapeNode(rectOf: CGSize(width: barWidth, height: barHeight), cornerRadius: 3);
     private let barFill         = SKShapeNode();
-    private let workerLabel     = SKLabelNode();
-    private let workerWarning   = SKLabelNode();
+    private let workerLabel     = SKSpriteNode(color: .clear, size: CGSize(width: 22, height: 22));
+    private let workerWarning   = SKSpriteNode(color: .clear, size: CGSize(width: 12, height: 12));
     private let workerEnergyBar = SKShapeNode();
-    private let hintPlus        = SKLabelNode();
+    private let hintPlus        = SKSpriteNode(color: .clear, size: CGSize(width: 26, height: 26));
     private let hintCost        = SKLabelNode();
 
     // MARK: - Init
@@ -36,9 +36,7 @@ final class FarmPlotNode: SKNode {
         bg.lineWidth   = 2
         addChild(bg)
 
-        // Stage emoji
-        stageLabel.fontSize = 30
-        stageLabel.verticalAlignmentMode = .center
+        // Stage icon
         stageLabel.position = CGPoint(x: 0, y: 6)
         addChild(stageLabel)
 
@@ -55,17 +53,12 @@ final class FarmPlotNode: SKNode {
         addChild(barFill)
 
         // Worker badge
-        workerLabel.fontSize = 20;
-        workerLabel.verticalAlignmentMode   = .center;
-        workerLabel.horizontalAlignmentMode = .center;
         workerLabel.position = CGPoint(x: 18, y: 20);
+        workerLabel.isHidden = true;
         addChild(workerLabel);
 
-        // ⚠️ pinned to top-right of worker badge
-        workerWarning.text = "⚠️";
-        workerWarning.fontSize = 11;
-        workerWarning.verticalAlignmentMode   = .center;
-        workerWarning.horizontalAlignmentMode = .center;
+        // Warning badge pinned to top-right of worker badge
+        workerWarning.texture = SKTexture(imageNamed: EmojiArt.imageName(for: "⚠️")!);
         workerWarning.position = CGPoint(x: 28, y: 29);
         workerWarning.isHidden = true;
         addChild(workerWarning);
@@ -76,10 +69,8 @@ final class FarmPlotNode: SKNode {
         workerEnergyBar.isHidden = true;
         addChild(workerEnergyBar);
 
-        // Empty-state hint: seed emoji above, cost below
-        hintPlus.text      = "🌰"   // seed — clearly "plant here"
-        hintPlus.fontSize  = 24
-        hintPlus.verticalAlignmentMode = .center
+        // Empty-state hint: seed icon above, cost below
+        hintPlus.texture   = SKTexture(imageNamed: EmojiArt.imageName(for: "🌰")!)   // clearly "plant here"
         hintPlus.position  = CGPoint(x: 0, y: 8)
         addChild(hintPlus)
 
@@ -106,7 +97,9 @@ final class FarmPlotNode: SKNode {
         hintCost.isHidden   = !isEmpty
         stageLabel.isHidden =  isEmpty
 
-        stageLabel.text = stageEmoji(for: plot.stage)
+        if let emoji = stageEmoji(for: plot.stage), let imageName = EmojiArt.imageName(for: emoji) {
+            stageLabel.texture = SKTexture(imageNamed: imageName)
+        }
 
         if plot.isReady && !wasReady {
             bg.fillColor = Self.readyColor
@@ -156,15 +149,16 @@ final class FarmPlotNode: SKNode {
         }
 
         // Worker badge: solid when assigned, dim hint when worker available
-        if plot.hasWorker, let emoji = assignedEmoji {
-            workerLabel.text  = emoji;
-            workerLabel.alpha = 1.0;
+        if plot.hasWorker, let emoji = assignedEmoji, let imageName = EmojiArt.imageName(for: emoji) {
+            workerLabel.texture = SKTexture(imageNamed: imageName);
+            workerLabel.alpha   = 1.0;
+            workerLabel.isHidden = false;
         } else if workerAvailable {
-            workerLabel.text  = "👷";
-            workerLabel.alpha = 0.25;
+            workerLabel.texture = SKTexture(imageNamed: EmojiArt.imageName(for: "👷")!);
+            workerLabel.alpha   = 0.25;
+            workerLabel.isHidden = false;
         } else {
-            workerLabel.text  = "";
-            workerLabel.alpha = 1.0;
+            workerLabel.isHidden = true;
         }
         workerWarning.isHidden = !(plot.hasWorker && workerEnergy < 0.05);
 
@@ -195,9 +189,9 @@ final class FarmPlotNode: SKNode {
 
     // MARK: - Helpers
 
-    private func stageEmoji(for stage: FarmPlot.Stage) -> String {
+    private func stageEmoji(for stage: FarmPlot.Stage) -> String? {
         switch stage {
-        case .empty:   return ""
+        case .empty:   return nil
         case .sprout:  return "🌱"
         case .growing: return "🌿"
         case .ready:   return "🥬"
