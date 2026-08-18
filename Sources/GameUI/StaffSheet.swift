@@ -133,7 +133,7 @@ public struct StaffSheet: View {
                         .environmentObject(store)
                 }
                 HireFarmWorkerRow(
-                    emoji: "🧑‍🌾",
+                    assetName: "staff_farmer_veteran",
                     def: UpgradeDefinitions.veteranAlba[0],
                     count: store.stall.veteranAlbaCount,
                     isUnlocked: store.farm.plots.count > 2,
@@ -145,7 +145,7 @@ public struct StaffSheet: View {
                     }
                 )
                 HireFarmWorkerRow(
-                    emoji: "👨‍🌾",
+                    assetName: "staff_farmer",
                     def: UpgradeDefinitions.farmer[0],
                     count: store.stall.farmerCount,
                     isUnlocked: store.stall.stallTier >= 1,
@@ -424,17 +424,17 @@ private struct WorkerRow: View {
 
     private static let name  = ["", "알바생", "이모님", "봄동 요리사", "농부", "고참 알바"];
 
-    private static let tier1Emojis = ["🧑", "👦", "👧", "👱‍♂️", "👱‍♀️", "🧑‍💼"]
-    private static let tier3Emojis = ["👨‍🍳", "👩‍🍳"]
+    private static let tier1AssetNames = ["person_adult", "person_kid_boy", "person_kid_girl", "person_man", "person_woman", "person_adult"]
+    private static let tier3AssetNames = ["staff_chef_man", "staff_chef_woman"]
 
-    private func workerEmoji(tier: Int, indexInTier: Int) -> String {
+    private func workerAssetName(tier: Int, indexInTier: Int) -> String {
         switch tier {
-        case 1:  Self.tier1Emojis[indexInTier % Self.tier1Emojis.count]
-        case 2:  "👵"
-        case 3:  Self.tier3Emojis[indexInTier % Self.tier3Emojis.count]
-        case 4:  "👨‍🌾"
-        case 5:  "🧑‍🌾"
-        default: "🧑"
+        case 1:  Self.tier1AssetNames[indexInTier % Self.tier1AssetNames.count]
+        case 2:  "person_elder_woman"
+        case 3:  Self.tier3AssetNames[indexInTier % Self.tier3AssetNames.count]
+        case 4:  "staff_farmer"
+        case 5:  "staff_farmer_veteran"
+        default: "person_adult"
         }
     }
 
@@ -496,13 +496,15 @@ private struct WorkerRow: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(tierColor(worker.tier))
                     .frame(width: 40, height: 40)
-                Text(workerEmoji(tier: worker.tier, indexInTier: worker.indexInTier))
-                    .font(.system(size: 22))
+                Image(workerAssetName(tier: worker.tier, indexInTier: worker.indexInTier))
+                    .resizable()
+                    .frame(width: 22, height: 22)
             }
             .overlay(alignment: .topTrailing) {
                 if worker.energy < 0.05, worker.assignment != .unassigned {
-                    Text("⚠️")
-                        .font(.system(size: 11))
+                    Image("warning_badge")
+                        .resizable()
+                        .frame(width: 11, height: 11)
                         .offset(x: 6, y: -6)
                         .transition(.scale.combined(with: .opacity))
                 }
@@ -602,7 +604,7 @@ private struct HireTierRow: View {
         }
     }
 
-    private static let hireEmoji = ["", "🧑", "👵", "👨‍🍳"]
+    private static let hireAssetNames = ["", "person_adult", "person_elder_woman", "staff_chef_man"]
 
     var body: some View {
         HStack(spacing: 12) {
@@ -610,7 +612,9 @@ private struct HireTierRow: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(isUnlocked ? Color.staffAmber.opacity(0.8) : Color.gray.opacity(0.2))
                     .frame(width: 40, height: 40)
-                Text(Self.hireEmoji[tier]).font(.system(size: 22))
+                Image(Self.hireAssetNames[tier])
+                    .resizable()
+                    .frame(width: 22, height: 22)
             }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -654,7 +658,7 @@ private struct HireTierRow: View {
 
 private struct HireFarmWorkerRow: View {
     @EnvironmentObject var store: GameStore
-    let emoji: String
+    let assetName: String
     let def: UpgradeDefinition
     let count: Int
     let isUnlocked: Bool
@@ -668,7 +672,9 @@ private struct HireFarmWorkerRow: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(isUnlocked ? Color.staffAmber.opacity(0.8) : Color.gray.opacity(0.2))
                     .frame(width: 40, height: 40)
-                Text(emoji).font(.system(size: 22))
+                Image(assetName)
+                    .resizable()
+                    .frame(width: 22, height: 22)
             }
 
             VStack(alignment: .leading, spacing: 2) {

@@ -12,8 +12,9 @@ public struct ShopNameOverlay: View {
         ZStack {
             Color.black.opacity(0.55).ignoresSafeArea()
             VStack(spacing: 20) {
-                Text("⛺")
-                    .font(.system(size: 64))
+                Image("building_tent")
+                    .resizable()
+                    .frame(width: 64, height: 64)
                 Text(String(localized: "가게 이름을 정해주세요!"))
                     .font(.title2.bold())
                 Text(String(localized: "당신만의 봄동 가게를 만들어보세요 🥬"))
