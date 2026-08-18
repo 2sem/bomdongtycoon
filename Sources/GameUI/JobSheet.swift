@@ -243,7 +243,7 @@ private struct MenuSlotRow: View {
     let workers: [JobWorkerItem]
     let onAssign: (Int?) -> Void
 
-    private static let menuEmojis = ["🥬", "🥗", "🥘"]
+    private static let menuAssetNames = ["produce_cabbage", "produce_salad", "produce_stew"]
 
     private var def: UpgradeDefinition? { UpgradeDefinitions.menu[safe: menuIndex] }
     private var assignedWorker: JobWorkerItem? {
@@ -257,10 +257,17 @@ private struct MenuSlotRow: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color(red: 0.93, green: 0.70, blue: 0.18))
                 .frame(width: 40, height: 40)
-                .overlay { Text(Self.menuEmojis[safe: menuIndex] ?? "🍽").font(.system(size: 22)) }
+                .overlay {
+                    Image(Self.menuAssetNames[safe: menuIndex] ?? "dish_icon")
+                        .resizable()
+                        .frame(width: 22, height: 22)
+                }
                 .overlay(alignment: .topTrailing) {
                     if let w = assignedWorker, w.energy < 0.05 {
-                        Text("⚠️").font(.system(size: 11)).offset(x: 6, y: -6)
+                        Image("warning_badge")
+                            .resizable()
+                            .frame(width: 11, height: 11)
+                            .offset(x: 6, y: -6)
                     }
                 }
 
@@ -374,7 +381,10 @@ private struct CashierSlotRow: View {
                 .overlay { Text("🧾").font(.system(size: 22)) }
                 .overlay(alignment: .topTrailing) {
                     if assignedWorker != nil, energy < 0.05 {
-                        Text("⚠️").font(.system(size: 11)).offset(x: 6, y: -6)
+                        Image("warning_badge")
+                            .resizable()
+                            .frame(width: 11, height: 11)
+                            .offset(x: 6, y: -6)
                     }
                 }
 

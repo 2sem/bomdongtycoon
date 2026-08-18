@@ -14,6 +14,7 @@ enum EmojiArt {
         "🌿": "crop_growing",
         "🌰": "seed_hint",
         "⚠️": "warning_badge",
+        "💰": "money_bag",
         "📦": "warehouse_box",
         "👷": "worker_hint",
         "🍽": "dish_icon",
