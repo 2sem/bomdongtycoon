@@ -10,8 +10,8 @@ final class CustomerNode: SKNode {
         "🧒", "👧", "👦"
     ]
 
-    private static let happyEmojis = ["🕺", "💃", "🙆‍♀️", "🙆‍♂️", "🤸‍♀️", "🤸‍♂️", "🥳", "😄", "🤩"]
-    private static let sadEmojis   = ["😭", "😤", "😠", "🤦‍♀️", "🤦‍♂️", "🙅‍♀️", "🙅‍♂️", "😞", "🤬", "😡"]
+    private static let happyImage = "reaction_happy"
+    private static let sadImage   = "reaction_sad"
 
     // MARK: - Properties
 
@@ -20,8 +20,8 @@ final class CustomerNode: SKNode {
 
     private let thoughtBubble = SKNode()
     private let bubbleCircle:  SKShapeNode
-    private let menuLabel    = SKLabelNode()
-    private let reactionLabel = SKLabelNode()
+    private let menuLabel    = SKSpriteNode(color: .clear, size: CGSize(width: 20, height: 20))
+    private let reactionLabel = SKSpriteNode(color: .clear, size: CGSize(width: 24, height: 24))
 
     // MARK: - Init
 
@@ -40,9 +40,8 @@ final class CustomerNode: SKNode {
     // MARK: - Building
 
     private func buildBody() {
-        let body = SKLabelNode(text: Self.customerEmojis.randomElement()!)
-        body.fontSize = 28
-        body.verticalAlignmentMode = .center
+        let emoji = Self.customerEmojis.randomElement()!
+        let body = EmojiArt.sprite(for: emoji, size: CGSize(width: 30, height: 30))
         addChild(body)
     }
 
@@ -65,10 +64,8 @@ final class CustomerNode: SKNode {
         bubbleCircle.position = CGPoint(x: 2, y: 48)
         thoughtBubble.addChild(bubbleCircle)
 
-        // Menu emoji inside bubble
-        menuLabel.text = wantedMenu
-        menuLabel.fontSize = 18
-        menuLabel.verticalAlignmentMode = .center
+        // Menu icon inside bubble
+        menuLabel.texture = EmojiArt.imageName(for: wantedMenu).map { SKTexture(imageNamed: $0) }
         menuLabel.position = CGPoint(x: 2, y: 48)
         thoughtBubble.addChild(menuLabel)
 
@@ -82,8 +79,6 @@ final class CustomerNode: SKNode {
     }
 
     private func buildReactionLabel() {
-        reactionLabel.fontSize = 22
-        reactionLabel.verticalAlignmentMode = .center
         reactionLabel.position = CGPoint(x: 0, y: 52)
         reactionLabel.alpha = 0
         addChild(reactionLabel)
@@ -124,12 +119,10 @@ final class CustomerNode: SKNode {
             SKAction.fadeOut(withDuration: 0.20),
         ]))
 
-        // Pop reaction emoji up from the bubble position
-        let emoji = happy
-            ? Self.happyEmojis.randomElement()!
-            : Self.sadEmojis.randomElement()!
+        // Pop reaction icon up from the bubble position
+        let imageName = happy ? Self.happyImage : Self.sadImage
 
-        reactionLabel.text  = emoji
+        reactionLabel.texture = SKTexture(imageNamed: imageName)
         reactionLabel.alpha = 1
         reactionLabel.setScale(0.4)
 

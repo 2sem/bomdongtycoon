@@ -102,9 +102,7 @@ final class WarehouseNode: SKNode {
         bg.name        = "bg"
         node.addChild(bg)
 
-        let icon = SKLabelNode(text: "📦")
-        icon.fontSize = 24
-        icon.verticalAlignmentMode = .center
+        let icon = EmojiArt.sprite(for: "📦", size: CGSize(width: 26, height: 26))
         icon.position = CGPoint(x: 0, y: 8)
         icon.name = "icon"
         node.addChild(icon)

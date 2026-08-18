@@ -37,8 +37,9 @@ public struct TotalEarnedBadge: View {
 
     public var body: some View {
         HStack(spacing: 4) {
-            Text("💰")
-                .font(.caption)
+            Image("money_bag")
+                .resizable()
+                .frame(width: 14, height: 14)
             Text(formatted)
                 .font(.caption.bold())
         }
