@@ -24,23 +24,27 @@ final class GroundLayer: SKNode {
     func layout(for size: CGSize) {
         removeAllChildren()
 
-        let marginColumns = 2
         let marginRows = 1
-
-        let columnCount = Int(ceil(size.width / GroundTile.width)) + marginColumns * 2
         let rowCount = Int(ceil(size.height / GroundTile.height)) + marginRows * 2
-        let startColumn = -marginColumns
         let startRow = -marginRows
 
+        let maxRowIndexMagnitude = max(abs(startRow), abs(startRow + rowCount - 1))
+        let marginColumns = Int(ceil((CGFloat(maxRowIndexMagnitude) * GroundTile.skew) / GroundTile.width)) + 2
+
+        let columnCount = Int(ceil(size.width / GroundTile.width)) + marginColumns * 2
+        let startColumn = -marginColumns
+
         for row in 0..<rowCount {
+            let rowIndex = startRow + row
             for column in 0..<columnCount {
                 let tile = SKShapeNode(path: GroundTile.path)
-                tile.fillColor = GroundTile.fillColor
+                tile.fillTexture = SKTexture(imageNamed: "ground_tile_wood")
+                tile.fillColor = .white
                 tile.strokeColor = GroundTile.strokeColor
                 tile.lineWidth = 1.5
                 tile.position = CGPoint(
-                    x: CGFloat(startColumn + column) * GroundTile.width,
-                    y: CGFloat(startRow + row) * GroundTile.height
+                    x: CGFloat(startColumn + column) * GroundTile.width + GroundTile.skew * CGFloat(rowIndex),
+                    y: CGFloat(rowIndex) * GroundTile.height
                 )
                 addChild(tile)
             }
