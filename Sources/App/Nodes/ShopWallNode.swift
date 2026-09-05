@@ -29,6 +29,15 @@ final class ShopWallLayer: SKNode {
     private static let wallHeight = GroundTile.height * 3.5
     private static let sideWallWidth = GroundTile.width * 0.4
 
+    // Small repeated wall-panel unit sizes, mirroring GroundTile's "many small tiles"
+    // construction instead of one stretched image. Sized on the order of GroundTile.width
+    // so an individual panel reads at a believable plank/block scale next to the crops and
+    // farmers already on screen. The back wall's plank panels are slightly taller than wide
+    // (vertical-grain plank look); the side walls use square blocks to match their narrow
+    // stacked-block texture and thin footprint.
+    private static let backWallTileSize = CGSize(width: GroundTile.width / 2, height: GroundTile.width / 2 * 1.25)
+    private static let sideWallTileSize = CGSize(width: sideWallWidth, height: sideWallWidth)
+
     func layout(for size: CGSize) {
         removeAllChildren()
 
@@ -62,24 +71,27 @@ final class ShopWallLayer: SKNode {
         CGFloat(FieldLayer.rowCount + fieldStartRow - rowIndex)
     }
 
-    /// One wide sprite spanning the shop's full column width, standing one row further
-    /// back than the footprint's own back row — mirroring how FarmerLayer stands one row
-    /// behind FieldLayer's back row (`rowOffset = rowCount`). With the shop now placed in
-    /// front of the field, this back-wall row lands exactly `gapRows` rows before the
-    /// field's own front row, giving a small but clear visible gap.
-    private func makeBackWall(texture: SKTexture, shopStartRow: Int, shopStartColumn: Int, fieldStartRow: Int) -> SKSpriteNode {
+    /// A grid of small repeated wall-panel sprites spanning the shop's full column width,
+    /// standing one row further back than the footprint's own back row — mirroring how
+    /// FarmerLayer stands one row behind FieldLayer's back row (`rowOffset = rowCount`).
+    /// With the shop now placed in front of the field, this back-wall row lands exactly
+    /// `gapRows` rows before the field's own front row, giving a small but clear visible gap.
+    ///
+    /// Built the same way `GroundLayer` builds the floor — many small repeated tile units
+    /// rather than one image stretched across the whole face — so the wall reads as
+    /// "constructed" with visible panel seams instead of a single smooth stretched panel.
+    private func makeBackWall(texture: SKTexture, shopStartRow: Int, shopStartColumn: Int, fieldStartRow: Int) -> SKNode {
         let backRowOffset = Self.rowCount
         let backRowIndex = shopStartRow + backRowOffset
 
         let leftOriginX = CGFloat(shopStartColumn) * GroundTile.width + GroundTile.skew * CGFloat(backRowIndex)
         let originY = CGFloat(backRowIndex) * GroundTile.height
 
-        let wall = SKSpriteNode(texture: texture)
-        wall.size = CGSize(width: CGFloat(Self.columnCount) * GroundTile.width, height: Self.wallHeight)
+        let size = CGSize(width: CGFloat(Self.columnCount) * GroundTile.width, height: Self.wallHeight)
+        let wall = Self.makeTiledWallFace(texture: texture, size: size, desiredTileSize: Self.backWallTileSize)
 
-        // Anchor at the sprite's bottom-center so `position` lands on the row's tile line
-        // rather than the sprite's visual center, same convention as FarmerLayer.
-        wall.anchorPoint = CGPoint(x: 0.5, y: 0)
+        // Same bottom-center anchor convention the previous single stretched sprite used,
+        // so `position` lands on the row's tile line rather than the face's visual center.
         wall.position = CGPoint(
             x: leftOriginX + CGFloat(Self.columnCount) * GroundTile.width / 2 + GroundTile.skew / 2,
             y: originY + GroundTile.height / 2
@@ -92,10 +104,11 @@ final class ShopWallLayer: SKNode {
 
     /// West/east walls each span the footprint's row depth (front row to the footprint's
     /// own back row, NOT the extra row the back wall stands on) along their respective
-    /// column edge. Kept as a single flat rectangular sprite per the codebase's existing
-    /// "flat sprite standing on the tile grid" convention (see FarmerLayer) rather than
-    /// true skewed geometry.
-    private func makeSideWalls(texture: SKTexture, shopStartRow: Int, shopStartColumn: Int, fieldStartRow: Int) -> (west: SKSpriteNode, east: SKSpriteNode) {
+    /// column edge. Each face is a grid of small repeated tile sprites (see
+    /// `makeTiledWallFace`) standing on the tile grid — same "flat face, no skew" placement
+    /// convention as before (see FarmerLayer), just built from many small panels instead of
+    /// one stretched sprite.
+    private func makeSideWalls(texture: SKTexture, shopStartRow: Int, shopStartColumn: Int, fieldStartRow: Int) -> (west: SKNode, east: SKNode) {
         let frontRowIndex = shopStartRow
         let footprintBackRowIndex = shopStartRow + Self.rowCount - 1
 
@@ -120,18 +133,57 @@ final class ShopWallLayer: SKNode {
         // than every field row/farmer, matching the "front draws over back" convention.
         let zPosition = Self.zPosition(forRowIndex: frontRowIndex, fieldStartRow: fieldStartRow)
 
-        let west = SKSpriteNode(texture: texture)
-        west.size = size
-        west.anchorPoint = CGPoint(x: 0.5, y: 0)
+        let west = Self.makeTiledWallFace(texture: texture, size: size, desiredTileSize: Self.sideWallTileSize)
         west.position = CGPoint(x: (westFrontX + westBackX) / 2, y: frontY)
         west.zPosition = zPosition
 
-        let east = SKSpriteNode(texture: texture)
-        east.size = size
-        east.anchorPoint = CGPoint(x: 0.5, y: 0)
+        let east = Self.makeTiledWallFace(texture: texture, size: size, desiredTileSize: Self.sideWallTileSize)
         east.position = CGPoint(x: (eastFrontX + eastBackX) / 2, y: frontY)
         east.zPosition = zPosition
 
         return (west, east)
+    }
+
+    /// Builds a flat rectangular wall face out of a grid of small repeated tile sprites
+    /// instead of one image stretched across the whole face — mirroring how `GroundLayer`
+    /// builds the floor from many small `GroundTile` units rather than a single stretched
+    /// texture, so the wall reads as "constructed" with visible panel seams.
+    ///
+    /// Each tile is an `SKShapeNode` with `fillTexture`/`fillColor = .white` plus a stroked
+    /// border, the exact same drawing recipe `GroundLayer` uses per `GroundTile` — without a
+    /// stroke, the plank texture repeats seamlessly across tile boundaries and the seams the
+    /// user asked for (matching the ground's visible grid lines) don't actually show up.
+    ///
+    /// The returned container uses the same bottom-center anchor convention a single
+    /// `SKSpriteNode` with `anchorPoint = (0.5, 0)` would have used (local x spans
+    /// `-size.width/2 ... size.width/2`, local y spans `0 ... size.height`), so callers can
+    /// position/zPosition it exactly as they did the old single-sprite wall. Tile counts are
+    /// rounded to the nearest whole tile per axis and the tile size is stretched slightly to
+    /// fill the face exactly, so panels tile edge-to-edge with no gap or overshoot.
+    private static func makeTiledWallFace(texture: SKTexture, size: CGSize, desiredTileSize: CGSize) -> SKNode {
+        let container = SKNode()
+
+        let columns = max(1, Int((size.width / desiredTileSize.width).rounded()))
+        let rows = max(1, Int((size.height / desiredTileSize.height).rounded()))
+        let tileWidth = size.width / CGFloat(columns)
+        let tileHeight = size.height / CGFloat(rows)
+        let tileRect = CGRect(x: -tileWidth / 2, y: 0, width: tileWidth, height: tileHeight)
+
+        for row in 0..<rows {
+            for column in 0..<columns {
+                let tile = SKShapeNode(rect: tileRect)
+                tile.fillTexture = texture
+                tile.fillColor = .white
+                tile.strokeColor = GroundTile.strokeColor
+                tile.lineWidth = 1
+                tile.position = CGPoint(
+                    x: (CGFloat(column) + 0.5) * tileWidth - size.width / 2,
+                    y: CGFloat(row) * tileHeight
+                )
+                container.addChild(tile)
+            }
+        }
+
+        return container
     }
 }
