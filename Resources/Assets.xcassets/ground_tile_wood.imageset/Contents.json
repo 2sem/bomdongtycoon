@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "ground_tile_wood.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
