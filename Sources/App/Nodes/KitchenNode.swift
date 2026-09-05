@@ -7,10 +7,7 @@ import SpriteKit
 final class KitchenLayer: SKNode {
 
     private static let tableTopTextureName = "kitchen_table_top"
-    private static let burnerTextureName = "kitchen_burner"
-    private static let potTextureName = "kitchen_pot"
     private static let soupPotTextureName = "kitchen_soup_pot"
-    private static let bowlTextureName = "kitchen_bowl"
     private static let cookTextureName = "staff_chef_man"
 
     /// A prop's true visible-content bounding box within its source PNG, measured directly
@@ -39,10 +36,7 @@ final class KitchenLayer: SKNode {
         var aspect: CGFloat { pixelRect.width / pixelRect.height }
     }
 
-    private static let burnerContentBox = ContentBox(pixelRect: CGRect(x: 160, y: 335, width: 814, height: 598), canvasSize: 1137)
-    private static let potContentBox = ContentBox(pixelRect: CGRect(x: 102, y: 272, width: 939, height: 680), canvasSize: 1137)
     private static let soupPotContentBox = ContentBox(pixelRect: CGRect(x: 135, y: 159, width: 864, height: 824), canvasSize: 1137)
-    private static let bowlContentBox = ContentBox(pixelRect: CGRect(x: 169, y: 153, width: 796, height: 831), canvasSize: 1137)
 
     // The table spans roughly 2.3 of the shop's 4 columns — low and wide like a real prep
     // table seen front-on.
@@ -109,12 +103,9 @@ final class KitchenLayer: SKNode {
     // the apron as a distinct vertical surface rather than more flat tabletop.
     private static let tableApronShadeColor = SKColor(white: 0.72, alpha: 1)
 
-    // Props sized as a fraction of one tile-width so they read as small kitchen items sitting
-    // on the table rather than dominating it.
-    private static let burnerWidth = GroundTile.width * 0.42
-    private static let potWidth = GroundTile.width * 0.30
+    // Sized as a fraction of one tile-width so it reads as a small kitchen item sitting on the
+    // table rather than dominating it.
     private static let soupPotWidth = GroundTile.width * 0.38
-    private static let bowlWidth = GroundTile.width * 0.36
 
     // The cook stands a fraction of a tile further back than the table's own row. There's no
     // spare full row available here — this is the shop's back-most footprint row, right
@@ -191,37 +182,17 @@ final class KitchenLayer: SKNode {
         cook.zPosition = rowZPosition
         addChild(cook)
 
-        // Props sit near the tabletop's own back edge, nudged down slightly so their base
-        // nestles into the surface instead of floating just above it. Added after the cook so
-        // they read as sitting on the table in front of it, rather than the cook's body
-        // covering them.
+        // The soup pot sits near the tabletop's own back edge, nudged down slightly so its
+        // base nestles into the surface instead of floating just above it. Added after the
+        // cook so it reads as sitting on the table in front of it, rather than the cook's
+        // body covering it.
         let tabletopY = table.position.y + Self.tableDepth * 0.88
-
-        let burner = Self.makeCroppedSprite(named: Self.burnerTextureName, contentBox: Self.burnerContentBox, width: Self.burnerWidth)
-        burner.anchorPoint = CGPoint(x: 0.5, y: 0)
-        burner.position = CGPoint(x: centerX - Self.tableWidth * 0.34, y: tabletopY)
-        burner.zPosition = rowZPosition
-        addChild(burner)
-
-        // The pot sits directly on the burner: same x, drawn after it so it covers the
-        // burner's flame ring instead of the other way around.
-        let pot = Self.makeCroppedSprite(named: Self.potTextureName, contentBox: Self.potContentBox, width: Self.potWidth)
-        pot.anchorPoint = CGPoint(x: 0.5, y: 0)
-        pot.position = CGPoint(x: burner.position.x, y: tabletopY + burner.size.height * 0.35)
-        pot.zPosition = rowZPosition
-        addChild(pot)
 
         let soupPot = Self.makeCroppedSprite(named: Self.soupPotTextureName, contentBox: Self.soupPotContentBox, width: Self.soupPotWidth)
         soupPot.anchorPoint = CGPoint(x: 0.5, y: 0)
         soupPot.position = CGPoint(x: centerX, y: tabletopY)
         soupPot.zPosition = rowZPosition
         addChild(soupPot)
-
-        let bowl = Self.makeCroppedSprite(named: Self.bowlTextureName, contentBox: Self.bowlContentBox, width: Self.bowlWidth)
-        bowl.anchorPoint = CGPoint(x: 0.5, y: 0)
-        bowl.position = CGPoint(x: centerX + Self.tableWidth * 0.36, y: tabletopY)
-        bowl.zPosition = rowZPosition
-        addChild(bowl)
     }
 
     private static func makeCroppedSprite(named name: String, contentBox: ContentBox, width desiredWidth: CGFloat) -> SKSpriteNode {
