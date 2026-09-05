@@ -4,8 +4,8 @@ import SpriteKit
 /// Purely visual for now — not wired to any gameplay/farm state.
 final class FieldLayer: SKNode {
 
-    // Not private: FarmerNode mirrors this row/column band so the farmer lands
-    // beside this same patch of crops and depth-sorts against the same row scale.
+    // Not private: FarmerLayer mirrors this row/column band so each farmer lands
+    // behind this same patch of crops and depth-sorts against the same row scale.
     static let columnCount = 4
     static let rowCount = 3
 

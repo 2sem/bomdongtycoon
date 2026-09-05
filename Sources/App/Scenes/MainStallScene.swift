@@ -14,7 +14,7 @@ final class MainStallScene: SKScene {
     private var lastUpdateTime: TimeInterval = 0
     private let groundLayer = GroundLayer()
     private let fieldLayer = FieldLayer()
-    private let farmerLayer = FarmerNode()
+    private let farmerLayer = FarmerLayer()
 
     override func didMove(to view: SKView) {
         backgroundColor = GroundTile.fillColor
@@ -25,8 +25,8 @@ final class MainStallScene: SKScene {
         addChild(fieldLayer)
         fieldLayer.layout(for: frame.size)
 
-        // Same base zPosition as fieldLayer so FarmerNode's local row-based zPosition
-        // (see FarmerNode.layout) compares directly against FieldLayer's plot zPositions.
+        // Same base zPosition as fieldLayer so FarmerLayer's local row-based zPosition
+        // (see FarmerLayer.layout) compares directly against FieldLayer's plot zPositions.
         farmerLayer.zPosition = 10
         addChild(farmerLayer)
         farmerLayer.layout(for: frame.size)
