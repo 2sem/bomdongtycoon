@@ -14,7 +14,6 @@ import SpriteKit
 final class ShopWallLayer: SKNode {
 
     private static let backWallTextureName = "shop_wall_wood"
-    private static let sideWallTextureName = "shop_wall_side_wood"
 
     // Same column width as FieldLayer so the shop's footprint aligns directly under the
     // field, column-for-column, instead of drifting sideways.
@@ -53,11 +52,16 @@ final class ShopWallLayer: SKNode {
         let shopStartColumn = fieldStartColumn
         let shopStartRow = fieldStartRow - Self.gapRows - Self.rowCount
 
+        // Side walls deliberately reuse the back wall's vertical-grain plank texture rather
+        // than a dedicated horizontal-grain one: SKShapeNode's fillTexture shears along with
+        // the shape's own geometry, and on these tall, heavily-slanted parallelogram
+        // segments a horizontal-grain/block texture's strong horizontal lines shear into an
+        // ugly diagonal zigzag/chevron. Vertical grain lines stay close to vertical under
+        // this same shear, so they read correctly on the tilted side walls.
         let backTexture = SKTexture(imageNamed: Self.backWallTextureName)
-        let sideTexture = SKTexture(imageNamed: Self.sideWallTextureName)
 
         addChild(makeBackWall(texture: backTexture, shopStartRow: shopStartRow, shopStartColumn: shopStartColumn, fieldStartRow: fieldStartRow))
-        let sideWalls = makeSideWalls(texture: sideTexture, shopStartRow: shopStartRow, shopStartColumn: shopStartColumn, fieldStartRow: fieldStartRow)
+        let sideWalls = makeSideWalls(texture: backTexture, shopStartRow: shopStartRow, shopStartColumn: shopStartColumn, fieldStartRow: fieldStartRow)
         addChild(sideWalls.west)
         addChild(sideWalls.east)
     }
