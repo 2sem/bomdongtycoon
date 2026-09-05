@@ -16,6 +16,7 @@ final class MainStallScene: SKScene {
     private let fieldLayer = FieldLayer()
     private let farmerLayer = FarmerLayer()
     private let shopWallLayer = ShopWallLayer()
+    private let kitchenLayer = KitchenLayer()
 
     override func didMove(to view: SKView) {
         backgroundColor = GroundTile.fillColor
@@ -39,6 +40,13 @@ final class MainStallScene: SKScene {
         shopWallLayer.zPosition = 10
         addChild(shopWallLayer)
         shopWallLayer.layout(for: frame.size)
+
+        // Same base zPosition as the other shop-area layers; KitchenLayer's own zPosition
+        // formula (see KitchenNode.swift) shares ShopWallLayer's row-based scale, so the
+        // kitchen sorts correctly against the shop's walls and the field behind it.
+        kitchenLayer.zPosition = 10
+        addChild(kitchenLayer)
+        kitchenLayer.layout(for: frame.size)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -47,6 +55,7 @@ final class MainStallScene: SKScene {
         fieldLayer.layout(for: size)
         farmerLayer.layout(for: size)
         shopWallLayer.layout(for: size)
+        kitchenLayer.layout(for: size)
     }
 
     override func update(_ currentTime: TimeInterval) {
