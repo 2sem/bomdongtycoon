@@ -99,11 +99,15 @@ final class ShopWallLayer: SKNode {
         let size = CGSize(width: CGFloat(Self.columnCount) * GroundTile.width, height: Self.wallHeight)
         let wall = Self.makeTiledWallFace(texture: texture, size: size, desiredTileSize: Self.backWallTileSize)
 
-        // Same bottom-center anchor convention the previous single stretched sprite used,
-        // so `position` lands on the row's tile line rather than the face's visual center.
+        // Bottom-center anchor: `position.x` must land at the horizontal midpoint between
+        // the west and east side walls' exact terminal corner points (leftOriginX and
+        // leftOriginX + columnCount*width), and `position.y` must land exactly at those
+        // walls' terminal row's ground line (originY) — not offset by half a tile in either
+        // axis, which previously left a diagonal gap at both corners where the back wall met
+        // each side wall.
         wall.position = CGPoint(
-            x: leftOriginX + CGFloat(Self.columnCount) * GroundTile.width / 2 + GroundTile.skew / 2,
-            y: originY + GroundTile.height / 2
+            x: leftOriginX + CGFloat(Self.columnCount) * GroundTile.width / 2,
+            y: originY
         )
 
         wall.zPosition = Self.zPosition(forRowIndex: backRowIndex, fieldStartRow: fieldStartRow)
