@@ -6,7 +6,7 @@ import SpriteKit
 /// intentionally ignores — a single cook figure stands in for the eventual roster).
 final class KitchenLayer: SKNode {
 
-    private static let tableTextureName = "kitchen_table"
+    private static let tableTopTextureName = "kitchen_table_top"
     private static let burnerTextureName = "kitchen_burner"
     private static let potTextureName = "kitchen_pot"
     private static let soupPotTextureName = "kitchen_soup_pot"
@@ -39,7 +39,6 @@ final class KitchenLayer: SKNode {
         var aspect: CGFloat { pixelRect.width / pixelRect.height }
     }
 
-    private static let tableContentBox = ContentBox(pixelRect: CGRect(x: 126, y: 343, width: 882, height: 532), canvasSize: 1137)
     private static let burnerContentBox = ContentBox(pixelRect: CGRect(x: 160, y: 335, width: 814, height: 598), canvasSize: 1137)
     private static let potContentBox = ContentBox(pixelRect: CGRect(x: 102, y: 272, width: 939, height: 680), canvasSize: 1137)
     private static let soupPotContentBox = ContentBox(pixelRect: CGRect(x: 135, y: 159, width: 864, height: 824), canvasSize: 1137)
@@ -48,6 +47,36 @@ final class KitchenLayer: SKNode {
     // The table spans roughly 2.3 of the shop's 4 columns — low and wide like a real prep
     // table seen front-on.
     private static let tableWidth = GroundTile.width * 2.3
+
+    // The tabletop is a flat, horizontal surface sitting on the floor — like the ground
+    // itself, not a standing upright sprite — so it's rendered as a tilted parallelogram
+    // matching the ground/wall's isometric skew (see `GroundTile.path`), rather than a
+    // plain front-facing rectangle. It's shallower ("front-to-back depth") than a full
+    // ground tile since it's just a tabletop, not a whole extra floor tile.
+    private static let tableDepth = GroundTile.height * 0.8
+
+    // Matches GroundTile's own skew-to-height ratio (`GroundTile.skew / GroundTile.height`)
+    // scaled down to the table's shallower depth, so the tabletop's shear angle visually
+    // matches the ground/wall's shear angle exactly.
+    private static let tableSkew = GroundTile.skew * (tableDepth / GroundTile.height)
+
+    /// The tabletop's outline: the same parallelogram construction as `GroundTile.path`
+    /// (`(0,0)`, `(tableWidth,0)`, `(tableWidth+tableSkew,tableDepth)`, `(tableSkew,tableDepth)`),
+    /// shifted so the shape's own horizontal center (the average of its four corners) lands
+    /// at local x = 0 — local x spans `-tableWidth/2 - tableSkew/2 ... tableWidth/2 +
+    /// tableSkew/2`. This lets a caller position the node at `(centerX, centerY)` and have
+    /// the rendered shape land horizontally centered on `centerX`, the same way the old
+    /// rectangular table (anchorPoint (0.5, 0)) did.
+    private static let tableTopPath: CGPath = {
+        let offsetX = -(tableWidth + tableSkew) / 2
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: offsetX, y: 0))
+        path.addLine(to: CGPoint(x: offsetX + tableWidth, y: 0))
+        path.addLine(to: CGPoint(x: offsetX + tableWidth + tableSkew, y: tableDepth))
+        path.addLine(to: CGPoint(x: offsetX + tableSkew, y: tableDepth))
+        path.closeSubpath()
+        return path
+    }()
 
     // Props sized as a fraction of one tile-width so they read as small kitchen items sitting
     // on the table rather than dominating it.
@@ -60,12 +89,14 @@ final class KitchenLayer: SKNode {
     // spare full row available here — this is the shop's back-most footprint row, right
     // against the back wall — unlike the farmer/cashier setups, which had a whole extra row.
     // Rather than a flat offset from the row's own ground line, this is measured from the
-    // table's own rendered top edge (see `layout(for:)`): only this much of the cook's own
-    // height is tucked behind that edge, with the rest standing visibly above it. The table's
-    // front-view art renders quite tall (legs plus a deep apron), so anchoring from its
-    // ground line the way FarmerLayer anchors from the crop row's would bury most of the cook
-    // behind it instead of reading as "standing at the station."
-    private static let cookHiddenBehindTable = GroundTile.height * 0.5
+    // table's own rendered back edge (see `layout(for:)`): only this much of the cook's own
+    // height is tucked behind that edge, with the rest standing visibly above it. The
+    // tabletop itself is now a shallow tilted surface (`tableDepth`, not the old tall
+    // front-view image's rendered height), so this is derived as a fraction of `tableDepth`
+    // rather than a flat `GroundTile.height`-scaled constant — anchoring a fixed amount tuned
+    // for the old tall image would bury the cook's entire base below the new, much shorter
+    // surface.
+    private static let cookHiddenBehindTable = tableDepth * 0.3
     private static let cookHeight = GroundTile.height * 2.3
 
     func layout(for size: CGSize) {
@@ -86,19 +117,27 @@ final class KitchenLayer: SKNode {
         let centerX = rowOriginX + CGFloat(ShopWallLayer.columnCount) * GroundTile.width / 2 + GroundTile.skew / 2
         let centerY = CGFloat(kitchenRowIndex) * GroundTile.height + GroundTile.height / 2
 
-        let table = Self.makeCroppedSprite(named: Self.tableTextureName, contentBox: Self.tableContentBox, width: Self.tableWidth)
-        table.anchorPoint = CGPoint(x: 0.5, y: 0)
+        // The tabletop is a flat horizontal surface, so it's built as a tilted parallelogram
+        // shape textured with a top-down wood-plank texture (mirroring GroundTile/ShopWallNode's
+        // "SKShapeNode with fillTexture" recipe for tilted surfaces), rather than an upright
+        // front-view sprite — a plain rectangle would ignore the isometric skew the ground and
+        // walls are drawn with.
+        let table = SKShapeNode(path: Self.tableTopPath)
+        table.fillTexture = SKTexture(imageNamed: Self.tableTopTextureName)
+        table.fillColor = .white
+        table.strokeColor = GroundTile.strokeColor
+        table.lineWidth = 1
         table.position = CGPoint(x: centerX, y: centerY)
         table.zPosition = rowZPosition
         addChild(table)
 
-        // The cook stands just behind the table, mostly above its rendered top edge with
+        // The cook stands just behind the table, mostly above its rendered back edge with
         // only a small amount of its own base tucked behind that edge (see
         // `cookHiddenBehindTable`'s doc comment). Added right after the table — but before
-        // the tabletop props below — so it draws in front of the table's own tall front face
+        // the tabletop props below — so it draws in front of the table's own back edge
         // (reading as "standing behind it") while the props still draw in front of the cook
         // where they sit on the table's surface, closer to the camera than the cook's torso.
-        let tableTopEdgeY = table.position.y + table.size.height
+        let tableTopEdgeY = table.position.y + Self.tableDepth
         let cookTexture = SKTexture(imageNamed: Self.cookTextureName)
         // The cook's source art is a square canvas with small baked-in padding (matching
         // FarmerLayer's own staff art), so — unlike the props below — the raw texture aspect
@@ -111,11 +150,11 @@ final class KitchenLayer: SKNode {
         cook.zPosition = rowZPosition
         addChild(cook)
 
-        // Props sit near the top edge of the table graphic (the tabletop's own back-top
-        // line), nudged down slightly so their base nestles into the surface instead of
-        // floating just above it. Added after the cook so they read as sitting on the table
-        // in front of it, rather than the cook's body covering them.
-        let tabletopY = table.position.y + table.size.height * 0.88
+        // Props sit near the tabletop's own back edge, nudged down slightly so their base
+        // nestles into the surface instead of floating just above it. Added after the cook so
+        // they read as sitting on the table in front of it, rather than the cook's body
+        // covering them.
+        let tabletopY = table.position.y + Self.tableDepth * 0.88
 
         let burner = Self.makeCroppedSprite(named: Self.burnerTextureName, contentBox: Self.burnerContentBox, width: Self.burnerWidth)
         burner.anchorPoint = CGPoint(x: 0.5, y: 0)
