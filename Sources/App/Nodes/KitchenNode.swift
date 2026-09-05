@@ -6,11 +6,11 @@ import SpriteKit
 /// gameplay/staff-hire state.
 final class KitchenLayer: SKNode {
 
-    // Items on the table are arranged in a left-to-right row starting near the tabletop's own
-    // left edge, rather than each being independently centered on it — this reads as items
-    // laid out across a work surface, and keeps them from overlapping as more props are added.
-    private static let itemLeftMargin = GroundTile.width * 0.12
-    private static let itemGap = GroundTile.width * 0.08
+    // The tabletop is divided into a fixed row of equal-width tile slots so each item placed
+    // on it gets its own dedicated area to sit in — mirroring how GroundTile/FieldLayer divide
+    // the floor into a grid of cells rather than treating it as one continuous surface — instead
+    // of packing items edge to edge or centering them all on the same point.
+    private static let tileSlotCount = 3
 
     func layout(for size: CGSize) {
         removeAllChildren()
@@ -36,17 +36,21 @@ final class KitchenLayer: SKNode {
         addChild(table)
 
         // Items sit at half the tabletop's depth (vertically centered on the surface) and are
-        // laid out left-to-right starting `itemLeftMargin` in from the tabletop's own left
-        // edge, advancing the cursor by each item's width plus `itemGap` as more are added.
+        // each centered within their own tile slot's horizontal span, so a slot is reserved
+        // for an item regardless of that item's own width.
         let itemY = table.position.y + KitchenTableNode.depth * 0.5
-        var itemCursorX = centerX - KitchenTableNode.width / 2 + Self.itemLeftMargin
+        let slotWidth = KitchenTableNode.width / CGFloat(Self.tileSlotCount)
+        let tableLeftX = centerX - KitchenTableNode.width / 2
+
+        func slotCenterX(_ slotIndex: Int) -> CGFloat {
+            tableLeftX + slotWidth * (CGFloat(slotIndex) + 0.5)
+        }
 
         // Added after the table so it draws in front of the tabletop's own faces, reading as
-        // sitting on top of it.
+        // sitting on top of it. Placed in the leftmost tile slot.
         let bowl = KitchenEmptyBowlNode()
-        bowl.position = CGPoint(x: itemCursorX + KitchenEmptyBowlNode.width / 2, y: itemY)
+        bowl.position = CGPoint(x: slotCenterX(0), y: itemY)
         bowl.zPosition = rowZPosition
         addChild(bowl)
-        itemCursorX += KitchenEmptyBowlNode.width + Self.itemGap
     }
 }
