@@ -16,6 +16,7 @@ final class MainStallScene: SKScene {
     private let fieldLayer = FieldLayer()
     private let farmerLayer = FarmerLayer()
     private let shopWallLayer = ShopWallLayer()
+    private let counterLayer = CounterLayer()
 
     override func didMove(to view: SKView) {
         backgroundColor = GroundTile.fillColor
@@ -39,6 +40,14 @@ final class MainStallScene: SKScene {
         shopWallLayer.zPosition = 10
         addChild(shopWallLayer)
         shopWallLayer.layout(for: frame.size)
+
+        // Same base zPosition as the rest of the shop; CounterLayer reuses
+        // ShopWallLayer.zPosition (see CounterNode.swift) so the counter/cashier sort
+        // correctly against the field and the shop's own walls. Added after shopWallLayer
+        // so it draws on top in the (non-overlapping) event two elements ever share a pass.
+        counterLayer.zPosition = 10
+        addChild(counterLayer)
+        counterLayer.layout(for: frame.size)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -47,6 +56,7 @@ final class MainStallScene: SKScene {
         fieldLayer.layout(for: size)
         farmerLayer.layout(for: size)
         shopWallLayer.layout(for: size)
+        counterLayer.layout(for: size)
     }
 
     override func update(_ currentTime: TimeInterval) {
