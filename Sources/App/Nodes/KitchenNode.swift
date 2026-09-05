@@ -1,8 +1,9 @@
 import SpriteKit
 
-/// The shop's back-most footprint row, right in front of the back wall — currently holds just
-/// the prep table (see `KitchenTableNode` for how it's built). Cook and cooking props aren't
-/// wired up yet, and none of this is wired to any gameplay/staff-hire state.
+/// The shop's back-most footprint row, right in front of the back wall — currently holds the
+/// prep table (see `KitchenTableNode`) and a bowl sitting on top of it (see `KitchenBowlNode`).
+/// Cook and further cooking props aren't wired up yet, and none of this is wired to any
+/// gameplay/staff-hire state.
 final class KitchenLayer: SKNode {
     func layout(for size: CGSize) {
         removeAllChildren()
@@ -26,5 +27,14 @@ final class KitchenLayer: SKNode {
         table.position = CGPoint(x: centerX, y: centerY)
         table.zPosition = rowZPosition
         addChild(table)
+
+        // The bowl sits centered on the tabletop's own surface — horizontally at centerX,
+        // vertically at half the tabletop's depth, so it lands in the middle of the table
+        // rather than tucked against the back edge. Added after the table so it draws in
+        // front of the tabletop's own faces, reading as sitting on top of it.
+        let bowl = KitchenBowlNode()
+        bowl.position = CGPoint(x: centerX, y: table.position.y + KitchenTableNode.depth * 0.5)
+        bowl.zPosition = rowZPosition
+        addChild(bowl)
     }
 }
