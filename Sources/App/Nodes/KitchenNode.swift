@@ -1,17 +1,19 @@
 import SpriteKit
 
 /// The shop's back-most footprint row, right in front of the back wall — currently holds the
-/// prep table (see `KitchenTableNode`) and three bowls sitting on top of it: a small empty one
-/// (see `KitchenEmptyBowlNode`), one filled with 겉절이 (see `KitchenKimchiBowlNode`), and a
-/// large empty mixing bowl (see `KitchenEmptyKimchiBowlNode`). Cook and further cooking props
-/// aren't wired up yet, and none of this is wired to any gameplay/staff-hire state.
+/// prep table (see `KitchenTableNode`) and two bowls sitting on top of it: a small empty one
+/// (see `KitchenEmptyBowlNode`) and a large empty mixing bowl (see
+/// `KitchenEmptyKimchiBowlNode`) standing in for the filled 겉절이 bowl (`KitchenKimchiBowlNode`,
+/// kept around but currently unused) until that dish is actually ready to show. Cook and
+/// further cooking props aren't wired up yet, and none of this is wired to any
+/// gameplay/staff-hire state.
 final class KitchenLayer: SKNode {
 
     // The tabletop is divided into a fixed row of equal-width tile slots so each item placed
     // on it gets its own dedicated area to sit in — mirroring how GroundTile/FieldLayer divide
     // the floor into a grid of cells rather than treating it as one continuous surface — instead
     // of packing items edge to edge or centering them all on the same point.
-    private static let tileSlotCount = 3
+    private static let tileSlotCount = 2
 
     func layout(for size: CGSize) {
         removeAllChildren()
@@ -54,15 +56,10 @@ final class KitchenLayer: SKNode {
         bowl.zPosition = rowZPosition
         addChild(bowl)
 
-        // The kimchi bowl takes the next tile slot over, same reasoning as the empty bowl above.
-        let kimchiBowl = KitchenKimchiBowlNode()
-        kimchiBowl.position = CGPoint(x: slotCenterX(1), y: itemY)
-        kimchiBowl.zPosition = rowZPosition
-        addChild(kimchiBowl)
-
-        // The large empty mixing bowl takes the last tile slot.
+        // The large empty mixing bowl takes the next tile slot over, replacing the filled
+        // kimchi bowl at this spot until that dish is ready to show.
         let mixingBowl = KitchenEmptyKimchiBowlNode()
-        mixingBowl.position = CGPoint(x: slotCenterX(2), y: itemY)
+        mixingBowl.position = CGPoint(x: slotCenterX(1), y: itemY)
         mixingBowl.zPosition = rowZPosition
         addChild(mixingBowl)
     }
