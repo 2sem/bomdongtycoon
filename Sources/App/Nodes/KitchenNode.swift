@@ -71,6 +71,30 @@ final class KitchenLayer: SKNode {
     // the apron as a distinct vertical surface rather than more flat tabletop.
     private static let tableApronShadeColor = SKColor(white: 0.72, alpha: 1)
 
+    /// The right side panel's outline: extrudes the tabletop's own right edge (`tableTopPath`'s
+    /// skewed edge running from `(tableWidth,0)` front to `(tableWidth+tableSkew,tableDepth)`
+    /// back) straight down by `tableApronHeight`, the same "extrude a diagonal ground-line edge
+    /// downward into a vertical face" construction `ShopWallNode.wallSegmentPath` uses (there
+    /// extruded upward from the ground instead of downward from a tabletop). Without this face
+    /// the table reads as a flat top-plus-front cutout instead of a solid box — a real table
+    /// standing on this isometric grid shows three faces (top, front, and this right side), not
+    /// two.
+    private static let tableRightPath: CGPath = {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: tableOffsetX + tableWidth, y: 0))
+        path.addLine(to: CGPoint(x: tableOffsetX + tableWidth + tableSkew, y: tableDepth))
+        path.addLine(to: CGPoint(x: tableOffsetX + tableWidth + tableSkew, y: tableDepth - tableApronHeight))
+        path.addLine(to: CGPoint(x: tableOffsetX + tableWidth, y: -tableApronHeight))
+        path.closeSubpath()
+        return path
+    }()
+
+    // Darker than the front apron's own shade — the right face angles further away from the
+    // implied light source than the front face does, so it reads as the darkest of the table's
+    // three visible faces (lightest top, mid-tone front, darkest side), matching how isometric
+    // cubes are conventionally shaded.
+    private static let tableRightShadeColor = SKColor(white: 0.6, alpha: 1)
+
     func layout(for size: CGSize) {
         removeAllChildren()
 
@@ -112,5 +136,16 @@ final class KitchenLayer: SKNode {
         apron.strokeColor = GroundTile.strokeColor
         apron.lineWidth = 1
         table.addChild(apron)
+
+        // The right side panel hangs from the tabletop's own right edge, same child-of-`table`
+        // reasoning as the front apron above: it inherits `table`'s position and shares its
+        // exact local coordinate frame, so this seam and the apron's shared corner both align
+        // with no gap.
+        let rightPanel = SKShapeNode(path: Self.tableRightPath)
+        rightPanel.fillTexture = SKTexture(imageNamed: Self.tableTopTextureName)
+        rightPanel.fillColor = Self.tableRightShadeColor
+        rightPanel.strokeColor = GroundTile.strokeColor
+        rightPanel.lineWidth = 1
+        table.addChild(rightPanel)
     }
 }
