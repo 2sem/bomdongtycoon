@@ -11,9 +11,12 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     #if DEBUG
     private let rewardedUnitID  = "ca-app-pub-3940256099942544/1712485313"  // test rewarded
     private let appOpenUnitID   = "ca-app-pub-3940256099942544/9257395921"  // test app open
+    /// Flip to `false` to test ads locally; keep `true` while doing unrelated feature work so ads don't interrupt.
+    private static let adsDisabledForDevelopment = true
     #else
     private let rewardedUnitID  = "ca-app-pub-9684378399371172/3844454464"
     private let appOpenUnitID   = "ca-app-pub-9684378399371172/7904835004"
+    private static let adsDisabledForDevelopment = false
     #endif
 
     // MARK: - State
@@ -40,6 +43,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     // MARK: - Preload
 
     func preload() {
+        guard !Self.adsDisabledForDevelopment else { return }
         preloadRewarded()
         preloadAppOpen()
     }
@@ -76,6 +80,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
 
     /// Show the app open ad. `completion` is called when the ad is dismissed (or immediately if none is ready).
     func showAppOpen(completion: @escaping () -> Void) {
+        guard !Self.adsDisabledForDevelopment else { completion(); return }
         guard !isShowingAd else { completion(); return }
         if let last = lastAppOpenShownDate,
            Date().timeIntervalSince(last) < Self.appOpenInterval {
@@ -108,6 +113,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     /// Show the rewarded ad. Calls `completion(true)` if reward earned, `completion(false)` if skipped/failed.
     /// If the ad is still loading, waits up to 5s before giving up.
     func showRewarded(completion: @escaping (Bool) -> Void) {
+        guard !Self.adsDisabledForDevelopment else { completion(false); return }
         guard !isShowingAd else { completion(false); return }
 
         requestTrackingAuthorizationIfNeeded { [weak self] in
