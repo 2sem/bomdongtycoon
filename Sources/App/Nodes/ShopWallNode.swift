@@ -102,44 +102,48 @@ final class ShopWallLayer: SKNode {
         return wall
     }
 
-    /// West/east walls each span the footprint's row depth (front row to the footprint's
-    /// own back row, NOT the extra row the back wall stands on) along their respective
-    /// column edge. Each face is a grid of small repeated tile sprites (see
-    /// `makeTiledWallFace`) standing on the tile grid — same "flat face, no skew" placement
-    /// convention as before (see FarmerLayer), just built from many small panels instead of
-    /// one stretched sprite.
+    /// West/east walls each span the footprint's row depth (front row through the
+    /// footprint's own back row, NOT the extra row the back wall stands on) along their
+    /// respective column edge. On this isometric-look grid, a larger row index is shifted
+    /// rightward by the cumulative skew (`GroundTile.skew * rowIndex`, the same formula
+    /// `GroundLayer`/`FieldLayer` use per tile) — so the front-row and back-row ground lines
+    /// sit at different x offsets. A single straight vertical rectangle can't touch both, so
+    /// instead each wall is built as one small tiled panel PER ROW, each positioned at that
+    /// row's own `(column*width + skew*rowIndex, rowIndex*height)` ground offset — the exact
+    /// same per-row placement `GroundLayer`/`FieldLayer` use for their own tiles. The result
+    /// is a contiguous staircase of panels that steps diagonally along the ground's skew
+    /// instead of standing as one disconnected straight post.
     private func makeSideWalls(texture: SKTexture, shopStartRow: Int, shopStartColumn: Int, fieldStartRow: Int) -> (west: SKNode, east: SKNode) {
         let frontRowIndex = shopStartRow
         let footprintBackRowIndex = shopStartRow + Self.rowCount - 1
 
-        // Tile-center vertical offset (+ height / 2), matching FieldLayer/FarmerLayer's
-        // per-tile centering convention.
-        let frontY = CGFloat(frontRowIndex) * GroundTile.height + GroundTile.height / 2
-        let backY = CGFloat(footprintBackRowIndex) * GroundTile.height + GroundTile.height / 2
-        let depthHeight = backY - frontY
-
-        let size = CGSize(width: Self.sideWallWidth, height: depthHeight + Self.wallHeight)
-
         let westColumn = shopStartColumn
-        let westFrontX = CGFloat(westColumn) * GroundTile.width + GroundTile.skew * CGFloat(frontRowIndex)
-        let westBackX = CGFloat(westColumn) * GroundTile.width + GroundTile.skew * CGFloat(footprintBackRowIndex)
-
         let eastColumn = shopStartColumn + Self.columnCount
-        let eastFrontX = CGFloat(eastColumn) * GroundTile.width + GroundTile.skew * CGFloat(frontRowIndex)
-        let eastBackX = CGFloat(eastColumn) * GroundTile.width + GroundTile.skew * CGFloat(footprintBackRowIndex)
 
-        // Side walls lead with the front row, so they resolve to a higher zPosition than
-        // the back wall (which stands at rowOffset == rowCount, one row further back) and
-        // than every field row/farmer, matching the "front draws over back" convention.
-        let zPosition = Self.zPosition(forRowIndex: frontRowIndex, fieldStartRow: fieldStartRow)
+        let panelSize = CGSize(width: Self.sideWallWidth, height: Self.wallHeight)
 
-        let west = Self.makeTiledWallFace(texture: texture, size: size, desiredTileSize: Self.sideWallTileSize)
-        west.position = CGPoint(x: (westFrontX + westBackX) / 2, y: frontY)
-        west.zPosition = zPosition
+        let west = SKNode()
+        let east = SKNode()
 
-        let east = Self.makeTiledWallFace(texture: texture, size: size, desiredTileSize: Self.sideWallTileSize)
-        east.position = CGPoint(x: (eastFrontX + eastBackX) / 2, y: frontY)
-        east.zPosition = zPosition
+        for rowIndex in frontRowIndex...footprintBackRowIndex {
+            // Same per-row centering convention as makeBackWall/GroundLayer: the row's tile
+            // spans rowIndex*height ... (rowIndex+1)*height, so the vertical mid-line (where
+            // the wall's bottom-center anchor should sit) is rowIndex*height + height/2.
+            let rowY = CGFloat(rowIndex) * GroundTile.height + GroundTile.height / 2
+            let rowZPosition = Self.zPosition(forRowIndex: rowIndex, fieldStartRow: fieldStartRow)
+
+            let westX = CGFloat(westColumn) * GroundTile.width + GroundTile.skew * CGFloat(rowIndex)
+            let westPanel = Self.makeTiledWallFace(texture: texture, size: panelSize, desiredTileSize: Self.sideWallTileSize)
+            westPanel.position = CGPoint(x: westX, y: rowY)
+            westPanel.zPosition = rowZPosition
+            west.addChild(westPanel)
+
+            let eastX = CGFloat(eastColumn) * GroundTile.width + GroundTile.skew * CGFloat(rowIndex)
+            let eastPanel = Self.makeTiledWallFace(texture: texture, size: panelSize, desiredTileSize: Self.sideWallTileSize)
+            eastPanel.position = CGPoint(x: eastX, y: rowY)
+            eastPanel.zPosition = rowZPosition
+            east.addChild(eastPanel)
+        }
 
         return (west, east)
     }
