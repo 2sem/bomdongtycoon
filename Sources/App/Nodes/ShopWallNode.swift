@@ -1,31 +1,27 @@
 import SpriteKit
 
 /// A roofless 3-wall shell (back + west + east) representing the shop building shell.
-/// Sits on the same tile-grid "shelf" as `FieldLayer`, immediately west of it, with a
-/// visible gap in between. Deliberately has no front (south) wall and no roof/ceiling so
-/// the interior stays visible from the camera — counter/kitchen/staff come in later PRs.
+/// Sits directly in front of `FieldLayer` — i.e. toward the camera, at a smaller row
+/// index than the field's own footprint — aligned to the same columns as the field, with
+/// a small visible gap between the shop's back wall and the field's front edge. This
+/// matches the front-to-back composition order "customers -> shop -> field": the field is
+/// the furthest-back element and the shop stands stacked in front of it along the row
+/// (depth) axis, not offset sideways along the column axis. Deliberately has no front
+/// (south) wall and no roof/ceiling so the interior stays visible from the camera —
+/// counter/kitchen/staff come in later PRs.
 ///
 /// Purely visual for now — not wired to any gameplay/farm/shop state.
 final class ShopWallLayer: SKNode {
 
     private static let textureName = "shop_wall_wood"
 
-    // Same row depth as FieldLayer so the shop reads as sitting on the same "shelf" as
-    // the field, just further along the row band.
-    //
-    // NOTE on viewport fit: FieldLayer's right-anchored margin + width alone already
-    // consumes most of a portrait phone screen's width, so at this column count the
-    // shop's west wall (and part of the back wall) render off the left edge of the
-    // current viewport — the east wall and the gap before the field stay on screen. This
-    // mirrors the existing precedent where the field's own back-right crop already clips
-    // at the screen's right edge. The design brief's "fit on one screen" goal targets the
-    // *final* 8-element composition (once customers/counter/kitchen exist too) and is
-    // expected to need a dedicated camera/scale pass then, not at each intermediate PR.
-    private static let columnCount = 5
+    // Same column width as FieldLayer so the shop's footprint aligns directly under the
+    // field, column-for-column, instead of drifting sideways.
+    private static let columnCount = FieldLayer.columnCount
     private static let rowCount = FieldLayer.rowCount
 
-    // At least one empty tile column between the shop's east wall and the field's west edge.
-    private static let gapColumns = 1
+    // At least one empty tile row between the shop's back wall and the field's front edge.
+    private static let gapRows = 1
 
     // Building walls read taller than the farmer figure (GroundTile.height * 3) so the
     // shell feels architectural rather than person-scaled.
@@ -35,33 +31,41 @@ final class ShopWallLayer: SKNode {
     func layout(for size: CGSize) {
         removeAllChildren()
 
-        // Anchor to the same row band FieldLayer uses, then place the shop's footprint
-        // immediately west of the field with a visible gap, mirroring how FarmerLayer
-        // reuses this same formula instead of duplicating it.
+        // Anchor to the field's own columns, then place the shop's footprint immediately
+        // south of (in front of) the field with a visible row gap, mirroring how
+        // FarmerLayer reuses this same formula instead of duplicating it.
         let (fieldStartRow, fieldStartColumn) = FieldLayer.layoutMetrics(for: size)
-        let shopStartRow = fieldStartRow
-        let shopStartColumn = fieldStartColumn - Self.gapColumns - Self.columnCount
+        let shopStartColumn = fieldStartColumn
+        let shopStartRow = fieldStartRow - Self.gapRows - Self.rowCount
 
         let texture = SKTexture(imageNamed: Self.textureName)
 
-        // The footprint occupies rowOffset 0..<rowCount (rowIndex shopStartRow...
-        // shopStartRow + rowCount - 1). As with GroundLayer/FieldLayer, a larger rowIndex
-        // sits higher on screen (further back). zPosition is depth-sorted with a small
-        // LOCAL offset — relative to ShopWallLayer's own base zPosition set by the scene —
-        // so the further-back back wall draws behind the side walls, which lead with the
-        // shop's front (south) row closest to the camera.
-        let localZSpan = CGFloat(Self.rowCount + 1)
-
-        addChild(makeBackWall(texture: texture, shopStartRow: shopStartRow, shopStartColumn: shopStartColumn, localZSpan: localZSpan))
-        let sideWalls = makeSideWalls(texture: texture, shopStartRow: shopStartRow, shopStartColumn: shopStartColumn, localZSpan: localZSpan)
+        addChild(makeBackWall(texture: texture, shopStartRow: shopStartRow, shopStartColumn: shopStartColumn, fieldStartRow: fieldStartRow))
+        let sideWalls = makeSideWalls(texture: texture, shopStartRow: shopStartRow, shopStartColumn: shopStartColumn, fieldStartRow: fieldStartRow)
         addChild(sideWalls.west)
         addChild(sideWalls.east)
     }
 
+    /// Shares FieldLayer/FarmerLayer's zPosition convention rather than a span scoped only
+    /// to the shop's own rows: `FieldLayer.rowCount - (rowIndex - fieldStartRow)`. This is
+    /// the same formula FieldLayer applies to its own rows (rowIndex - fieldStartRow ==
+    /// rowOffset) and FarmerLayer applies to the row behind the field, so every layer that
+    /// shares ShopWallLayer's base zPosition (10, set in MainStallScene) sorts correctly
+    /// against FieldLayer's plots — a row index smaller than the field's (closer to the
+    /// camera, as the shop's rows are) resolves to a HIGHER value than any field row, so
+    /// the shop's walls always draw in front of (occlude) the field where their tall
+    /// sprites visually overlap it, instead of being scoped independently and coincidentally
+    /// tying or losing against the field's own local zPositions.
+    private static func zPosition(forRowIndex rowIndex: Int, fieldStartRow: Int) -> CGFloat {
+        CGFloat(FieldLayer.rowCount + fieldStartRow - rowIndex)
+    }
+
     /// One wide sprite spanning the shop's full column width, standing one row further
     /// back than the footprint's own back row — mirroring how FarmerLayer stands one row
-    /// behind FieldLayer's back row (`rowOffset = rowCount`).
-    private func makeBackWall(texture: SKTexture, shopStartRow: Int, shopStartColumn: Int, localZSpan: CGFloat) -> SKSpriteNode {
+    /// behind FieldLayer's back row (`rowOffset = rowCount`). With the shop now placed in
+    /// front of the field, this back-wall row lands exactly `gapRows` rows before the
+    /// field's own front row, giving a small but clear visible gap.
+    private func makeBackWall(texture: SKTexture, shopStartRow: Int, shopStartColumn: Int, fieldStartRow: Int) -> SKSpriteNode {
         let backRowOffset = Self.rowCount
         let backRowIndex = shopStartRow + backRowOffset
 
@@ -79,10 +83,7 @@ final class ShopWallLayer: SKNode {
             y: originY + GroundTile.height / 2
         )
 
-        // Furthest-back piece of the shell: lowest local zPosition so it draws behind
-        // the side walls (and, via ShopWallLayer's shared base zPosition with
-        // fieldLayer/farmerLayer, still above the ground plane).
-        wall.zPosition = localZSpan - CGFloat(backRowOffset)
+        wall.zPosition = Self.zPosition(forRowIndex: backRowIndex, fieldStartRow: fieldStartRow)
 
         return wall
     }
@@ -92,7 +93,7 @@ final class ShopWallLayer: SKNode {
     /// column edge. Kept as a single flat rectangular sprite per the codebase's existing
     /// "flat sprite standing on the tile grid" convention (see FarmerLayer) rather than
     /// true skewed geometry.
-    private func makeSideWalls(texture: SKTexture, shopStartRow: Int, shopStartColumn: Int, localZSpan: CGFloat) -> (west: SKSpriteNode, east: SKSpriteNode) {
+    private func makeSideWalls(texture: SKTexture, shopStartRow: Int, shopStartColumn: Int, fieldStartRow: Int) -> (west: SKSpriteNode, east: SKSpriteNode) {
         let frontRowIndex = shopStartRow
         let footprintBackRowIndex = shopStartRow + Self.rowCount - 1
 
@@ -112,10 +113,10 @@ final class ShopWallLayer: SKNode {
         let eastFrontX = CGFloat(eastColumn) * GroundTile.width + GroundTile.skew * CGFloat(frontRowIndex)
         let eastBackX = CGFloat(eastColumn) * GroundTile.width + GroundTile.skew * CGFloat(footprintBackRowIndex)
 
-        // Side walls lead with the front row, so they resolve to a higher local
-        // zPosition than the back wall (which stands at rowOffset == rowCount) and than
-        // every footprint crop/tile row, matching the "front draws over back" convention.
-        let zPosition = localZSpan
+        // Side walls lead with the front row, so they resolve to a higher zPosition than
+        // the back wall (which stands at rowOffset == rowCount, one row further back) and
+        // than every field row/farmer, matching the "front draws over back" convention.
+        let zPosition = Self.zPosition(forRowIndex: frontRowIndex, fieldStartRow: fieldStartRow)
 
         let west = SKSpriteNode(texture: texture)
         west.size = size

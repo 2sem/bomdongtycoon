@@ -32,9 +32,10 @@ final class MainStallScene: SKScene {
         addChild(farmerLayer)
         farmerLayer.layout(for: frame.size)
 
-        // Same base zPosition as fieldLayer/farmerLayer; they occupy a disjoint column
-        // range (shop sits west of the field with a gap) so cross-layer ordering only
-        // matters relative to groundLayer, which this satisfies.
+        // Same base zPosition as fieldLayer/farmerLayer; ShopWallLayer's own zPosition
+        // formula (see ShopWallNode.swift) shares FieldLayer's row-based scale, so the
+        // shop's walls — which now stack directly in front of the field along the row axis
+        // and share its column range — sort correctly against the field's plots.
         shopWallLayer.zPosition = 10
         addChild(shopWallLayer)
         shopWallLayer.layout(for: frame.size)
