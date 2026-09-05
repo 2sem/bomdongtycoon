@@ -27,16 +27,21 @@ final class ShopWallLayer: SKNode {
     // Building walls read taller than the farmer figure (GroundTile.height * 3) so the
     // shell feels architectural rather than person-scaled.
     private static let wallHeight = GroundTile.height * 3.5
-    private static let sideWallWidth = GroundTile.width * 0.4
 
-    // Small repeated wall-panel unit sizes, mirroring GroundTile's "many small tiles"
-    // construction instead of one stretched image. Sized on the order of GroundTile.width
-    // so an individual panel reads at a believable plank/block scale next to the crops and
-    // farmers already on screen. The back wall's plank panels are slightly taller than wide
-    // (vertical-grain plank look); the side walls use square blocks to match their narrow
-    // stacked-block texture and thin footprint.
+    // Small repeated wall-panel unit size for the back wall, mirroring GroundTile's "many
+    // small tiles" construction instead of one stretched image. Sized on the order of
+    // GroundTile.width so an individual panel reads at a believable plank scale next to the
+    // crops and farmers already on screen (vertical-grain plank look: slightly taller than
+    // wide). The side walls no longer use a desired-tile-size grid — their tile unit is one
+    // parallelogram course per row-to-row step, subdivided only along wall height (see
+    // `sideWallCourseCount`), since their width/depth unit is fixed by the ground's own skew.
     private static let backWallTileSize = CGSize(width: GroundTile.width / 2, height: GroundTile.width / 2 * 1.25)
-    private static let sideWallTileSize = CGSize(width: sideWallWidth, height: sideWallWidth)
+
+    // Number of stacked parallelogram "courses" per side-wall row segment, matching the
+    // vertical tile density the back wall's own plank panels read at (wallHeight /
+    // backWallTileSize.height is roughly 4-5; 3 keeps side-wall courses a bit chunkier/taller
+    // than back-wall planks, which still reads fine given the side wall's narrower face).
+    private static let sideWallCourseCount = 3
 
     func layout(for size: CGSize) {
         removeAllChildren()
@@ -102,17 +107,18 @@ final class ShopWallLayer: SKNode {
         return wall
     }
 
-    /// West/east walls each span the footprint's row depth (front row through the
-    /// footprint's own back row, NOT the extra row the back wall stands on) along their
-    /// respective column edge. On this isometric-look grid, a larger row index is shifted
-    /// rightward by the cumulative skew (`GroundTile.skew * rowIndex`, the same formula
-    /// `GroundLayer`/`FieldLayer` use per tile) — so the front-row and back-row ground lines
-    /// sit at different x offsets. A single straight vertical rectangle can't touch both, so
-    /// instead each wall is built as one small tiled panel PER ROW, each positioned at that
-    /// row's own `(column*width + skew*rowIndex, rowIndex*height)` ground offset — the exact
-    /// same per-row placement `GroundLayer`/`FieldLayer` use for their own tiles. The result
-    /// is a contiguous staircase of panels that steps diagonally along the ground's skew
-    /// instead of standing as one disconnected straight post.
+    /// West/east walls each span the footprint's row depth (front row through the row where
+    /// the back wall stands) along their respective column edge. On this isometric-look
+    /// grid, moving from row `r` to row `r+1` shifts a ground point by exactly
+    /// `(GroundTile.skew, GroundTile.height)` — a fixed diagonal step, not straight up — the
+    /// same relationship that makes `GroundTile.path` a parallelogram instead of a rectangle
+    /// so consecutive ground tiles share an edge exactly. A side wall needs the same
+    /// property: each row-to-row step is built as one TILTED PARALLELOGRAM segment (two
+    /// vertical edges for wall height, two slanted edges matching the ground's skew for
+    /// depth), so segment `r`'s far edge coincides exactly with segment `r+1`'s near edge,
+    /// closing every seam. Each segment is itself subdivided into a few stacked parallelogram
+    /// "courses" so the wall still reads as built from small tiled units, matching the back
+    /// wall's construction, instead of one smooth tilted panel.
     private func makeSideWalls(texture: SKTexture, shopStartRow: Int, shopStartColumn: Int, fieldStartRow: Int) -> (west: SKNode, east: SKNode) {
         let frontRowIndex = shopStartRow
         let footprintBackRowIndex = shopStartRow + Self.rowCount - 1
@@ -120,32 +126,76 @@ final class ShopWallLayer: SKNode {
         let westColumn = shopStartColumn
         let eastColumn = shopStartColumn + Self.columnCount
 
-        let panelSize = CGSize(width: Self.sideWallWidth, height: Self.wallHeight)
-
         let west = SKNode()
         let east = SKNode()
 
-        for rowIndex in frontRowIndex...footprintBackRowIndex {
-            // Same per-row centering convention as makeBackWall/GroundLayer: the row's tile
-            // spans rowIndex*height ... (rowIndex+1)*height, so the vertical mid-line (where
-            // the wall's bottom-center anchor should sit) is rowIndex*height + height/2.
-            let rowY = CGFloat(rowIndex) * GroundTile.height + GroundTile.height / 2
+        // One segment per row-to-row step, from the front row through the footprint's back
+        // row inclusive — rowCount segments total, so the wall's far end lands exactly at
+        // `shopStartRow + rowCount`, the same row the back wall stands on, closing the corner
+        // with no gap.
+        for rowIndex in frontRowIndex..<(footprintBackRowIndex + 1) {
             let rowZPosition = Self.zPosition(forRowIndex: rowIndex, fieldStartRow: fieldStartRow)
 
+            // The segment's local origin (0,0) IS this row's exact ground-line point — no
+            // center-anchor offset needed, unlike the old rectangular-panel approach.
             let westX = CGFloat(westColumn) * GroundTile.width + GroundTile.skew * CGFloat(rowIndex)
-            let westPanel = Self.makeTiledWallFace(texture: texture, size: panelSize, desiredTileSize: Self.sideWallTileSize)
-            westPanel.position = CGPoint(x: westX, y: rowY)
-            westPanel.zPosition = rowZPosition
-            west.addChild(westPanel)
+            let westY = CGFloat(rowIndex) * GroundTile.height
+            let westSegment = Self.makeTiltedWallSegment(texture: texture, courseCount: Self.sideWallCourseCount)
+            westSegment.position = CGPoint(x: westX, y: westY)
+            westSegment.zPosition = rowZPosition
+            west.addChild(westSegment)
 
             let eastX = CGFloat(eastColumn) * GroundTile.width + GroundTile.skew * CGFloat(rowIndex)
-            let eastPanel = Self.makeTiledWallFace(texture: texture, size: panelSize, desiredTileSize: Self.sideWallTileSize)
-            eastPanel.position = CGPoint(x: eastX, y: rowY)
-            eastPanel.zPosition = rowZPosition
-            east.addChild(eastPanel)
+            let eastY = CGFloat(rowIndex) * GroundTile.height
+            let eastSegment = Self.makeTiltedWallSegment(texture: texture, courseCount: Self.sideWallCourseCount)
+            eastSegment.position = CGPoint(x: eastX, y: eastY)
+            eastSegment.zPosition = rowZPosition
+            east.addChild(eastSegment)
         }
 
         return (west, east)
+    }
+
+    /// A single row-to-row parallelogram wall segment's outline: vertices `(0,0)` (bottom,
+    /// this row's ground point), `(GroundTile.skew, GroundTile.height)` (bottom, next row's
+    /// ground point), `(GroundTile.skew, GroundTile.height + segmentHeight)` (top, next row),
+    /// `(0, segmentHeight)` (top, this row). The bottom and top edges both carry the ground's
+    /// `(skew, height)` diagonal step while the left/right edges stay perfectly vertical
+    /// (`segmentHeight` tall, no skew) — mirroring `GroundTile.path`'s parallelogram
+    /// construction, extruded upward by wall height instead of flat on the ground.
+    private static func wallSegmentPath(segmentHeight: CGFloat) -> CGPath {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 0, y: 0))
+        path.addLine(to: CGPoint(x: GroundTile.skew, y: GroundTile.height))
+        path.addLine(to: CGPoint(x: GroundTile.skew, y: GroundTile.height + segmentHeight))
+        path.addLine(to: CGPoint(x: 0, y: segmentHeight))
+        path.closeSubpath()
+        return path
+    }
+
+    /// Stacks `courseCount` small tilted-parallelogram "courses" vertically to fill
+    /// `wallHeight`, each an `SKShapeNode` built from `wallSegmentPath`, textured and
+    /// stroked the same way `makeTiledWallFace`'s rectangular tiles are. Unlike
+    /// `makeTiledWallFace`, this only subdivides along the height axis — the depth axis
+    /// (the row-to-row step) is already the smallest unit this wall is built at, one
+    /// segment per row.
+    private static func makeTiltedWallSegment(texture: SKTexture, courseCount: Int) -> SKNode {
+        let container = SKNode()
+
+        let segmentHeight = Self.wallHeight / CGFloat(courseCount)
+        let coursePath = wallSegmentPath(segmentHeight: segmentHeight)
+
+        for course in 0..<courseCount {
+            let tile = SKShapeNode(path: coursePath)
+            tile.fillTexture = texture
+            tile.fillColor = .white
+            tile.strokeColor = GroundTile.strokeColor
+            tile.lineWidth = 1
+            tile.position = CGPoint(x: 0, y: CGFloat(course) * segmentHeight)
+            container.addChild(tile)
+        }
+
+        return container
     }
 
     /// Builds a flat rectangular wall face out of a grid of small repeated tile sprites
