@@ -1,17 +1,20 @@
 import SpriteKit
 
-/// A small serving bowl prop meant to sit on top of `KitchenTableNode`. Cropped to its true
-/// visible-content bounding box, measured directly from the source PNG's alpha channel: the
-/// art sits on a square canvas with a large transparent margin, so sizing off the raw texture
-/// aspect would render the bowl far smaller than intended and float it above the surface it's
-/// meant to stand on. `anchorPoint` is bottom-center so a caller's `position` lands exactly on
-/// the bowl's own base.
-final class KitchenBowlNode: SKSpriteNode {
+/// A small empty serving bowl prop meant to sit on top of `KitchenTableNode`. Cropped to its
+/// true visible-content bounding box, measured directly from the source PNG's alpha channel:
+/// the art sits on a square canvas with a large transparent margin, so sizing off the raw
+/// texture aspect would render the bowl far smaller than intended and float it above the
+/// surface it's meant to stand on. `anchorPoint` is bottom-center so a caller's `position`
+/// lands exactly on the bowl's own base.
+///
+/// Named "empty" to distinguish it from a future filled-bowl variant (e.g. one holding 겉절이)
+/// once that asset exists — that will be its own sibling node, not a state on this one.
+final class KitchenEmptyBowlNode: SKSpriteNode {
 
-    private static let textureName = "kitchen_bowl"
+    private static let textureName = "empty_bowl"
 
-    private static let contentPixelRect = CGRect(x: 169, y: 153, width: 796, height: 831)
-    private static let canvasSize: CGFloat = 1137
+    private static let contentPixelRect = CGRect(x: 144, y: 414, width: 734, height: 481)
+    private static let canvasSize: CGFloat = 1024
 
     /// Normalized rect in SKTexture's unit coordinate space (origin bottom-left, y-up).
     private static var contentUnitRect: CGRect {
