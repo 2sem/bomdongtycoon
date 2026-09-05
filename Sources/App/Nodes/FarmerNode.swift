@@ -9,18 +9,10 @@ final class FarmerLayer: SKNode {
     func layout(for sceneSize: CGSize) {
         removeAllChildren()
 
-        // Mirror FieldLayer's row/column band computation exactly so each farmer lands
+        // Reuse FieldLayer's row/column band computation exactly so each farmer lands
         // behind the same patch of crops rather than drifting independently as the scene
         // resizes. See FieldLayerNode.swift for the reasoning behind this formula.
-        let visibleRows = Int(ceil(sceneSize.height / GroundTile.height))
-        let startRow = max(0, (visibleRows - FieldLayer.rowCount) / 2)
-
-        let middleRowIndex = startRow + FieldLayer.rowCount / 2
-        let representativeSkew = GroundTile.skew * CGFloat(middleRowIndex)
-        let fieldWidth = CGFloat(FieldLayer.columnCount) * GroundTile.width
-        let rightMargin = GroundTile.width
-        let desiredLeftX = sceneSize.width - rightMargin - fieldWidth
-        let fieldStartColumn = Int((desiredLeftX - representativeSkew) / GroundTile.width)
+        let (startRow, fieldStartColumn) = FieldLayer.layoutMetrics(for: sceneSize)
 
         // GroundLayer/FieldLayer place a larger rowIndex higher on screen (further from the
         // viewer, toward the back of the isometric grid). FieldLayer's crop rows occupy

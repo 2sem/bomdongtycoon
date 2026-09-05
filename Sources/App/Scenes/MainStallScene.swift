@@ -15,6 +15,7 @@ final class MainStallScene: SKScene {
     private let groundLayer = GroundLayer()
     private let fieldLayer = FieldLayer()
     private let farmerLayer = FarmerLayer()
+    private let shopWallLayer = ShopWallLayer()
 
     override func didMove(to view: SKView) {
         backgroundColor = GroundTile.fillColor
@@ -30,6 +31,14 @@ final class MainStallScene: SKScene {
         farmerLayer.zPosition = 10
         addChild(farmerLayer)
         farmerLayer.layout(for: frame.size)
+
+        // Same base zPosition as fieldLayer/farmerLayer; ShopWallLayer's own zPosition
+        // formula (see ShopWallNode.swift) shares FieldLayer's row-based scale, so the
+        // shop's walls — which now stack directly in front of the field along the row axis
+        // and share its column range — sort correctly against the field's plots.
+        shopWallLayer.zPosition = 10
+        addChild(shopWallLayer)
+        shopWallLayer.layout(for: frame.size)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -37,6 +46,7 @@ final class MainStallScene: SKScene {
         groundLayer.layout(for: size)
         fieldLayer.layout(for: size)
         farmerLayer.layout(for: size)
+        shopWallLayer.layout(for: size)
     }
 
     override func update(_ currentTime: TimeInterval) {
