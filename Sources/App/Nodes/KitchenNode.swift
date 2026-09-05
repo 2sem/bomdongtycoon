@@ -60,23 +60,54 @@ final class KitchenLayer: SKNode {
     // matches the ground/wall's shear angle exactly.
     private static let tableSkew = GroundTile.skew * (tableDepth / GroundTile.height)
 
+    // Shifts the tabletop parallelogram so the shape's own horizontal center (the average of
+    // its four corners) lands at local x = 0 — shared by `tableTopPath` and `tableApronPath`
+    // so the apron's straight front edge lines up exactly under the tabletop's own front edge.
+    private static let tableOffsetX = -(tableWidth + tableSkew) / 2
+
     /// The tabletop's outline: the same parallelogram construction as `GroundTile.path`
     /// (`(0,0)`, `(tableWidth,0)`, `(tableWidth+tableSkew,tableDepth)`, `(tableSkew,tableDepth)`),
-    /// shifted so the shape's own horizontal center (the average of its four corners) lands
-    /// at local x = 0 — local x spans `-tableWidth/2 - tableSkew/2 ... tableWidth/2 +
+    /// shifted by `tableOffsetX` so local x spans `-tableWidth/2 - tableSkew/2 ... tableWidth/2 +
     /// tableSkew/2`. This lets a caller position the node at `(centerX, centerY)` and have
     /// the rendered shape land horizontally centered on `centerX`, the same way the old
     /// rectangular table (anchorPoint (0.5, 0)) did.
     private static let tableTopPath: CGPath = {
-        let offsetX = -(tableWidth + tableSkew) / 2
         let path = CGMutablePath()
-        path.move(to: CGPoint(x: offsetX, y: 0))
-        path.addLine(to: CGPoint(x: offsetX + tableWidth, y: 0))
-        path.addLine(to: CGPoint(x: offsetX + tableWidth + tableSkew, y: tableDepth))
-        path.addLine(to: CGPoint(x: offsetX + tableSkew, y: tableDepth))
+        path.move(to: CGPoint(x: tableOffsetX, y: 0))
+        path.addLine(to: CGPoint(x: tableOffsetX + tableWidth, y: 0))
+        path.addLine(to: CGPoint(x: tableOffsetX + tableWidth + tableSkew, y: tableDepth))
+        path.addLine(to: CGPoint(x: tableOffsetX + tableSkew, y: tableDepth))
         path.closeSubpath()
         return path
     }()
+
+    // A tilted parallelogram floating with nothing beneath it reads as a slab hovering above
+    // the floor rather than a table standing on it. Rather than modeling individual legs, a
+    // single straight-hanging "apron" panel — dropping vertically from the tabletop's own
+    // front-bottom edge (no skew, since it's a front-facing vertical face, not a ground-plane
+    // surface) — stands in for the legs/frame and visually grounds the table, the same way
+    // ShopWallNode extrudes a vertical face down from the ground line instead of leaving a
+    // flat tile floating in space.
+    private static let tableApronHeight = GroundTile.height * 0.9
+
+    /// The front apron's outline: a plain rectangle hanging from the tabletop's own
+    /// front-bottom edge (`tableTopPath`'s first two points, at local y = 0) straight down by
+    /// `tableApronHeight`, sharing `tableTopPath`'s exact x-range so the two seams align with
+    /// no gap.
+    private static let tableApronPath: CGPath = {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: tableOffsetX, y: 0))
+        path.addLine(to: CGPoint(x: tableOffsetX + tableWidth, y: 0))
+        path.addLine(to: CGPoint(x: tableOffsetX + tableWidth, y: -tableApronHeight))
+        path.addLine(to: CGPoint(x: tableOffsetX, y: -tableApronHeight))
+        path.closeSubpath()
+        return path
+    }()
+
+    // Darkens the apron's wood texture relative to the tabletop's own undimmed white tint —
+    // the classic "lighter top face, darker front face" isometric shading cue that reinforces
+    // the apron as a distinct vertical surface rather than more flat tabletop.
+    private static let tableApronShadeColor = SKColor(white: 0.72, alpha: 1)
 
     // Props sized as a fraction of one tile-width so they read as small kitchen items sitting
     // on the table rather than dominating it.
@@ -130,6 +161,16 @@ final class KitchenLayer: SKNode {
         table.position = CGPoint(x: centerX, y: centerY)
         table.zPosition = rowZPosition
         addChild(table)
+
+        // The apron hangs from the tabletop's own front-bottom edge, so it's added as a child
+        // of `table` rather than positioned independently — it inherits `table`'s position and
+        // shares its exact local coordinate frame, guaranteeing the two seams align.
+        let apron = SKShapeNode(path: Self.tableApronPath)
+        apron.fillTexture = SKTexture(imageNamed: Self.tableTopTextureName)
+        apron.fillColor = Self.tableApronShadeColor
+        apron.strokeColor = GroundTile.strokeColor
+        apron.lineWidth = 1
+        table.addChild(apron)
 
         // The cook stands just behind the table, mostly above its rendered back edge with
         // only a small amount of its own base tucked behind that edge (see
