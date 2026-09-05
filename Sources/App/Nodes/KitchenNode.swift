@@ -28,12 +28,12 @@ final class KitchenLayer: SKNode {
         table.zPosition = rowZPosition
         addChild(table)
 
-        // The bowl sits near the tabletop's own back edge, nudged down slightly so its base
-        // nestles into the surface instead of floating just above it — the same placement
-        // fraction the kitchen's earlier props used. Added after the table so it draws in
+        // The bowl sits centered on the tabletop's own surface — horizontally at centerX,
+        // vertically at half the tabletop's depth, so it lands in the middle of the table
+        // rather than tucked against the back edge. Added after the table so it draws in
         // front of the tabletop's own faces, reading as sitting on top of it.
         let bowl = KitchenBowlNode()
-        bowl.position = CGPoint(x: centerX, y: table.position.y + KitchenTableNode.depth * 0.88)
+        bowl.position = CGPoint(x: centerX, y: table.position.y + KitchenTableNode.depth * 0.5)
         bowl.zPosition = rowZPosition
         addChild(bowl)
     }
