@@ -15,6 +15,7 @@ final class MainStallScene: SKScene {
     private let groundLayer = GroundLayer()
     private let fieldLayer = FieldLayer()
     private let farmerLayer = FarmerLayer()
+    private let shopWallLayer = ShopWallLayer()
 
     override func didMove(to view: SKView) {
         backgroundColor = GroundTile.fillColor
@@ -30,6 +31,13 @@ final class MainStallScene: SKScene {
         farmerLayer.zPosition = 10
         addChild(farmerLayer)
         farmerLayer.layout(for: frame.size)
+
+        // Same base zPosition as fieldLayer/farmerLayer; they occupy a disjoint column
+        // range (shop sits west of the field with a gap) so cross-layer ordering only
+        // matters relative to groundLayer, which this satisfies.
+        shopWallLayer.zPosition = 10
+        addChild(shopWallLayer)
+        shopWallLayer.layout(for: frame.size)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -37,6 +45,7 @@ final class MainStallScene: SKScene {
         groundLayer.layout(for: size)
         fieldLayer.layout(for: size)
         farmerLayer.layout(for: size)
+        shopWallLayer.layout(for: size)
     }
 
     override func update(_ currentTime: TimeInterval) {

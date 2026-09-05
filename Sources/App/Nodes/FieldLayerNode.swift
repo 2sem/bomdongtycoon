@@ -19,12 +19,14 @@ final class FieldLayer: SKNode {
     /// fill a tile's footprint so plots read as small plants rather than dominating the grid.
     private static let cropSize = CGSize(width: GroundTile.width * 0.8, height: GroundTile.width * 0.8)
 
-    func layout(for size: CGSize) {
-        removeAllChildren()
-
+    /// Computes the vertically-centered row band and right-anchored starting column for
+    /// this field's footprint, given the scene size. Exposed as `static` so sibling layers
+    /// that need to sit relative to the field (farmers, the shop building, etc.) can reuse
+    /// this exact placement math instead of duplicating it.
+    static func layoutMetrics(for size: CGSize) -> (startRow: Int, startColumn: Int) {
         // Vertically center the field within the visible row range.
         let visibleRows = Int(ceil(size.height / GroundTile.height))
-        let startRow = max(0, (visibleRows - Self.rowCount) / 2)
+        let startRow = max(0, (visibleRows - rowCount) / 2)
 
         // GroundLayer's tile x-position accumulates `skew * rowIndex`, so a fixed column
         // index drifts rightward on screen as rowIndex grows (this is what makes the mesh
@@ -32,12 +34,20 @@ final class FieldLayer: SKNode {
         // the field anchored to the right portion of the screen regardless of which row
         // band it lands on, compute the starting column against the skew contribution of
         // the field's middle row rather than assuming column 0 is screen x 0.
-        let middleRowIndex = startRow + Self.rowCount / 2
+        let middleRowIndex = startRow + rowCount / 2
         let representativeSkew = GroundTile.skew * CGFloat(middleRowIndex)
-        let fieldWidth = CGFloat(Self.columnCount) * GroundTile.width
+        let fieldWidth = CGFloat(columnCount) * GroundTile.width
         let rightMargin = GroundTile.width
         let desiredLeftX = size.width - rightMargin - fieldWidth
         let startColumn = Int((desiredLeftX - representativeSkew) / GroundTile.width)
+
+        return (startRow, startColumn)
+    }
+
+    func layout(for size: CGSize) {
+        removeAllChildren()
+
+        let (startRow, startColumn) = Self.layoutMetrics(for: size)
 
         var cropIndex = 0
         for rowOffset in 0..<Self.rowCount {
