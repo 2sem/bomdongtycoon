@@ -13,16 +13,22 @@ final class MainStallScene: SKScene {
     private static let maxDelta: TimeInterval = 1.0 / 3.0
     private var lastUpdateTime: TimeInterval = 0
     private let groundLayer = GroundLayer()
+    private let fieldLayer = FieldLayer()
 
     override func didMove(to view: SKView) {
         backgroundColor = GroundTile.fillColor
         addChild(groundLayer)
         groundLayer.layout(for: frame.size)
+
+        fieldLayer.zPosition = 10
+        addChild(fieldLayer)
+        fieldLayer.layout(for: frame.size)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
         super.didChangeSize(oldSize)
         groundLayer.layout(for: size)
+        fieldLayer.layout(for: size)
     }
 
     override func update(_ currentTime: TimeInterval) {
