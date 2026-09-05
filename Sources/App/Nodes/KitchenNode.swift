@@ -1,10 +1,10 @@
 import SpriteKit
 
 /// The shop's back-most footprint row, right in front of the back wall — currently holds the
-/// prep table (see `KitchenTableNode`) and two bowls sitting on top of it, an empty one (see
-/// `KitchenEmptyBowlNode`) and one filled with 겉절이 (see `KitchenKimchiBowlNode`). Cook and
-/// further cooking props aren't wired up yet, and none of this is wired to any
-/// gameplay/staff-hire state.
+/// prep table (see `KitchenTableNode`) and three bowls sitting on top of it: a small empty one
+/// (see `KitchenEmptyBowlNode`), one filled with 겉절이 (see `KitchenKimchiBowlNode`), and a
+/// large empty mixing bowl (see `KitchenEmptyKimchiBowlNode`). Cook and further cooking props
+/// aren't wired up yet, and none of this is wired to any gameplay/staff-hire state.
 final class KitchenLayer: SKNode {
 
     // The tabletop is divided into a fixed row of equal-width tile slots so each item placed
@@ -59,5 +59,11 @@ final class KitchenLayer: SKNode {
         kimchiBowl.position = CGPoint(x: slotCenterX(1), y: itemY)
         kimchiBowl.zPosition = rowZPosition
         addChild(kimchiBowl)
+
+        // The large empty mixing bowl takes the last tile slot.
+        let mixingBowl = KitchenEmptyKimchiBowlNode()
+        mixingBowl.position = CGPoint(x: slotCenterX(2), y: itemY)
+        mixingBowl.zPosition = rowZPosition
+        addChild(mixingBowl)
     }
 }
