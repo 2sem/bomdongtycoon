@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "kitchen_table.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

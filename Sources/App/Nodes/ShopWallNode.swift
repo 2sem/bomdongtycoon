@@ -16,9 +16,11 @@ final class ShopWallLayer: SKNode {
     private static let backWallTextureName = "shop_wall_wood"
 
     // Same column width as FieldLayer so the shop's footprint aligns directly under the
-    // field, column-for-column, instead of drifting sideways.
-    private static let columnCount = FieldLayer.columnCount
-    private static let rowCount = FieldLayer.rowCount
+    // field, column-for-column, instead of drifting sideways. Not private: sibling layers
+    // that place content inside the shop's footprint (kitchen, counter, staff, customers)
+    // need these to size/center themselves against the same 4x3 grid.
+    static let columnCount = FieldLayer.columnCount
+    static let rowCount = FieldLayer.rowCount
 
     // At least one empty tile row between the shop's back wall and the field's front edge.
     private static let gapRows = 1
@@ -42,15 +44,25 @@ final class ShopWallLayer: SKNode {
     // than back-wall planks, which still reads fine given the side wall's narrower face).
     private static let sideWallCourseCount = 3
 
-    func layout(for size: CGSize) {
-        removeAllChildren()
-
+    /// Computes the shop footprint's own starting row/column, given the scene size. Exposed
+    /// as `static` so sibling layers that place content inside the shop (kitchen, counter,
+    /// staff, customers) can reuse this exact placement math instead of duplicating it —
+    /// mirroring `FieldLayer.layoutMetrics(for:)`'s own reuse pattern.
+    static func layoutMetrics(for size: CGSize) -> (startRow: Int, startColumn: Int) {
         // Anchor to the field's own columns, then place the shop's footprint immediately
         // south of (in front of) the field with a visible row gap, mirroring how
         // FarmerLayer reuses this same formula instead of duplicating it.
         let (fieldStartRow, fieldStartColumn) = FieldLayer.layoutMetrics(for: size)
         let shopStartColumn = fieldStartColumn
-        let shopStartRow = fieldStartRow - Self.gapRows - Self.rowCount
+        let shopStartRow = fieldStartRow - gapRows - rowCount
+        return (shopStartRow, shopStartColumn)
+    }
+
+    func layout(for size: CGSize) {
+        removeAllChildren()
+
+        let (fieldStartRow, _) = FieldLayer.layoutMetrics(for: size)
+        let (shopStartRow, shopStartColumn) = Self.layoutMetrics(for: size)
 
         // Side walls deliberately reuse the back wall's vertical-grain plank texture rather
         // than a dedicated horizontal-grain one: SKShapeNode's fillTexture shears along with
@@ -75,8 +87,10 @@ final class ShopWallLayer: SKNode {
     /// camera, as the shop's rows are) resolves to a HIGHER value than any field row, so
     /// the shop's walls always draw in front of (occlude) the field where their tall
     /// sprites visually overlap it, instead of being scoped independently and coincidentally
-    /// tying or losing against the field's own local zPositions.
-    private static func zPosition(forRowIndex rowIndex: Int, fieldStartRow: Int) -> CGFloat {
+    /// tying or losing against the field's own local zPositions. Not private: any other
+    /// layer sharing the shop's base zPosition (kitchen, counter, staff, customers) needs
+    /// this exact formula to depth-sort correctly against both the field and the walls.
+    static func zPosition(forRowIndex rowIndex: Int, fieldStartRow: Int) -> CGFloat {
         CGFloat(FieldLayer.rowCount + fieldStartRow - rowIndex)
     }
 
