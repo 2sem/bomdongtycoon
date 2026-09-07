@@ -145,6 +145,13 @@ final class GroundLayer: SKNode {
     /// middle tile is `.road` instead: a stone path continuing straight
     /// out from the shop plot toward the viewer, like a doorstep leading
     /// up to where the shop building will eventually stand.
+    ///
+    /// The shop plot is a 3×3 block (rows 6-8, cols 1-3 here) — an
+    /// experiment in growing the shop beyond a single tile. `MainStallScene`
+    /// builds its wall perimeter to match: 3 chained copies of each of the
+    /// 4 wall pieces per side, not a single stretched copy (see its own
+    /// doc comments), so this needs to stay a clean square block of
+    /// `.shop` tiles for that chaining math to line up.
     private static let map: [[GroundTileKind]] = [
         [.grass, .grass, .grass, .grass, .grass],
         [.grass, .field, .field, .field, .grass],
@@ -152,9 +159,9 @@ final class GroundLayer: SKNode {
         [.grass, .field, .field, .field, .grass],
         [.grass, .field, .field, .field, .grass],
         [.grass, .field, .field, .field, .grass],
-        [.grass, .field, .field, .field, .grass],
-        [.grass, .field, .shop,  .field, .grass],
-        [.grass, .field, .field, .field, .grass],
+        [.grass, .shop,  .shop,  .shop,  .grass],
+        [.grass, .shop,  .shop,  .shop,  .grass],
+        [.grass, .shop,  .shop,  .shop,  .grass],
         [.grass, .grass, .road,  .grass, .grass],
     ]
 

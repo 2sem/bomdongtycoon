@@ -19,25 +19,41 @@ final class MainStallScene: SKScene {
     private let shopWallLayer = ShopWallLayer()
     private let kitchenLayer = KitchenLayer()
 
-    /// The shop plot's west side wall — the first piece of the new,
-    /// pre-rendered-art shop construction (replacing the disabled, old
-    /// procedurally-tiled `shopWallLayer` above once enough pieces exist).
-    /// A single static node, not a "layer": it fits itself to
-    /// `GroundLayer.grid` once and never needs relaying out.
-    private let shopWallLeft = ShopWallLeftNode(fittingTo: GroundLayer.grid)
+    /// The shop plot is a 3×3 block of tiles (see `GroundLayer`'s own
+    /// `map`), not a single tile — an experiment in growing the shop
+    /// beyond its original 1×1 footprint. Each side of the block is 3
+    /// tile-edges long, so each wall piece is 3 *chained* copies of the
+    /// original single-tile node, not one node stretched 3×: each wall
+    /// asset's own plank/post art is drawn at a fixed real-world scale
+    /// (matched to a single tile's own half-diagonal edge), so stretching
+    /// one copy across 3 tile-edges would distort the wood grain 3× wider
+    /// than it should look. Chaining works because consecutive tiles
+    /// along a diamond's own edge share a vertex — one tile's far corner
+    /// is the next tile's near corner — the same way the box's own 4
+    /// corners are shared between adjacent *sides* today, just repeated
+    /// one level down, across tiles on the *same* side.
+    ///
+    /// A single static array per side, not a "layer": each element fits
+    /// itself to `GroundLayer.grid` once (same as the original single
+    /// wall did) and never needs relaying out. `didMove(to:)` positions
+    /// each element at its own tile's own shared vertex — see the vertex
+    /// helper functions there.
+    private let shopWallLeftSegments = (0..<3).map { _ in ShopWallLeftNode(fittingTo: GroundLayer.grid) }
 
-    /// The shop plot's north-west wall — meets `shopWallLeft` at the shop
-    /// tile's own West vertex (both walls anchor there).
-    private let shopWallBack = ShopWallBackNode(fittingTo: GroundLayer.grid)
+    /// The shop plot's north-west wall segments — each meets the
+    /// corresponding `shopWallLeftSegments` element at a shared West
+    /// vertex, same as the original single-tile box.
+    private let shopWallBackSegments = (0..<3).map { _ in ShopWallBackNode(fittingTo: GroundLayer.grid) }
 
-    /// The shop plot's south-east wall — meets `shopWallLeft`'s far
-    /// (unanchored) end at the shop tile's own South vertex.
-    private let shopWallFront = ShopWallFrontNode(fittingTo: GroundLayer.grid)
+    /// The shop plot's south-east wall segments — each meets the
+    /// corresponding `shopWallLeftSegments` element at a shared South
+    /// vertex.
+    private let shopWallFrontSegments = (0..<3).map { _ in ShopWallFrontNode(fittingTo: GroundLayer.grid) }
 
-    /// The shop plot's north-east wall — meets `shopWallBack`'s far
-    /// (unanchored) end at the shop tile's own North vertex, closing the
-    /// box's fourth side.
-    private let shopWallRight = ShopWallRightNode(fittingTo: GroundLayer.grid)
+    /// The shop plot's north-east wall segments — each meets the
+    /// corresponding `shopWallBackSegments` element at a shared North
+    /// vertex, closing the box's fourth side.
+    private let shopWallRightSegments = (0..<3).map { _ in ShopWallRightNode(fittingTo: GroundLayer.grid) }
 
     /// Pans the world; `GroundLayer.worldBounds` clamps how far (see
     /// `clampCameraPosition()`) — "the map data" (`GroundLayer.map` plus
@@ -91,62 +107,87 @@ final class MainStallScene: SKScene {
         // addChild(kitchenLayer)
         // kitchenLayer.layout(for: frame.size)
 
-        // The shop plot's West vertex — grid.point(col: 0, row: 0) is the
-        // shop tile's own center, offset left by half the grid's tile
-        // width lands on its West corner, where this wall's back-bottom
-        // corner belongs (see ShopWallLeftNode's anchorPoint).
-        let shopWestVertex = CGPoint(
-            x: GroundLayer.grid.point(col: 0, row: 0).x - GroundLayer.grid.tileWidth / 2,
-            y: GroundLayer.grid.point(col: 0, row: 0).y
-        )
-        // shopWallBack (North->West edge) draws at the lowest zPosition
-        // of all four walls: it's the farthest-back wall in the box (both
-        // its own ends — West vertex here, North vertex where it meets
-        // shopWallRight — are shared with walls nearer the camera), so
-        // where bounding boxes overlap at either shared corner, the
-        // nearer wall's art (shopWallLeft here, shopWallRight at the
-        // other end) correctly draws on top instead of burying it (bug:
-        // shopWallBack used to sit between shopWallRight and
-        // shopWallLeft's zPositions, so it incorrectly drew over
-        // shopWallRight at their shared North vertex).
-        shopWallBack.position = shopWestVertex
-        shopWallBack.zPosition = 7
-        addChild(shopWallBack)
+        // Per-tile vertex helpers — same offsets the original single-tile
+        // box used (grid.point(col:row:) plus half a tile's own width or
+        // height toward the relevant side), just parametrized over which
+        // tile now, since the 3×3 block needs one shared vertex per
+        // chained wall segment rather than one shared vertex per side.
+        func westVertex(col: Int, row: Int) -> CGPoint {
+            let center = GroundLayer.grid.point(col: col, row: row)
+            return CGPoint(x: center.x - GroundLayer.grid.tileWidth / 2, y: center.y)
+        }
+        func southVertex(col: Int, row: Int) -> CGPoint {
+            let center = GroundLayer.grid.point(col: col, row: row)
+            return CGPoint(x: center.x, y: center.y - GroundLayer.grid.tileHeight / 2)
+        }
+        func northVertex(col: Int, row: Int) -> CGPoint {
+            let center = GroundLayer.grid.point(col: col, row: row)
+            return CGPoint(x: center.x, y: center.y + GroundLayer.grid.tileHeight / 2)
+        }
 
-        shopWallLeft.position = shopWestVertex
-        shopWallLeft.zPosition = 10
-        addChild(shopWallLeft)
+        // shopWallBackSegments (North->West edge) draw at the lowest
+        // zPosition of all four sides: they're the farthest-back side of
+        // the block (both its own ends — West here, North where it meets
+        // shopWallRightSegments — are shared with sides nearer the
+        // camera), so where bounding boxes overlap at either shared
+        // corner, the nearer side's art correctly draws on top instead of
+        // burying it — same reasoning the original single-tile box used,
+        // now applied per side rather than per wall.
+        //
+        // Tiles (-1,-1), (-1,0), (-1,1) — the West column of the 3×3
+        // block — each contribute one North->West edge segment, chained
+        // North to South: tile(-1,-1)'s own West vertex is tile(-1,0)'s
+        // own North vertex, and so on down to tile(-1,1)'s West vertex,
+        // which is the block's own West vertex (see below).
+        let backTiles = [(-1, -1), (-1, 0), (-1, 1)]
+        for (segment, (col, row)) in zip(shopWallBackSegments, backTiles) {
+            segment.position = westVertex(col: col, row: row)
+            segment.zPosition = 7
+            addChild(segment)
+        }
 
-        // South vertex — grid.point(col: 0, row: 0) offset down by half
-        // the grid's tile height. ShopWallLeft's own far corner (its
-        // unanchored end, at fraction ~(1, ~0.44) of its own sprite) lands
-        // here automatically once its footprint is fit to the grid; this
-        // wall's own back-bottom corner anchors here too, on purpose, to
-        // meet it. Drawn after shopWallLeft (higher zPosition) for the
-        // same reason shopWallBack draws before it: South->East is the
-        // nearer-camera of the two edges meeting here.
-        let shopSouthVertex = CGPoint(
-            x: GroundLayer.grid.point(col: 0, row: 0).x,
-            y: GroundLayer.grid.point(col: 0, row: 0).y - GroundLayer.grid.tileHeight / 2
-        )
-        shopWallFront.position = shopSouthVertex
-        shopWallFront.zPosition = 11
-        addChild(shopWallFront)
+        // Tiles (-1,1), (0,1), (1,1) — the South row of the 3×3 block —
+        // each contribute one West->South edge segment, chained West to
+        // East: tile(-1,1)'s own West vertex is the block's own West
+        // vertex (shared with shopWallBackSegments' own last element,
+        // above), and tile(-1,1)'s South vertex is tile(0,1)'s own West
+        // vertex, and so on to tile(1,1)'s South vertex — the block's own
+        // South vertex, shared with shopWallFrontSegments below.
+        let leftTiles = [(-1, 1), (0, 1), (1, 1)]
+        for (segment, (col, row)) in zip(shopWallLeftSegments, leftTiles) {
+            segment.position = westVertex(col: col, row: row)
+            segment.zPosition = 10
+            addChild(segment)
+        }
 
-        // North vertex — grid.point(col: 0, row: 0) offset up by half the
-        // grid's tile height. ShopWallBack's own far corner (its
-        // unanchored end) lands here once its footprint is fit to the
-        // grid; this wall's own back-bottom corner anchors here too, to
-        // meet it. Drawn at a higher zPosition than shopWallBack (see its
-        // own comment above) since shopWallRight is the nearer-camera of
-        // the two walls meeting here.
-        let shopNorthVertex = CGPoint(
-            x: GroundLayer.grid.point(col: 0, row: 0).x,
-            y: GroundLayer.grid.point(col: 0, row: 0).y + GroundLayer.grid.tileHeight / 2
-        )
-        shopWallRight.position = shopNorthVertex
-        shopWallRight.zPosition = 8
-        addChild(shopWallRight)
+        // Tiles (1,1), (1,0), (1,-1) — the East row of the 3×3 block —
+        // each contribute one South->East edge segment, chained South to
+        // North: tile(1,1)'s own South vertex is the block's own South
+        // vertex (shared with shopWallLeftSegments' own last element,
+        // above), and tile(1,1)'s East vertex is tile(1,0)'s own South
+        // vertex, and so on to tile(1,-1)'s East vertex — the block's own
+        // East vertex, shared with shopWallRightSegments below.
+        let frontTiles = [(1, 1), (1, 0), (1, -1)]
+        for (segment, (col, row)) in zip(shopWallFrontSegments, frontTiles) {
+            segment.position = southVertex(col: col, row: row)
+            segment.zPosition = 11
+            addChild(segment)
+        }
+
+        // Tiles (-1,-1), (0,-1), (1,-1) — the North column of the 3×3
+        // block — each contribute one North->East edge segment, chained
+        // West to East: tile(-1,-1)'s own North vertex is the block's own
+        // North vertex (shared with shopWallBackSegments' own first
+        // element, above), and tile(-1,-1)'s East vertex is tile(0,-1)'s
+        // own North vertex, and so on to tile(1,-1)'s East vertex — the
+        // block's own East vertex, shared with shopWallFrontSegments'
+        // own last element.
+        let rightTiles = [(-1, -1), (0, -1), (1, -1)]
+        for (segment, (col, row)) in zip(shopWallRightSegments, rightTiles) {
+            segment.position = northVertex(col: col, row: row)
+            segment.zPosition = 8
+            addChild(segment)
+        }
 
         clampCameraPosition()
     }
