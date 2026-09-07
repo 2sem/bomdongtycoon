@@ -30,6 +30,10 @@ final class MainStallScene: SKScene {
     /// tile's own West vertex (both walls anchor there).
     private let shopWallBack = ShopWallBackNode(fittingTo: GroundLayer.grid)
 
+    /// The shop plot's south-east wall — meets `shopWallLeft`'s far
+    /// (unanchored) end at the shop tile's own South vertex.
+    private let shopWallFront = ShopWallFrontNode(fittingTo: GroundLayer.grid)
+
     /// Pans the world; `GroundLayer.worldBounds` clamps how far (see
     /// `clampCameraPosition()`) — "the map data" (`GroundLayer.map` plus
     /// its margin) is what actually limits the scrollable area, not the
@@ -105,6 +109,22 @@ final class MainStallScene: SKScene {
         shopWallLeft.position = shopWestVertex
         shopWallLeft.zPosition = 10
         addChild(shopWallLeft)
+
+        // South vertex — grid.point(col: 0, row: 0) offset down by half
+        // the grid's tile height. ShopWallLeft's own far corner (its
+        // unanchored end, at fraction ~(1, ~0.44) of its own sprite) lands
+        // here automatically once its footprint is fit to the grid; this
+        // wall's own back-bottom corner anchors here too, on purpose, to
+        // meet it. Drawn after shopWallLeft (higher zPosition) for the
+        // same reason shopWallBack draws before it: South->East is the
+        // nearer-camera of the two edges meeting here.
+        let shopSouthVertex = CGPoint(
+            x: GroundLayer.grid.point(col: 0, row: 0).x,
+            y: GroundLayer.grid.point(col: 0, row: 0).y - GroundLayer.grid.tileHeight / 2
+        )
+        shopWallFront.position = shopSouthVertex
+        shopWallFront.zPosition = 11
+        addChild(shopWallFront)
 
         clampCameraPosition()
     }
