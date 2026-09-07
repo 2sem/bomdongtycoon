@@ -26,6 +26,10 @@ final class MainStallScene: SKScene {
     /// `GroundLayer.grid` once and never needs relaying out.
     private let shopWallLeft = ShopWallLeftNode(fittingTo: GroundLayer.grid)
 
+    /// The shop plot's north-west wall — meets `shopWallLeft` at the shop
+    /// tile's own West vertex (both walls anchor there).
+    private let shopWallBack = ShopWallBackNode(fittingTo: GroundLayer.grid)
+
     /// Pans the world; `GroundLayer.worldBounds` clamps how far (see
     /// `clampCameraPosition()`) — "the map data" (`GroundLayer.map` plus
     /// its margin) is what actually limits the scrollable area, not the
@@ -82,12 +86,19 @@ final class MainStallScene: SKScene {
         // shop tile's own center, offset left by half the grid's tile
         // width lands on its West corner, where this wall's back-bottom
         // corner belongs (see ShopWallLeftNode's anchorPoint).
-        shopWallLeft.position = CGPoint(
+        let shopWestVertex = CGPoint(
             x: GroundLayer.grid.point(col: 0, row: 0).x - GroundLayer.grid.tileWidth / 2,
             y: GroundLayer.grid.point(col: 0, row: 0).y
         )
+        shopWallLeft.position = shopWestVertex
         shopWallLeft.zPosition = 10
         addChild(shopWallLeft)
+
+        // Shares the same West-vertex anchor as shopWallLeft — see
+        // ShopWallBackNode's doc comment.
+        shopWallBack.position = shopWestVertex
+        shopWallBack.zPosition = 10
+        addChild(shopWallBack)
 
         clampCameraPosition()
     }
