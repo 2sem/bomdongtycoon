@@ -69,10 +69,12 @@ struct IsoGrid {
 }
 
 /// Lays out a small fixed patch of ground tiles on `IsoGrid`: one
-/// `GrassGroundTileNode` at the center, ringed by `FieldGroundTileNode`s.
-/// See `Nodes/Tiles/` for the individual tile types — this class owns only
-/// the grid itself (spacing, patch shape) and draw order, not any tile's
-/// own art or measured geometry.
+/// `GrassGroundTileNode` (a placeholder for the future shop plot) ringed
+/// by `FieldGroundTileNode`s, with the strip continuing north as more
+/// field-tile ground for `FieldLayer`/`FarmerLayer` to place their own
+/// content on. See `Nodes/Tiles/` for the individual tile types — this
+/// class owns only the grid itself (spacing, patch shape) and draw order,
+/// not any tile's own art or measured geometry.
 final class GroundLayer: SKNode {
 
     /// Flat pixel adjustment applied to the grid's spacing unit, in points,
@@ -111,18 +113,27 @@ final class GroundLayer: SKNode {
     /// grid step down — occupies, and gets buried by that neighbor's own
     /// opaque art, provided that neighbor is drawn after it (see
     /// zPosition below). Every other tile type (`FieldGroundTileNode`)
-    /// fits itself to this same `grid` rather than defining its own.
-    private static let grid = IsoGrid(
+    /// fits itself to this same `grid` rather than defining its own. Not
+    /// private: `FieldLayer`/`FarmerLayer` position their own content
+    /// (crops, farmers) against this exact same grid so it lines up with
+    /// the ground tiles beneath it — see `originOffset(for:)`.
+    static let grid = IsoGrid(
         tileWidth: GrassGroundTileNode.spriteSize.width + spacingInset,
         tileHeight: GrassGroundTileNode.spriteSize.height * GrassGroundTileNode.topFaceHeightFraction + spacingInset
     )
 
-    /// The `(col, row)` bounds of the patch actually drawn. A small fixed
-    /// 3×3 block (rather than filling the whole viewport) centered on
-    /// `centerCol`/`centerRow` — the single grass tile — surrounded by a
-    /// ring of field tiles.
+    /// The `(col, row)` bounds of the patch actually drawn: a 3-column-wide
+    /// strip, `centerCol`/`centerRow` at its south end holding the single
+    /// grass tile (a placeholder for where the shop will eventually stand —
+    /// no building there yet, its own assets aren't ready) ringed by field
+    /// tiles, with the strip continuing north as plain field-tile ground
+    /// for `FieldLayer`'s crop patch and `FarmerLayer`'s farmers to stand
+    /// on. Still a small fixed patch (not filling the whole viewport) —
+    /// see `MEMORY`/PR history for why: this whole grid is still a step
+    /// ahead of having a real camera/scroll, so for now everything drawn
+    /// has to actually fit in one static viewport.
     private static let gridColumns = -1..<2
-    private static let gridRows = -1..<2
+    private static let gridRows = -6..<2
     private static let centerCol = 0
     private static let centerRow = 0
 
@@ -130,28 +141,35 @@ final class GroundLayer: SKNode {
         col == centerCol && row == centerRow
     }
 
-    func layout(for size: CGSize) {
-        removeAllChildren()
-        guard size.width > 0, size.height > 0 else { return }
-
-        // gridColumns/gridRows is an arbitrary (col, row) rectangle, and
-        // IsoGrid's origin (0, 0) isn't generally its centroid — so average
-        // every cell's grid point and use that as the centering offset,
-        // keeping the patch centered on screen regardless of which range
-        // is configured above.
+    /// The screen-space offset that centers this patch on a `size`-sized
+    /// canvas: `gridColumns`/`gridRows` is an arbitrary (col, row)
+    /// rectangle, and `IsoGrid`'s origin (0, 0) isn't generally its
+    /// centroid, so every cell's grid point is averaged first. Exposed so
+    /// `FieldLayer`/`FarmerLayer` can add their own content in the exact
+    /// same coordinate space this layer's own tiles are placed in, rather
+    /// than each layer computing a (potentially different) centering
+    /// offset independently and drifting out of alignment with the ground.
+    static func originOffset(for size: CGSize) -> CGPoint {
         var sum = CGPoint.zero
         var count = 0
-        for row in Self.gridRows {
-            for col in Self.gridColumns {
-                let point = Self.grid.point(col: col, row: row)
+        for row in gridRows {
+            for col in gridColumns {
+                let point = grid.point(col: col, row: row)
                 sum.x += point.x
                 sum.y += point.y
                 count += 1
             }
         }
-        guard count > 0 else { return }
+        guard count > 0 else { return .zero }
         let centroid = CGPoint(x: sum.x / CGFloat(count), y: sum.y / CGFloat(count))
-        let originOffset = CGPoint(x: size.width / 2 - centroid.x, y: size.height / 2 - centroid.y)
+        return CGPoint(x: size.width / 2 - centroid.x, y: size.height / 2 - centroid.y)
+    }
+
+    func layout(for size: CGSize) {
+        removeAllChildren()
+        guard size.width > 0, size.height > 0 else { return }
+
+        let originOffset = Self.originOffset(for: size)
 
         for row in Self.gridRows {
             for col in Self.gridColumns {

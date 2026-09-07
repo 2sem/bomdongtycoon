@@ -1,61 +1,52 @@
 import SpriteKit
 
-/// One decorative farmer figure standing behind each column of the field crop patch,
-/// as if tending that column. Purely visual for now — not wired to any farm/staff hire state.
+/// One decorative farmer figure standing behind each column of `FieldLayer`'s
+/// crop patch, as if tending that column. Purely visual for now — not wired
+/// to any farm/staff hire state.
 final class FarmerLayer: SKNode {
 
     private static let textureName = "staff_farmer"
 
+    /// One row further north than `FieldLayer`'s own back-most crop row —
+    /// mirrors the old "stand one row behind the field's back row" rule,
+    /// just against fixed `IsoGrid` coordinates instead of a dynamically
+    /// computed one.
+    private static let row = FieldLayer.startRow - 1
+
     func layout(for sceneSize: CGSize) {
         removeAllChildren()
 
-        // Reuse FieldLayer's row/column band computation exactly so each farmer lands
-        // behind the same patch of crops rather than drifting independently as the scene
-        // resizes. See FieldLayerNode.swift for the reasoning behind this formula.
-        let (startRow, fieldStartColumn) = FieldLayer.layoutMetrics(for: sceneSize)
+        let originOffset = GroundLayer.originOffset(for: sceneSize)
 
-        // GroundLayer/FieldLayer place a larger rowIndex higher on screen (further from the
-        // viewer, toward the back of the isometric grid). FieldLayer's crop rows occupy
-        // rowOffset 0..<rowCount (rowIndex startRow...startRow+rowCount-1), so standing one
-        // row further back than the field's furthest crop row means rowOffset == rowCount.
-        let farmerRowOffset = FieldLayer.rowCount
-        let rowIndex = startRow + farmerRowOffset
-
-        // Source art is a square canvas; scale it to read as a standing figure roughly
-        // three tile-heights tall against the shallow isometric ground tiles, preserving
-        // the source image's own aspect ratio.
+        // Source art is a square bust-style icon (512x512), not a tall
+        // standing figure — the old `GroundTile.height * 3` sizing was
+        // tuned against the old 32pt-tall tile and doesn't carry over as
+        // a simple ratio to the new, much larger tile. Size it as a
+        // fraction of the grid's own column spacing instead, small enough
+        // that adjacent farmers (one per column) don't overlap each other.
         let texture = SKTexture(imageNamed: Self.textureName)
         let aspect = texture.size().width / texture.size().height
-        let desiredHeight = GroundTile.height * 3
-        let farmerSize = CGSize(width: desiredHeight * aspect, height: desiredHeight)
+        let desiredWidth = GroundLayer.grid.tileWidth * 0.7
+        let farmerSize = CGSize(width: desiredWidth, height: desiredWidth / aspect)
 
         for columnOffset in 0..<FieldLayer.columnCount {
-            let column = fieldStartColumn + columnOffset
+            let col = FieldLayer.startColumn + columnOffset
 
             let farmer = SKSpriteNode(texture: texture)
             farmer.size = farmerSize
 
-            // Anchor at the sprite's feet so `position` lands on the tile surface rather
-            // than the sprite's visual center.
+            // Anchor at the sprite's feet so `position` lands on the tile
+            // surface rather than the sprite's visual center.
             farmer.anchorPoint = CGPoint(x: 0.5, y: 0)
 
-            // Same placement formula as GroundLayer/FieldLayer, offset to the tile's center.
-            let tileOriginX = CGFloat(column) * GroundTile.width + GroundTile.skew * CGFloat(rowIndex)
-            let tileOriginY = CGFloat(rowIndex) * GroundTile.height
+            let point = GroundLayer.grid.point(col: col, row: Self.row)
+            farmer.position = CGPoint(x: point.x + originOffset.x, y: point.y + originOffset.y)
 
-            farmer.position = CGPoint(
-                x: tileOriginX + GroundTile.width / 2 + GroundTile.skew / 2,
-                y: tileOriginY + GroundTile.height / 2
-            )
-
-            // Match FieldLayer's local zPosition convention (rowCount - rowOffset) so the
-            // farmer, standing one row behind the field's back row, always resolves to a
-            // lower local zPosition than every crop row's plots (which range from
-            // rowCount - (rowCount - 1) = 1 up to rowCount for rowOffset 0..<rowCount) and
-            // therefore draws behind them rather than covering the plots it's tending.
-            // FarmerLayer and FieldLayer share the same base zPosition (set in
-            // MainStallScene), so this local offset compares directly against FieldLayer's.
-            farmer.zPosition = CGFloat(FieldLayer.rowCount - farmerRowOffset)
+            // Same back-to-front convention as every other layer sharing
+            // this grid, so the farmer sorts correctly against its own
+            // row (it stands behind the crops it's tending, at a smaller
+            // col + row than any of them, so it draws first/behind).
+            farmer.zPosition = CGFloat(col + Self.row)
 
             addChild(farmer)
         }
