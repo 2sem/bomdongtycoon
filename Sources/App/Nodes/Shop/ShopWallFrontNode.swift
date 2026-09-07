@@ -31,7 +31,12 @@ final class ShopWallFrontNode: SKSpriteNode {
     /// marker. `backBottomAnchor` below was verified the same way from
     /// the start this time rather than trusting the raw measurement
     /// blindly — see the PR for the marker screenshots.
-    private static let nativeSize = CGSize(width: 544, height: 687)
+    ///
+    /// Art was later replaced with a relit (brighter) revision of the
+    /// same source — same measured corners (confirmed: alpha bbox matched
+    /// to within 1px), just a 1px-wider crop after re-running the same
+    /// correction, hence 545 not 544 here.
+    private static let nativeSize = CGSize(width: 545, height: 687)
 
     /// Depth vector (back-top → far-top): how far the art's own main face
     /// runs in each direction, matching the tile's South→East edge. Both
@@ -44,7 +49,7 @@ final class ShopWallFrontNode: SKSpriteNode {
 
     /// The back-bottom corner — where this wall meets `ShopWallLeftNode`
     /// at the tile's own South vertex — as a fraction of `nativeSize`.
-    private static let backBottomAnchor = CGPoint(x: 28.0 / 544.0, y: 1 - 686.0 / 687.0)
+    private static let backBottomAnchor = CGPoint(x: 28.0 / 545.0, y: 1 - 686.0 / 687.0)
 
     /// Same non-uniform-fit approach as the other two walls — see
     /// `ShopWallLeftNode`'s doc comment. Uses magnitudes throughout since
