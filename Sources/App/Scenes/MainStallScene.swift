@@ -19,6 +19,13 @@ final class MainStallScene: SKScene {
     private let shopWallLayer = ShopWallLayer()
     private let kitchenLayer = KitchenLayer()
 
+    /// The shop plot's west side wall — the first piece of the new,
+    /// pre-rendered-art shop construction (replacing the disabled, old
+    /// procedurally-tiled `shopWallLayer` above once enough pieces exist).
+    /// A single static node, not a "layer": it fits itself to
+    /// `GroundLayer.grid` once and never needs relaying out.
+    private let shopWallLeft = ShopWallLeftNode(fittingTo: GroundLayer.grid)
+
     /// Pans the world; `GroundLayer.worldBounds` clamps how far (see
     /// `clampCameraPosition()`) — "the map data" (`GroundLayer.map` plus
     /// its margin) is what actually limits the scrollable area, not the
@@ -70,6 +77,17 @@ final class MainStallScene: SKScene {
         // kitchenLayer.zPosition = 10
         // addChild(kitchenLayer)
         // kitchenLayer.layout(for: frame.size)
+
+        // The shop plot's West vertex — grid.point(col: 0, row: 0) is the
+        // shop tile's own center, offset left by half the grid's tile
+        // width lands on its West corner, where this wall's back-bottom
+        // corner belongs (see ShopWallLeftNode's anchorPoint).
+        shopWallLeft.position = CGPoint(
+            x: GroundLayer.grid.point(col: 0, row: 0).x - GroundLayer.grid.tileWidth / 2,
+            y: GroundLayer.grid.point(col: 0, row: 0).y
+        )
+        shopWallLeft.zPosition = 10
+        addChild(shopWallLeft)
 
         clampCameraPosition()
     }
