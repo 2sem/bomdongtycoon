@@ -13,10 +13,12 @@ final class FarmerLayer: SKNode {
     /// computed one.
     private static let row = FieldLayer.startRow - 1
 
-    func layout(for sceneSize: CGSize) {
+    /// Places every farmer at its raw `GroundLayer.grid` world position —
+    /// same world space `GroundLayer`'s own tiles use, no separate
+    /// centering step. `MainStallScene`'s camera (not this layout pass)
+    /// frames it on screen; call this once, not on every size change.
+    func layout() {
         removeAllChildren()
-
-        let originOffset = GroundLayer.originOffset(for: sceneSize)
 
         // Source art is a square bust-style icon (512x512), not a tall
         // standing figure — the old `GroundTile.height * 3` sizing was
@@ -39,8 +41,7 @@ final class FarmerLayer: SKNode {
             // surface rather than the sprite's visual center.
             farmer.anchorPoint = CGPoint(x: 0.5, y: 0)
 
-            let point = GroundLayer.grid.point(col: col, row: Self.row)
-            farmer.position = CGPoint(x: point.x + originOffset.x, y: point.y + originOffset.y)
+            farmer.position = GroundLayer.grid.point(col: col, row: Self.row)
 
             // Same back-to-front convention as every other layer sharing
             // this grid, so the farmer sorts correctly against its own

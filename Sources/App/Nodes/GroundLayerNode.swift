@@ -118,8 +118,9 @@ final class GroundLayer: SKNode {
     /// zPosition below). Every other tile type (`FieldGroundTileNode`)
     /// fits itself to this same `grid` rather than defining its own. Not
     /// private: `FieldLayer`/`FarmerLayer` position their own content
-    /// (crops, farmers) against this exact same grid so it lines up with
-    /// the ground tiles beneath it — see `originOffset(for:)`.
+    /// (crops, farmers) directly against this same grid — same world
+    /// space, no separate centering step — so it lines up with the
+    /// ground tiles beneath it.
     static let grid = IsoGrid(
         tileWidth: GrassGroundTileNode.spriteSize.width + spacingInset,
         tileHeight: GrassGroundTileNode.spriteSize.height * GrassGroundTileNode.topFaceHeightFraction + spacingInset
@@ -166,14 +167,101 @@ final class GroundLayer: SKNode {
     /// that anchor) don't need to change just because `map` grew a border.
     private static let mapOrigin = (col: -2, row: -7)
 
-    /// The screen-space offset that centers `map` on a `size`-sized
-    /// canvas: `IsoGrid`'s origin (0, 0) isn't generally a map's centroid,
-    /// so every cell's grid point is averaged first. Exposed so
-    /// `FieldLayer`/`FarmerLayer` can add their own content in the exact
-    /// same coordinate space this layer's own tiles are placed in, rather
-    /// than each layer computing a (potentially different) centering
-    /// offset independently and drifting out of alignment with the ground.
-    static func originOffset(for size: CGSize) -> CGPoint {
+    private static func gridCoordinate(rowIndex: Int, colIndex: Int) -> (col: Int, row: Int) {
+        (mapOrigin.col + colIndex, mapOrigin.row + rowIndex)
+    }
+
+    /// `map`'s tile at `(col, row)`, or `.grass` if that cell falls
+    /// outside `map`'s own bounds — the open lawn ringing the farm/shop
+    /// plot out to `worldColumns`/`worldRows`'s edge.
+    private static func kind(atCol col: Int, row: Int) -> GroundTileKind {
+        let rowIndex = row - mapOrigin.row
+        let colIndex = col - mapOrigin.col
+        guard map.indices.contains(rowIndex), map[rowIndex].indices.contains(colIndex) else {
+            return .grass
+        }
+        return map[rowIndex][colIndex]
+    }
+
+    /// Extra rings of plain grass drawn beyond `map`'s own footprint —
+    /// this (not the viewport) is what bounds how far the ground extends
+    /// and therefore how far the camera can pan — see `worldColumns`/
+    /// `worldRows`/`clampedCameraPosition(_:viewportSize:)`.
+    ///
+    /// Needs to clear `clampedCameraPosition`'s own viewport-derived
+    /// margin (half the *viewport's* col/row span, ~7 units on a typical
+    /// phone at this grid's tile size) before any panning is actually
+    /// possible at all — below that, every camera position clamps back to
+    /// dead-center (confirmed: `2` visibly did this, no scroll range
+    /// whatsoever). `10` clears that with real room to spare.
+    private static let marginTiles = 10
+
+    /// The fixed `(col, row)` extent of every tile this layer will ever
+    /// draw: `map`'s own bounds (via `mapOrigin`) padded by `marginTiles`
+    /// on every side. Unlike earlier revisions of this file, this is no
+    /// longer computed from the current viewport size — `layout()` draws
+    /// this fixed region exactly once, in world space, and a camera (see
+    /// `MainStallScene`) pans within it instead of tiles being regenerated
+    /// to chase whatever the screen happens to show.
+    private static let worldColumns: ClosedRange<Int> = {
+        let columnCount = map.first?.count ?? 0
+        return (mapOrigin.col - marginTiles)...(mapOrigin.col + columnCount - 1 + marginTiles)
+    }()
+    private static let worldRows: ClosedRange<Int> = {
+        (mapOrigin.row - marginTiles)...(mapOrigin.row + map.count - 1 + marginTiles)
+    }()
+
+    /// Clamps a proposed camera position so a viewport of `viewportSize`
+    /// centered there never shows anything beyond `worldColumns`/
+    /// `worldRows` — the actual bounded, pannable extent of the ground
+    /// ("size limited by map data" the scrollable area is bounded by).
+    ///
+    /// Works in `(col, row)` space rather than a plain x/y bounding box.
+    /// `worldColumns`×`worldRows` is a rectangle in `(col, row)` space,
+    /// but `IsoGrid` renders it as a *diamond* on screen — its x/y
+    /// bounding box's own corners sit in the diamond's empty "notches",
+    /// outside the diamond itself. Clamping the camera's raw x/y against
+    /// that box would let it reach those corners and reveal empty
+    /// background there (confirmed visually — this replaced an earlier,
+    /// wrong version that did exactly that). Converting the camera to
+    /// `(col, row)` first and clamping *that* keeps it — and therefore
+    /// every corner of its viewport — inside the actual rectangular
+    /// region, whatever its on-screen (rotated) shape.
+    static func clampedCameraPosition(_ proposed: CGPoint, viewportSize: CGSize) -> CGPoint {
+        // Half the (col, row) span a viewport this size covers around its
+        // own center — same inversion `IsoGrid.point(col:row:)` doc
+        // describes, applied to the viewport's half-extents rather than a
+        // single point (a corner offset by (±halfWidth, ±halfHeight) from
+        // center always lands `halfWidth/tileWidth + halfHeight/tileHeight`
+        // col/row units away, regardless of which corner — the same margin
+        // in every direction).
+        let margin = (viewportSize.width / 2) / grid.tileWidth + (viewportSize.height / 2) / grid.tileHeight
+
+        var col = proposed.x / grid.tileWidth - proposed.y / grid.tileHeight
+        var row = -proposed.y / grid.tileHeight - proposed.x / grid.tileWidth
+
+        let colLower = CGFloat(worldColumns.lowerBound) + margin
+        let colUpper = CGFloat(worldColumns.upperBound) - margin
+        col = colLower <= colUpper
+            ? min(max(col, colLower), colUpper)
+            : CGFloat(worldColumns.lowerBound + worldColumns.upperBound) / 2
+
+        let rowLower = CGFloat(worldRows.lowerBound) + margin
+        let rowUpper = CGFloat(worldRows.upperBound) - margin
+        row = rowLower <= rowUpper
+            ? min(max(row, rowLower), rowUpper)
+            : CGFloat(worldRows.lowerBound + worldRows.upperBound) / 2
+
+        let x = (col - row) * (grid.tileWidth / 2)
+        let y = -(col + row) * (grid.tileHeight / 2)
+        return CGPoint(x: x, y: y)
+    }
+
+    /// World-space centroid of `map`'s own cells (the farm/shop plot, not
+    /// the larger `worldColumns`/`worldRows` padded region). `MainStallScene`
+    /// starts its camera here so the farm is centered on first launch —
+    /// the same framing this grid had before panning existed.
+    static var mapCentroid: CGPoint {
         var sum = CGPoint.zero
         var count = 0
         for rowIndex in map.indices {
@@ -186,68 +274,22 @@ final class GroundLayer: SKNode {
             }
         }
         guard count > 0 else { return .zero }
-        let centroid = CGPoint(x: sum.x / CGFloat(count), y: sum.y / CGFloat(count))
-        return CGPoint(x: size.width / 2 - centroid.x, y: size.height / 2 - centroid.y)
+        return CGPoint(x: sum.x / CGFloat(count), y: sum.y / CGFloat(count))
     }
 
-    private static func gridCoordinate(rowIndex: Int, colIndex: Int) -> (col: Int, row: Int) {
-        (mapOrigin.col + colIndex, mapOrigin.row + rowIndex)
-    }
-
-    /// `map`'s tile at `(col, row)`, or `.grass` if that cell falls
-    /// outside `map`'s own bounds — the open lawn surrounding the
-    /// farm/shop plot, filling the rest of the visible viewport (see
-    /// `layout(for:)`) rather than leaving bare background beyond `map`'s
-    /// own footprint.
-    private static func kind(atCol col: Int, row: Int) -> GroundTileKind {
-        let rowIndex = row - mapOrigin.row
-        let colIndex = col - mapOrigin.col
-        guard map.indices.contains(rowIndex), map[rowIndex].indices.contains(colIndex) else {
-            return .grass
-        }
-        return map[rowIndex][colIndex]
-    }
-
-    func layout(for size: CGSize) {
+    /// Draws every tile in `worldColumns` × `worldRows` exactly once, at
+    /// its raw `IsoGrid` world position — no per-call centering offset.
+    /// `MainStallScene`'s camera (not this layout pass) is what frames
+    /// this on screen; call this once, not on every size change.
+    func layout() {
         removeAllChildren()
-        guard size.width > 0, size.height > 0 else { return }
         precondition(
             Set(Self.map.map(\.count)).count <= 1,
             "GroundLayer.map rows must all be the same length"
         )
 
-        let originOffset = Self.originOffset(for: size)
-
-        // `map` only covers the farm/shop plot's own small footprint —
-        // fill everything else the viewport can actually show with plain
-        // grass, so resizing/panning never reveals bare background beyond
-        // it. Same corner-inversion approach GroundLayer used before `map`
-        // existed: invert `IsoGrid.point(col:row:)` for the (margin-padded)
-        // screen corners to find the (col, row) rectangle that covers them.
-        let margin = max(Self.grid.tileWidth, GrassGroundTileNode.spriteSize.height)
-        let corners = [
-            CGPoint(x: -margin, y: -margin),
-            CGPoint(x: size.width + margin, y: -margin),
-            CGPoint(x: -margin, y: size.height + margin),
-            CGPoint(x: size.width + margin, y: size.height + margin),
-        ]
-        var minCol = Int.max, maxCol = Int.min
-        var minRow = Int.max, maxRow = Int.min
-        for corner in corners {
-            let localX = corner.x - originOffset.x
-            let localY = corner.y - originOffset.y
-            // Inverse of IsoGrid.point(col:row:).
-            let col = localX / Self.grid.tileWidth - localY / Self.grid.tileHeight
-            let row = -localY / Self.grid.tileHeight - localX / Self.grid.tileWidth
-            minCol = min(minCol, Int(floor(col)))
-            maxCol = max(maxCol, Int(ceil(col)))
-            minRow = min(minRow, Int(floor(row)))
-            maxRow = max(maxRow, Int(ceil(row)))
-        }
-        guard minCol <= maxCol, minRow <= maxRow else { return }
-
-        for row in minRow...maxRow {
-            for col in minCol...maxCol {
+        for row in Self.worldRows {
+            for col in Self.worldColumns {
                 let kind = Self.kind(atCol: col, row: row)
 
                 // Each tile type sizes and anchors itself in its own init,
@@ -260,8 +302,7 @@ final class GroundLayer: SKNode {
                 case .shop: tile = ShopGroundTileNode(fittingTo: Self.grid)
                 }
 
-                let point = Self.grid.point(col: col, row: row)
-                tile.position = CGPoint(x: point.x + originOffset.x, y: point.y + originOffset.y)
+                tile.position = Self.grid.point(col: col, row: row)
                 // Standard back-to-front painter's algorithm: tiles further
                 // "south" (higher col + row) are nearer the viewer and are
                 // drawn after — on top of — the tiles behind them, so a
@@ -290,23 +331,22 @@ enum GroundTileKind {
 /// driven by SwiftUI's `SpriteView` in an Xcode canvas preview. Exists only
 /// for the preview below; `MainStallScene` builds its own real scene.
 ///
-/// This is the one preview that needs a custom `SKScene` subclass at all —
-/// it has to respond to size changes (`GroundLayer.layout` re-centers the
-/// patch on the canvas's current size), unlike the single-tile previews in
-/// `GrassGroundTileNode`/`FieldGroundTileNode`, which just place one static
-/// node and never need to re-layout.
+/// `GroundLayer.layout()` draws in raw world space now (no per-call
+/// centering) — a real camera, positioned at `GroundLayer.mapCentroid`,
+/// is what frames the farm/shop plot on screen here, mirroring how
+/// `MainStallScene` frames (and pans) the same content.
 private final class GroundPreviewScene: SKScene {
     private let groundLayer = GroundLayer()
+    private let cameraNode = SKCameraNode()
 
     override func didMove(to view: SKView) {
         backgroundColor = GroundTile.fillColor
-        addChild(groundLayer)
-        groundLayer.layout(for: size)
-    }
+        camera = cameraNode
+        addChild(cameraNode)
+        cameraNode.position = GroundLayer.mapCentroid
 
-    override func didChangeSize(_ oldSize: CGSize) {
-        super.didChangeSize(oldSize)
-        groundLayer.layout(for: size)
+        addChild(groundLayer)
+        groundLayer.layout()
     }
 }
 
