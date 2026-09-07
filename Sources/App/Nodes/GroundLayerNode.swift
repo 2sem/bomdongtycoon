@@ -69,11 +69,12 @@ struct IsoGrid {
 }
 
 /// Lays out ground tiles on `IsoGrid` from a literal map (see `map` below):
-/// a `GrassGroundTileNode` placeholder for the future shop plot, ringed and
-/// then extended north by `FieldGroundTileNode`s for `FieldLayer`/
-/// `FarmerLayer` to place their own content on. See `Nodes/Tiles/` for the
-/// individual tile types — this class owns only the grid itself (spacing,
-/// map data, draw order), not any tile's own art or measured geometry.
+/// a `ShopGroundTileNode` marking the shop plot, ringed by
+/// `FieldGroundTileNode`s and a `GrassGroundTileNode` border (with a
+/// `RoadGroundTileNode` entry path) for `FieldLayer`/`FarmerLayer` to
+/// place their own content on. See `Nodes/Tiles/` for the individual tile
+/// types — this class owns only the grid itself (spacing, map data, draw
+/// order), not any tile's own art or measured geometry.
 final class GroundLayer: SKNode {
 
     /// Flat pixel adjustment applied to the grid's spacing unit, in points,
@@ -132,14 +133,14 @@ final class GroundLayer: SKNode {
     /// This is the single source of truth for what's drawn where.
     /// `layout(for:)` just walks it, translating each `(rowIndex,
     /// colIndex)` into an `IsoGrid` `(col, row)` via `mapOrigin`. To
-    /// reshape the ground — grow it, move the grass plot, carve out a
+    /// reshape the ground — grow it, move the shop plot, carve out a
     /// different field shape — edit this array; nothing else needs to
     /// change.
     /// The field block is ringed by a 1-tile grass border on every side —
     /// plain lawn framing the farm — except the south (front) edge, whose
     /// middle tile is `.road` instead: a stone path continuing straight
-    /// out from the grass shop plot toward the viewer, like a doorstep
-    /// leading up to where the shop will eventually stand.
+    /// out from the shop plot toward the viewer, like a doorstep leading
+    /// up to where the shop building will eventually stand.
     private static let map: [[GroundTileKind]] = [
         [.grass, .grass, .grass, .grass, .grass],
         [.grass, .field, .field, .field, .grass],
@@ -148,14 +149,14 @@ final class GroundLayer: SKNode {
         [.grass, .field, .field, .field, .grass],
         [.grass, .field, .field, .field, .grass],
         [.grass, .field, .field, .field, .grass],
-        [.grass, .field, .grass, .field, .grass],
+        [.grass, .field, .shop,  .field, .grass],
         [.grass, .field, .field, .field, .grass],
         [.grass, .grass, .road,  .grass, .grass],
     ]
 
     /// `IsoGrid` `(col, row)` of `map[0][0]` — the map's north-west
     /// corner. Every other cell's grid coordinate is this plus its own
-    /// `(rowIndex, colIndex)` offset (see `layout(for:)`). Keeps the grass
+    /// `(rowIndex, colIndex)` offset (see `layout(for:)`). Keeps the shop
     /// plot's own cell (row 7, col 2 in `map`) at `IsoGrid` row/col 0,
     /// matching where earlier iterations of this grid anchored it, so
     /// `FieldLayer`/`FarmerLayer`'s own fixed row constants (tuned against
@@ -212,6 +213,7 @@ final class GroundLayer: SKNode {
                 case .grass: tile = GrassGroundTileNode()
                 case .field: tile = FieldGroundTileNode(fittingTo: Self.grid)
                 case .road: tile = RoadGroundTileNode(fittingTo: Self.grid)
+                case .shop: tile = ShopGroundTileNode(fittingTo: Self.grid)
                 }
 
                 let point = Self.grid.point(col: col, row: row)
@@ -235,6 +237,7 @@ enum GroundTileKind {
     case grass
     case field
     case road
+    case shop
 }
 
 // MARK: - Preview

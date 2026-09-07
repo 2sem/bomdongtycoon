@@ -1,7 +1,7 @@
 import SpriteKit
 
 /// A patch of crop plots standing on `GroundLayer`'s field-tile ground,
-/// north of (behind) the grass placeholder tile.
+/// north of (behind) the shop plot tile.
 ///
 /// KNOWN LIMITATION, deliberately left as-is for now: on `IsoGrid`,
 /// `screenX = (col - row) × tileWidth / 2` — so retreating "north" by
