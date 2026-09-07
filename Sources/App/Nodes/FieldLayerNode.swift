@@ -64,10 +64,13 @@ final class FieldLayer: SKNode {
         return CGSize(width: side, height: side)
     }()
 
-    func layout(for size: CGSize) {
+    /// Places every crop plot at its raw `GroundLayer.grid` world
+    /// position — same world space `GroundLayer`'s own tiles use, no
+    /// separate centering step. `MainStallScene`'s camera (not this
+    /// layout pass) frames it on screen; call this once, not on every
+    /// size change.
+    func layout() {
         removeAllChildren()
-
-        let originOffset = GroundLayer.originOffset(for: size)
 
         var cropIndex = 0
         for rowOffset in 0..<Self.rowCount {
@@ -79,13 +82,12 @@ final class FieldLayer: SKNode {
                 plot.size = Self.cropSize
                 cropIndex += 1
 
-                let point = GroundLayer.grid.point(col: col, row: row)
                 // Anchor at the sprite's own bottom-center (default
                 // anchorPoint 0.5, 0.5 shifted down by half height) so it
                 // reads as standing on the tile surface rather than
                 // floating centered on it.
                 plot.anchorPoint = CGPoint(x: 0.5, y: 0)
-                plot.position = CGPoint(x: point.x + originOffset.x, y: point.y + originOffset.y)
+                plot.position = GroundLayer.grid.point(col: col, row: row)
 
                 // Same back-to-front convention GroundLayer's own tiles
                 // use, so crops sort correctly against each other (and,
