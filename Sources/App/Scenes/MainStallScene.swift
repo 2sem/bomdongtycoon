@@ -23,39 +23,45 @@ final class MainStallScene: SKScene {
         addChild(groundLayer)
         groundLayer.layout(for: frame.size)
 
-        fieldLayer.zPosition = 10
-        addChild(fieldLayer)
-        fieldLayer.layout(for: frame.size)
-
-        // Same base zPosition as fieldLayer so FarmerLayer's local row-based zPosition
-        // (see FarmerLayer.layout) compares directly against FieldLayer's plot zPositions.
-        farmerLayer.zPosition = 10
-        addChild(farmerLayer)
-        farmerLayer.layout(for: frame.size)
-
-        // Same base zPosition as fieldLayer/farmerLayer; ShopWallLayer's own zPosition
-        // formula (see ShopWallNode.swift) shares FieldLayer's row-based scale, so the
-        // shop's walls — which now stack directly in front of the field along the row axis
-        // and share its column range — sort correctly against the field's plots.
-        shopWallLayer.zPosition = 10
-        addChild(shopWallLayer)
-        shopWallLayer.layout(for: frame.size)
-
-        // Same base zPosition as the other shop-area layers; KitchenLayer's own zPosition
-        // formula (see KitchenNode.swift) shares ShopWallLayer's row-based scale, so the
-        // kitchen sorts correctly against the shop's walls and the field behind it.
-        kitchenLayer.zPosition = 10
-        addChild(kitchenLayer)
-        kitchenLayer.layout(for: frame.size)
+        // Field/farmer/shop/kitchen layers are temporarily disabled so the
+        // new isometric diamond ground grid (see GroundTileNode.swift) can
+        // be validated in isolation before these layers are migrated onto
+        // the new IsoGrid coordinate system in a follow-up task. Their
+        // node files are untouched — only this scene composition changed.
+        //
+        // fieldLayer.zPosition = 10
+        // addChild(fieldLayer)
+        // fieldLayer.layout(for: frame.size)
+        //
+        // // Same base zPosition as fieldLayer so FarmerLayer's local row-based zPosition
+        // // (see FarmerLayer.layout) compares directly against FieldLayer's plot zPositions.
+        // farmerLayer.zPosition = 10
+        // addChild(farmerLayer)
+        // farmerLayer.layout(for: frame.size)
+        //
+        // // Same base zPosition as fieldLayer/farmerLayer; ShopWallLayer's own zPosition
+        // // formula (see ShopWallNode.swift) shares FieldLayer's row-based scale, so the
+        // // shop's walls — which now stack directly in front of the field along the row axis
+        // // and share its column range — sort correctly against the field's plots.
+        // shopWallLayer.zPosition = 10
+        // addChild(shopWallLayer)
+        // shopWallLayer.layout(for: frame.size)
+        //
+        // // Same base zPosition as the other shop-area layers; KitchenLayer's own zPosition
+        // // formula (see KitchenNode.swift) shares ShopWallLayer's row-based scale, so the
+        // // kitchen sorts correctly against the shop's walls and the field behind it.
+        // kitchenLayer.zPosition = 10
+        // addChild(kitchenLayer)
+        // kitchenLayer.layout(for: frame.size)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
         super.didChangeSize(oldSize)
         groundLayer.layout(for: size)
-        fieldLayer.layout(for: size)
-        farmerLayer.layout(for: size)
-        shopWallLayer.layout(for: size)
-        kitchenLayer.layout(for: size)
+        // fieldLayer.layout(for: size)
+        // farmerLayer.layout(for: size)
+        // shopWallLayer.layout(for: size)
+        // kitchenLayer.layout(for: size)
     }
 
     override func update(_ currentTime: TimeInterval) {
