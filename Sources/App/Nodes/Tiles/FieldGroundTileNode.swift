@@ -60,21 +60,56 @@ final class FieldGroundTileNode: SKSpriteNode {
 }
 
 #Preview("Field Ground Tile") {
-    // A grid matching GrassGroundTileNode's own native footprint, just to
-    // size this preview's single tile — layer-level spacing tuning
-    // (GroundLayer.spacingInset) isn't relevant to how this tile's own art
-    // looks in isolation, so it's deliberately left out here.
+    // A 2×2 patch of this tile alone (no grass tile, no layer-level
+    // spacingInset) so a seam problem is obviously this asset's own
+    // measured geometry — topFaceHeightFraction/topFaceCenterAnchorY —
+    // rather than something GroundLayer or the grass tile introduced.
+    // Sized the same way GrassGroundTileNode sizes itself (a 128pt-wide
+    // footprint), purely for this preview — in production
+    // FieldGroundTileNode never picks its own size, see
+    // `spriteSize(fittingTo:)`.
+    let footprintWidth: CGFloat = 128
+    let nativeAspect: CGFloat = {
+        let native = SKTexture(imageNamed: "ground_tile_field").size()
+        return native.height > 0 ? native.width / native.height : 1078.0 / 660.0
+    }()
     let grid = IsoGrid(
-        tileWidth: GrassGroundTileNode.spriteSize.width,
-        tileHeight: GrassGroundTileNode.spriteSize.height * GrassGroundTileNode.topFaceHeightFraction
+        tileWidth: footprintWidth,
+        tileHeight: (footprintWidth / nativeAspect) * FieldGroundTileNode.topFaceHeightFraction
     )
-    let scene = SKScene(size: CGSize(width: 200, height: 200))
+    let range = 0..<2
+
+    let scene = SKScene(size: CGSize(width: 300, height: 300))
     scene.scaleMode = .resizeFill
     scene.backgroundColor = GroundTile.fillColor
-    let tile = FieldGroundTileNode(fittingTo: grid)
-    tile.position = CGPoint(x: scene.size.width / 2, y: scene.size.height / 2)
-    scene.addChild(tile)
+
+    // Center the patch: IsoGrid's origin (0, 0) isn't the centroid of an
+    // arbitrary (col, row) rectangle, so average every cell's point first
+    // (same approach GroundLayer.layout uses for its own, larger patch).
+    var sum = CGPoint.zero
+    var count = 0
+    for row in range {
+        for col in range {
+            let point = grid.point(col: col, row: row)
+            sum.x += point.x
+            sum.y += point.y
+            count += 1
+        }
+    }
+    let centroid = CGPoint(x: sum.x / CGFloat(count), y: sum.y / CGFloat(count))
+    let origin = CGPoint(x: scene.size.width / 2 - centroid.x, y: scene.size.height / 2 - centroid.y)
+
+    for row in range {
+        for col in range {
+            let tile = FieldGroundTileNode(fittingTo: grid)
+            let point = grid.point(col: col, row: row)
+            tile.position = CGPoint(x: point.x + origin.x, y: point.y + origin.y)
+            tile.zPosition = CGFloat(col + row)
+            scene.addChild(tile)
+        }
+    }
+
     return SpriteView(scene: scene)
-        .frame(width: 200, height: 200)
+        .frame(width: 300, height: 300)
         .ignoresSafeArea()
 }
