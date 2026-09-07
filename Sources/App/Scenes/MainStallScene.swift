@@ -90,15 +90,21 @@ final class MainStallScene: SKScene {
             x: GroundLayer.grid.point(col: 0, row: 0).x - GroundLayer.grid.tileWidth / 2,
             y: GroundLayer.grid.point(col: 0, row: 0).y
         )
+        // shopWallBack (North->West edge) is drawn first, at a lower
+        // zPosition, than shopWallLeft (West->South edge): the back wall
+        // is the farther-back of the two — same painter's-algorithm logic
+        // GroundLayer's own tiles use — so where their bounding boxes
+        // overlap near the shared West vertex, the left wall's art
+        // (nearer the camera) correctly draws on top instead of getting
+        // buried by the back wall (bug: both had zPosition 10, so
+        // addChild order alone decided it, and back happened to win).
+        shopWallBack.position = shopWestVertex
+        shopWallBack.zPosition = 9
+        addChild(shopWallBack)
+
         shopWallLeft.position = shopWestVertex
         shopWallLeft.zPosition = 10
         addChild(shopWallLeft)
-
-        // Shares the same West-vertex anchor as shopWallLeft — see
-        // ShopWallBackNode's doc comment.
-        shopWallBack.position = shopWestVertex
-        shopWallBack.zPosition = 10
-        addChild(shopWallBack)
 
         clampCameraPosition()
     }
