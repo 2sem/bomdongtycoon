@@ -11,47 +11,34 @@ final class ShopWallBackNode: SKSpriteNode {
 
     private static let texture = SKTexture(imageNamed: "wall_shop_back")
 
-    /// This is a from-scratch replacement for an earlier version of this
-    /// wall (see git history for the original, which needed an
-    /// empirically-recalibrated anchor to close a visible gap against
-    /// `ShopWallLeftNode`). New source art, plain corner posts on both
-    /// ends and a cap/base beam, already alpha-keyed and already
-    /// vertical-edged (no homography correction needed). Native bbox
-    /// 551×689. Corners (this image's own coordinates, off the alpha
-    /// silhouette's convex hull): back-top(488,0) — the far/North-side
-    /// post's cap, highest point in the image; front-top(11,275) — where
-    /// the near/West-side post's own vertical edge meets the sloped cap
-    /// beam; back-bottom(546,421) — where the far post's vertical edge
-    /// meets the sloped base beam, no flare/rounding issue on this side;
-    /// front-bottom(43,688) — the near post's own foot, same kind of
-    /// flare `ShopWallRightNode`'s post has (silhouette rounds a few px
-    /// past its true structural base), raw measurement here pending
-    /// verification against `ShopWallLeftNode` with a debug marker.
-    private static let nativeSize = CGSize(width: 551, height: 689)
+    /// Full replacement of the original art (new, matching set of 4 wall
+    /// pieces designed together — see the sibling nodes' doc comments).
+    /// Already alpha-keyed, already vertical-edged. Native bbox 520×640.
+    /// A corner post at each end plus a cap beam along the roofline,
+    /// riding on top of the same underlying parallelogram every wall in
+    /// this set reduces to — same shape idea as the original. Corners
+    /// (this image's own coordinates, off the alpha silhouette):
+    /// front-top(2,272)... no — front-top(0,259), back-top(519,10),
+    /// back-bottom(516,405), off the clean parts of each post's own
+    /// vertical edge. front-bottom raw silhouette tip is (0,610), but
+    /// (like the original back wall) the post's foot has a visible flare
+    /// past its own structural base — `frontBottomAnchor` below starts
+    /// from that raw measurement and gets verified/recalibrated against
+    /// a debug marker before shipping, not trusted blindly.
+    private static let nativeSize = CGSize(width: 520, height: 640)
 
-    /// Depth vector (back-top → front-top): how far the art's own main
+    /// Depth vector (front-top → back-top): how far the art's own main
     /// face runs in each direction, matching the tile's North→West edge.
-    /// Both components negative (this wall's art runs the opposite
-    /// horizontal direction from the left wall's) — `spriteSize
-    /// (fittingTo:)` uses magnitudes, so the sign doesn't matter there;
-    /// it's `anchorPoint` that actually encodes the direction.
-    private static let nativeDepthVector = CGVector(dx: 11 - 488, dy: 275 - 0)
+    private static let nativeDepthVector = CGVector(dx: 519 - 0, dy: 10 - 259)
 
     /// The front-bottom corner — where this wall meets `ShopWallLeftNode`
     /// at the tile's own West vertex — as a fraction of `nativeSize`.
-    /// Raw measurement off the art (see `nativeSize`'s doc comment);
-    /// verified pixel-tight against `ShopWallLeftNode` with a debug
-    /// marker on the first attempt this time, no recalibration needed
-    /// (unlike the prior version of this wall).
-    private static let frontBottomAnchor = CGPoint(x: 43.0 / 551.0, y: 1 - 688.0 / 689.0)
+    /// Raw measurement (see `nativeSize`'s doc comment); verify against a
+    /// debug marker before trusting it.
+    private static let frontBottomAnchor = CGPoint(x: 0.0 / 520.0, y: 1 - 610.0 / 640.0)
 
     /// Same non-uniform-fit approach as `ShopWallLeftNode` — see that
-    /// type's doc comment. This new art's own height-to-depth ratio
-    /// tracks the other three walls closely enough (measured ~58pt
-    /// visible height vs. `ShopWallLeftNode`'s 49.75pt reference, in the
-    /// same ballpark as `ShopWallFrontNode`'s 56.31pt) that no
-    /// `heightAdjustment` hack is needed, unlike the prior version of
-    /// this wall.
+    /// type's doc comment.
     private static func spriteSize(fittingTo grid: IsoGrid) -> CGSize {
         let halfWidth = grid.tileWidth / 2
         let halfHeight = grid.tileHeight / 2
