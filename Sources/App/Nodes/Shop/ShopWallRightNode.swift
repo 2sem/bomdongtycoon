@@ -50,13 +50,26 @@ final class ShopWallRightNode: SKSpriteNode {
     /// at the tile's own North vertex — as a fraction of `nativeSize`.
     private static let backBottomAnchor = CGPoint(x: 34.0 / 526.0, y: 1 - 506.0 / 742.0)
 
+    /// This wall's own visible height (roofline above its North-vertex
+    /// anchor) rendered at ~2× `ShopWallLeftNode`'s — same real
+    /// mismatch `ShopWallBackNode` has (see that type's `heightAdjustment`
+    /// doc comment for why cropping doesn't work here either — the
+    /// window/post fill essentially the whole height, no unused excess to
+    /// trim). Same fix: shrink height ~0.5, stretch width ~2× to
+    /// compensate. This wall's own anchor (North vertex, shared with
+    /// `ShopWallBackNode`'s own far end) stays exact regardless, but its
+    /// *far* end (East vertex, shared with `ShopWallFrontNode`'s own far
+    /// end) is no longer footprint-exact — expect some drift there.
+    private static let heightAdjustment: CGFloat = 0.5
+
     /// Same non-uniform-fit approach as the other three walls — see
-    /// `ShopWallLeftNode`'s doc comment.
+    /// `ShopWallLeftNode`'s doc comment — with `heightAdjustment` layered
+    /// on top (see its own doc comment above).
     private static func spriteSize(fittingTo grid: IsoGrid) -> CGSize {
         let halfWidth = grid.tileWidth / 2
         let halfHeight = grid.tileHeight / 2
-        let scaleX = halfWidth / abs(nativeDepthVector.dx)
-        let scaleY = halfHeight / abs(nativeDepthVector.dy)
+        let scaleX = halfWidth / abs(nativeDepthVector.dx) / heightAdjustment
+        let scaleY = halfHeight / abs(nativeDepthVector.dy) * heightAdjustment
         return CGSize(width: nativeSize.width * scaleX, height: nativeSize.height * scaleY)
     }
 

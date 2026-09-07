@@ -55,14 +55,36 @@ final class ShopWallBackNode: SKSpriteNode {
     /// pixel-tight, no gap.
     private static let frontBottomAnchor = CGPoint(x: 0.012, y: 0.108)
 
+    /// This wall's own visible height (roofline above its West-vertex
+    /// anchor) rendered at ~2× `ShopWallLeftNode`'s — a real mismatch
+    /// between the two independently-drawn assets' own height-to-depth
+    /// ratios, not a measurement error (confirmed: cropping this wall
+    /// down to match left's height cuts into the cap beam and post,
+    /// destroying content — there's no unused "excess" to trim).
+    ///
+    /// `heightAdjustment` corrects this by deliberately breaking the
+    /// exact footprint-edge match `spriteSize(fittingTo:)` otherwise
+    /// preserves everywhere else in this set: it shrinks height by ~0.5
+    /// (matching `ShopWallLeftNode`'s visible height) and stretches width
+    /// by the reciprocal (~2×, keeping the sprite's apparent bulk/area
+    /// roughly constant rather than just looking squashed). This wall's
+    /// own anchor (West vertex, shared with `ShopWallLeftNode`) stays
+    /// exact regardless — anchorPoint always maps to `position`
+    /// regardless of size — but its *far* end (North vertex, shared with
+    /// `ShopWallRightNode`'s own anchor) is no longer footprint-exact, so
+    /// expect some drift there versus the pixel-tight junctions
+    /// elsewhere in this set.
+    private static let heightAdjustment: CGFloat = 0.5
+
     /// Same non-uniform-fit approach as `ShopWallLeftNode` — see that
-    /// type's doc comment. Uses magnitudes throughout since this wall's
-    /// depth vector points the opposite horizontal direction.
+    /// type's doc comment — with `heightAdjustment` layered on top (see
+    /// its own doc comment above). Uses magnitudes throughout since this
+    /// wall's depth vector points the opposite horizontal direction.
     private static func spriteSize(fittingTo grid: IsoGrid) -> CGSize {
         let halfWidth = grid.tileWidth / 2
         let halfHeight = grid.tileHeight / 2
-        let scaleX = halfWidth / abs(nativeDepthVector.dx)
-        let scaleY = halfHeight / abs(nativeDepthVector.dy)
+        let scaleX = halfWidth / abs(nativeDepthVector.dx) / heightAdjustment
+        let scaleY = halfHeight / abs(nativeDepthVector.dy) * heightAdjustment
         return CGSize(width: nativeSize.width * scaleX, height: nativeSize.height * scaleY)
     }
 
