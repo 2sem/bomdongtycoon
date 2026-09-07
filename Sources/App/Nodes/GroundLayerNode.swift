@@ -68,13 +68,12 @@ struct IsoGrid {
     }
 }
 
-/// Lays out a small fixed patch of ground tiles on `IsoGrid`: one
-/// `GrassGroundTileNode` (a placeholder for the future shop plot) ringed
-/// by `FieldGroundTileNode`s, with the strip continuing north as more
-/// field-tile ground for `FieldLayer`/`FarmerLayer` to place their own
-/// content on. See `Nodes/Tiles/` for the individual tile types — this
-/// class owns only the grid itself (spacing, patch shape) and draw order,
-/// not any tile's own art or measured geometry.
+/// Lays out ground tiles on `IsoGrid` from a literal map (see `map` below):
+/// a `GrassGroundTileNode` placeholder for the future shop plot, ringed and
+/// then extended north by `FieldGroundTileNode`s for `FieldLayer`/
+/// `FarmerLayer` to place their own content on. See `Nodes/Tiles/` for the
+/// individual tile types — this class owns only the grid itself (spacing,
+/// map data, draw order), not any tile's own art or measured geometry.
 final class GroundLayer: SKNode {
 
     /// Flat pixel adjustment applied to the grid's spacing unit, in points,
@@ -122,29 +121,44 @@ final class GroundLayer: SKNode {
         tileHeight: GrassGroundTileNode.spriteSize.height * GrassGroundTileNode.topFaceHeightFraction + spacingInset
     )
 
-    /// The `(col, row)` bounds of the patch actually drawn: a 3-column-wide
-    /// strip, `centerCol`/`centerRow` at its south end holding the single
-    /// grass tile (a placeholder for where the shop will eventually stand —
-    /// no building there yet, its own assets aren't ready) ringed by field
-    /// tiles, with the strip continuing north as plain field-tile ground
-    /// for `FieldLayer`'s crop patch and `FarmerLayer`'s farmers to stand
-    /// on. Still a small fixed patch (not filling the whole viewport) —
-    /// see `MEMORY`/PR history for why: this whole grid is still a step
-    /// ahead of having a real camera/scroll, so for now everything drawn
-    /// has to actually fit in one static viewport.
-    private static let gridColumns = -1..<2
-    private static let gridRows = -6..<2
-    private static let centerCol = 0
-    private static let centerRow = 0
+    /// The ground's fixed layout as literal map data: outer array is rows
+    /// from north/back (index 0) to south/front (last index); each inner
+    /// array is that row's tiles from west/left (index 0) to east/right
+    /// (last index) — ordinary top-to-bottom, left-to-right reading order,
+    /// matching how the array literal below actually looks written out.
+    /// Every row must be the same length (`layout(for:)` traps otherwise —
+    /// a ragged map has no sensible single origin/column count).
+    ///
+    /// This is the single source of truth for what's drawn where.
+    /// `layout(for:)` just walks it, translating each `(rowIndex,
+    /// colIndex)` into an `IsoGrid` `(col, row)` via `mapOrigin`. To
+    /// reshape the ground — grow it, move the grass plot, carve out a
+    /// different field shape — edit this array; nothing else needs to
+    /// change.
+    private static let map: [[GroundTileKind]] = [
+        [.field, .field, .field],
+        [.field, .field, .field],
+        [.field, .field, .field],
+        [.field, .field, .field],
+        [.field, .field, .field],
+        [.field, .field, .field],
+        [.field, .grass, .field],
+        [.field, .field, .field],
+    ]
 
-    private static func isCenter(col: Int, row: Int) -> Bool {
-        col == centerCol && row == centerRow
-    }
+    /// `IsoGrid` `(col, row)` of `map[0][0]` — the map's north-west
+    /// corner. Every other cell's grid coordinate is this plus its own
+    /// `(rowIndex, colIndex)` offset (see `layout(for:)`). `row: -6`
+    /// keeps `map`'s second-to-last row (the grass plot's own row) at
+    /// `IsoGrid` row 0, matching where earlier iterations of this grid
+    /// anchored the grass placeholder, so `FieldLayer`/`FarmerLayer`'s own
+    /// fixed row constants (tuned against that anchor) don't need to
+    /// change just because this file switched to map data.
+    private static let mapOrigin = (col: -1, row: -6)
 
-    /// The screen-space offset that centers this patch on a `size`-sized
-    /// canvas: `gridColumns`/`gridRows` is an arbitrary (col, row)
-    /// rectangle, and `IsoGrid`'s origin (0, 0) isn't generally its
-    /// centroid, so every cell's grid point is averaged first. Exposed so
+    /// The screen-space offset that centers `map` on a `size`-sized
+    /// canvas: `IsoGrid`'s origin (0, 0) isn't generally a map's centroid,
+    /// so every cell's grid point is averaged first. Exposed so
     /// `FieldLayer`/`FarmerLayer` can add their own content in the exact
     /// same coordinate space this layer's own tiles are placed in, rather
     /// than each layer computing a (potentially different) centering
@@ -152,8 +166,9 @@ final class GroundLayer: SKNode {
     static func originOffset(for size: CGSize) -> CGPoint {
         var sum = CGPoint.zero
         var count = 0
-        for row in gridRows {
-            for col in gridColumns {
+        for rowIndex in map.indices {
+            for colIndex in map[rowIndex].indices {
+                let (col, row) = gridCoordinate(rowIndex: rowIndex, colIndex: colIndex)
                 let point = grid.point(col: col, row: row)
                 sum.x += point.x
                 sum.y += point.y
@@ -165,21 +180,33 @@ final class GroundLayer: SKNode {
         return CGPoint(x: size.width / 2 - centroid.x, y: size.height / 2 - centroid.y)
     }
 
+    private static func gridCoordinate(rowIndex: Int, colIndex: Int) -> (col: Int, row: Int) {
+        (mapOrigin.col + colIndex, mapOrigin.row + rowIndex)
+    }
+
     func layout(for size: CGSize) {
         removeAllChildren()
         guard size.width > 0, size.height > 0 else { return }
+        precondition(
+            Set(Self.map.map(\.count)).count <= 1,
+            "GroundLayer.map rows must all be the same length"
+        )
 
         let originOffset = Self.originOffset(for: size)
 
-        for row in Self.gridRows {
-            for col in Self.gridColumns {
-                // The single center cell keeps the grass tile; every other
-                // cell in the patch renders as a field tile — a grass tile
-                // with a ring of field around it. Each tile type sizes and
-                // anchors itself in its own init, so this loop only needs
-                // to place it.
-                let isCenter = Self.isCenter(col: col, row: row)
-                let tile: SKSpriteNode = isCenter ? GrassGroundTileNode() : FieldGroundTileNode(fittingTo: Self.grid)
+        for rowIndex in Self.map.indices {
+            for colIndex in Self.map[rowIndex].indices {
+                let kind = Self.map[rowIndex][colIndex]
+                let (col, row) = Self.gridCoordinate(rowIndex: rowIndex, colIndex: colIndex)
+
+                // Each tile type sizes and anchors itself in its own init,
+                // so this loop only needs to place it.
+                let tile: SKSpriteNode
+                switch kind {
+                case .grass: tile = GrassGroundTileNode()
+                case .field: tile = FieldGroundTileNode(fittingTo: Self.grid)
+                }
+
                 let point = Self.grid.point(col: col, row: row)
                 tile.position = CGPoint(x: point.x + originOffset.x, y: point.y + originOffset.y)
                 // Standard back-to-front painter's algorithm: tiles further
@@ -194,6 +221,12 @@ final class GroundLayer: SKNode {
             }
         }
     }
+}
+
+/// One cell of `GroundLayer.map`.
+enum GroundTileKind {
+    case grass
+    case field
 }
 
 // MARK: - Preview
