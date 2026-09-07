@@ -24,7 +24,7 @@ final class MainStallScene: SKScene {
         groundLayer.layout(for: frame.size)
 
         // Field/farmer/shop/kitchen layers are temporarily disabled so the
-        // new isometric diamond ground grid (see GroundTileNode.swift) can
+        // new isometric diamond ground grid (see GroundLayerNode.swift) can
         // be validated in isolation before these layers are migrated onto
         // the new IsoGrid coordinate system in a follow-up task. Their
         // node files are untouched — only this scene composition changed.
