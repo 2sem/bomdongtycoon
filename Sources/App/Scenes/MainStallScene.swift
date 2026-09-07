@@ -34,6 +34,11 @@ final class MainStallScene: SKScene {
     /// (unanchored) end at the shop tile's own South vertex.
     private let shopWallFront = ShopWallFrontNode(fittingTo: GroundLayer.grid)
 
+    /// The shop plot's north-east wall — meets `shopWallBack`'s far
+    /// (unanchored) end at the shop tile's own North vertex, closing the
+    /// box's fourth side.
+    private let shopWallRight = ShopWallRightNode(fittingTo: GroundLayer.grid)
+
     /// Pans the world; `GroundLayer.worldBounds` clamps how far (see
     /// `clampCameraPosition()`) — "the map data" (`GroundLayer.map` plus
     /// its margin) is what actually limits the scrollable area, not the
@@ -125,6 +130,23 @@ final class MainStallScene: SKScene {
         shopWallFront.position = shopSouthVertex
         shopWallFront.zPosition = 11
         addChild(shopWallFront)
+
+        // North vertex — grid.point(col: 0, row: 0) offset up by half the
+        // grid's tile height. ShopWallBack's own far corner (its
+        // unanchored end) lands here once its footprint is fit to the
+        // grid; this wall's own back-bottom corner anchors here too, to
+        // meet it. Drawn before shopWallBack's far side would be — but
+        // since North->East and North->West share the North vertex as
+        // their *back* end (the farthest point from camera on this whole
+        // box), zPosition here follows the same low-first convention as
+        // shopWallBack.
+        let shopNorthVertex = CGPoint(
+            x: GroundLayer.grid.point(col: 0, row: 0).x,
+            y: GroundLayer.grid.point(col: 0, row: 0).y + GroundLayer.grid.tileHeight / 2
+        )
+        shopWallRight.position = shopNorthVertex
+        shopWallRight.zPosition = 8
+        addChild(shopWallRight)
 
         clampCameraPosition()
     }
