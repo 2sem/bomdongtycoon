@@ -147,11 +147,59 @@ final class GroundLayer: SKNode {
         tileHeight: spriteSize.height * topFaceHeightFraction + spacingInset
     )
 
-    /// The `(col, row)` bounds of the patch actually drawn. Kept to a small
-    /// fixed 2×2 block (rather than filling the whole viewport) while this
-    /// new art's spacing/interlocking is being validated in isolation.
-    private static let gridColumns = 0..<2
-    private static let gridRows = 0..<2
+    /// The `(col, row)` bounds of the patch actually drawn. A small fixed
+    /// 3×3 block (rather than filling the whole viewport) centered on
+    /// `centerCol`/`centerRow` — the single grass tile — surrounded by a
+    /// ring of field tiles.
+    private static let gridColumns = -1..<2
+    private static let gridRows = -1..<2
+    private static let centerCol = 0
+    private static let centerRow = 0
+
+    private static func isCenter(col: Int, row: Int) -> Bool {
+        col == centerCol && row == centerRow
+    }
+
+    // MARK: - Field (plowed farm plot) tile
+
+    private static let fieldTexture = SKTexture(imageNamed: "ground_tile_field")
+
+    /// Same measurement as `topFaceHeightFraction`, but for
+    /// `ground_tile_field` (a different source asset — plowed, furrowed
+    /// soil rather than grass). Measured the same way: alpha-trimmed bbox
+    /// 1078×660, top vertex y≈2, front vertex y≈606 ⇒ rhombus height ≈604
+    /// of the sprite's 657 vertex-to-vertex span, ≈0.919. Like the grass
+    /// art, the raw source wasn't a perfectly symmetric diamond (its
+    /// left/right corners sat well above the true midpoint implied by the
+    /// top/front vertices — this one is noticeably more front-heavy than
+    /// the grass tile was), so it went through the same one-off 4-point
+    /// homography warp before being saved, correcting the left/right
+    /// corners onto the exact symmetric diamond.
+    private static let fieldTopFaceHeightFraction: CGFloat = 0.919
+
+    /// Same role as `topFaceCenterAnchorY`, for the field tile:
+    /// `1 - (2 + 604/2) / 660 ≈ 0.539`.
+    private static let fieldTopFaceCenterAnchorY: CGFloat = 0.539
+
+    /// The field tile must interlock with the grass grid, so it can't just
+    /// get its own uniformly-scaled `spriteSize` the way grass does — its
+    /// native footprint aspect (1078/604 ≈ 1.78) differs from grass's
+    /// (≈1.51), so one scale factor can't fit both its width *and* its
+    /// footprint-height to the shared `grid` cell at once. Instead this
+    /// scales each axis independently: width is forced to exactly
+    /// `grid.tileWidth` (matching every grass tile's own rendered width),
+    /// and a separate Y scale is chosen so the native *footprint* height
+    /// (not the full sprite) maps to exactly `grid.tileHeight` — then that
+    /// same Y scale is applied to the full native height, so the skirt
+    /// below the footprint scales proportionally with it rather than
+    /// getting stretched independently.
+    private static let fieldSpriteSize: CGSize = {
+        let native = fieldTexture.size()
+        let nativeHeight = native.height > 0 ? native.height : 660.0
+        let nativeTopFaceHeight = nativeHeight * fieldTopFaceHeightFraction
+        let yScale = nativeTopFaceHeight > 0 ? grid.tileHeight / nativeTopFaceHeight : 1
+        return CGSize(width: grid.tileWidth, height: nativeHeight * yScale)
+    }()
 
     func layout(for size: CGSize) {
         removeAllChildren()
@@ -180,13 +228,18 @@ final class GroundLayer: SKNode {
 
         for row in Self.gridRows {
             for col in Self.gridColumns {
-                let tile = SKSpriteNode(texture: Self.texture)
-                tile.size = spriteSize
-                // The rhombus's own vertical center (not the full sprite's)
-                // must land on the grid point — see `topFaceCenterAnchorY`.
-                // Horizontally the rhombus is already centered in the
-                // sprite, so 0.5 is correct as-is.
-                tile.anchorPoint = CGPoint(x: 0.5, y: Self.topFaceCenterAnchorY)
+                // The single center cell keeps the grass texture; every
+                // other cell in the patch renders as a field tile — a
+                // grass tile with a ring of field around it.
+                let isCenter = Self.isCenter(col: col, row: row)
+                let tile = SKSpriteNode(texture: isCenter ? Self.texture : Self.fieldTexture)
+                tile.size = isCenter ? spriteSize : Self.fieldSpriteSize
+                // Each tile type's own rhombus vertical center (not the
+                // full sprite's) must land on the grid point — see
+                // `topFaceCenterAnchorY`/`fieldTopFaceCenterAnchorY`.
+                // Horizontally both rhombi are already centered in their
+                // sprite, so 0.5 is correct as-is for either.
+                tile.anchorPoint = CGPoint(x: 0.5, y: isCenter ? Self.topFaceCenterAnchorY : Self.fieldTopFaceCenterAnchorY)
                 let point = Self.grid.point(col: col, row: row)
                 tile.position = CGPoint(x: point.x + originOffset.x, y: point.y + originOffset.y)
                 // Standard back-to-front painter's algorithm: tiles further
