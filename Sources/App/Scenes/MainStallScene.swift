@@ -99,16 +99,18 @@ final class MainStallScene: SKScene {
             x: GroundLayer.grid.point(col: 0, row: 0).x - GroundLayer.grid.tileWidth / 2,
             y: GroundLayer.grid.point(col: 0, row: 0).y
         )
-        // shopWallBack (North->West edge) is drawn first, at a lower
-        // zPosition, than shopWallLeft (West->South edge): the back wall
-        // is the farther-back of the two — same painter's-algorithm logic
-        // GroundLayer's own tiles use — so where their bounding boxes
-        // overlap near the shared West vertex, the left wall's art
-        // (nearer the camera) correctly draws on top instead of getting
-        // buried by the back wall (bug: both had zPosition 10, so
-        // addChild order alone decided it, and back happened to win).
+        // shopWallBack (North->West edge) draws at the lowest zPosition
+        // of all four walls: it's the farthest-back wall in the box (both
+        // its own ends — West vertex here, North vertex where it meets
+        // shopWallRight — are shared with walls nearer the camera), so
+        // where bounding boxes overlap at either shared corner, the
+        // nearer wall's art (shopWallLeft here, shopWallRight at the
+        // other end) correctly draws on top instead of burying it (bug:
+        // shopWallBack used to sit between shopWallRight and
+        // shopWallLeft's zPositions, so it incorrectly drew over
+        // shopWallRight at their shared North vertex).
         shopWallBack.position = shopWestVertex
-        shopWallBack.zPosition = 9
+        shopWallBack.zPosition = 7
         addChild(shopWallBack)
 
         shopWallLeft.position = shopWestVertex
@@ -135,10 +137,9 @@ final class MainStallScene: SKScene {
         // grid's tile height. ShopWallBack's own far corner (its
         // unanchored end) lands here once its footprint is fit to the
         // grid; this wall's own back-bottom corner anchors here too, to
-        // meet it. North->West and North->East share the North vertex as
-        // their *back* end (the farthest point from camera on this whole
-        // box), so zPosition here follows the same low-first convention
-        // as shopWallBack.
+        // meet it. Drawn at a higher zPosition than shopWallBack (see its
+        // own comment above) since shopWallRight is the nearer-camera of
+        // the two walls meeting here.
         let shopNorthVertex = CGPoint(
             x: GroundLayer.grid.point(col: 0, row: 0).x,
             y: GroundLayer.grid.point(col: 0, row: 0).y + GroundLayer.grid.tileHeight / 2
