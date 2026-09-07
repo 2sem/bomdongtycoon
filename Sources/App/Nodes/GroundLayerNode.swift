@@ -135,26 +135,32 @@ final class GroundLayer: SKNode {
     /// reshape the ground — grow it, move the grass plot, carve out a
     /// different field shape — edit this array; nothing else needs to
     /// change.
+    /// The field block is ringed by a 1-tile grass border on every side —
+    /// plain lawn framing the farm — except the south (front) edge, whose
+    /// middle tile is `.road` instead: a stone path continuing straight
+    /// out from the grass shop plot toward the viewer, like a doorstep
+    /// leading up to where the shop will eventually stand.
     private static let map: [[GroundTileKind]] = [
-        [.field, .field, .field],
-        [.field, .field, .field],
-        [.field, .field, .field],
-        [.field, .field, .field],
-        [.field, .field, .field],
-        [.field, .field, .field],
-        [.field, .grass, .field],
-        [.field, .field, .field],
+        [.grass, .grass, .grass, .grass, .grass],
+        [.grass, .field, .field, .field, .grass],
+        [.grass, .field, .field, .field, .grass],
+        [.grass, .field, .field, .field, .grass],
+        [.grass, .field, .field, .field, .grass],
+        [.grass, .field, .field, .field, .grass],
+        [.grass, .field, .field, .field, .grass],
+        [.grass, .field, .grass, .field, .grass],
+        [.grass, .field, .field, .field, .grass],
+        [.grass, .grass, .road,  .grass, .grass],
     ]
 
     /// `IsoGrid` `(col, row)` of `map[0][0]` — the map's north-west
     /// corner. Every other cell's grid coordinate is this plus its own
-    /// `(rowIndex, colIndex)` offset (see `layout(for:)`). `row: -6`
-    /// keeps `map`'s second-to-last row (the grass plot's own row) at
-    /// `IsoGrid` row 0, matching where earlier iterations of this grid
-    /// anchored the grass placeholder, so `FieldLayer`/`FarmerLayer`'s own
-    /// fixed row constants (tuned against that anchor) don't need to
-    /// change just because this file switched to map data.
-    private static let mapOrigin = (col: -1, row: -6)
+    /// `(rowIndex, colIndex)` offset (see `layout(for:)`). Keeps the grass
+    /// plot's own cell (row 7, col 2 in `map`) at `IsoGrid` row/col 0,
+    /// matching where earlier iterations of this grid anchored it, so
+    /// `FieldLayer`/`FarmerLayer`'s own fixed row constants (tuned against
+    /// that anchor) don't need to change just because `map` grew a border.
+    private static let mapOrigin = (col: -2, row: -7)
 
     /// The screen-space offset that centers `map` on a `size`-sized
     /// canvas: `IsoGrid`'s origin (0, 0) isn't generally a map's centroid,
@@ -205,6 +211,7 @@ final class GroundLayer: SKNode {
                 switch kind {
                 case .grass: tile = GrassGroundTileNode()
                 case .field: tile = FieldGroundTileNode(fittingTo: Self.grid)
+                case .road: tile = RoadGroundTileNode(fittingTo: Self.grid)
                 }
 
                 let point = Self.grid.point(col: col, row: row)
@@ -227,6 +234,7 @@ final class GroundLayer: SKNode {
 enum GroundTileKind {
     case grass
     case field
+    case road
 }
 
 // MARK: - Preview
