@@ -72,9 +72,12 @@ struct IsoGrid {
 /// a `ShopGroundTileNode` marking the shop plot, ringed by
 /// `FieldGroundTileNode`s and a `GrassGroundTileNode` border (with a
 /// `RoadGroundTileNode` entry path) for `FieldLayer`/`FarmerLayer` to
-/// place their own content on. See `Nodes/Tiles/` for the individual tile
-/// types — this class owns only the grid itself (spacing, map data, draw
-/// order), not any tile's own art or measured geometry.
+/// place their own content on — with plain grass filling every other cell
+/// the current viewport can show, so the ground never runs out into bare
+/// background beyond `map`'s own small footprint (see `kind(atCol:row:)`).
+/// See `Nodes/Tiles/` for the individual tile types — this class owns only
+/// the grid itself (spacing, map data, draw order), not any tile's own
+/// art or measured geometry.
 final class GroundLayer: SKNode {
 
     /// Flat pixel adjustment applied to the grid's spacing unit, in points,
@@ -191,6 +194,20 @@ final class GroundLayer: SKNode {
         (mapOrigin.col + colIndex, mapOrigin.row + rowIndex)
     }
 
+    /// `map`'s tile at `(col, row)`, or `.grass` if that cell falls
+    /// outside `map`'s own bounds — the open lawn surrounding the
+    /// farm/shop plot, filling the rest of the visible viewport (see
+    /// `layout(for:)`) rather than leaving bare background beyond `map`'s
+    /// own footprint.
+    private static func kind(atCol col: Int, row: Int) -> GroundTileKind {
+        let rowIndex = row - mapOrigin.row
+        let colIndex = col - mapOrigin.col
+        guard map.indices.contains(rowIndex), map[rowIndex].indices.contains(colIndex) else {
+            return .grass
+        }
+        return map[rowIndex][colIndex]
+    }
+
     func layout(for size: CGSize) {
         removeAllChildren()
         guard size.width > 0, size.height > 0 else { return }
@@ -201,10 +218,37 @@ final class GroundLayer: SKNode {
 
         let originOffset = Self.originOffset(for: size)
 
-        for rowIndex in Self.map.indices {
-            for colIndex in Self.map[rowIndex].indices {
-                let kind = Self.map[rowIndex][colIndex]
-                let (col, row) = Self.gridCoordinate(rowIndex: rowIndex, colIndex: colIndex)
+        // `map` only covers the farm/shop plot's own small footprint —
+        // fill everything else the viewport can actually show with plain
+        // grass, so resizing/panning never reveals bare background beyond
+        // it. Same corner-inversion approach GroundLayer used before `map`
+        // existed: invert `IsoGrid.point(col:row:)` for the (margin-padded)
+        // screen corners to find the (col, row) rectangle that covers them.
+        let margin = max(Self.grid.tileWidth, GrassGroundTileNode.spriteSize.height)
+        let corners = [
+            CGPoint(x: -margin, y: -margin),
+            CGPoint(x: size.width + margin, y: -margin),
+            CGPoint(x: -margin, y: size.height + margin),
+            CGPoint(x: size.width + margin, y: size.height + margin),
+        ]
+        var minCol = Int.max, maxCol = Int.min
+        var minRow = Int.max, maxRow = Int.min
+        for corner in corners {
+            let localX = corner.x - originOffset.x
+            let localY = corner.y - originOffset.y
+            // Inverse of IsoGrid.point(col:row:).
+            let col = localX / Self.grid.tileWidth - localY / Self.grid.tileHeight
+            let row = -localY / Self.grid.tileHeight - localX / Self.grid.tileWidth
+            minCol = min(minCol, Int(floor(col)))
+            maxCol = max(maxCol, Int(ceil(col)))
+            minRow = min(minRow, Int(floor(row)))
+            maxRow = max(maxRow, Int(ceil(row)))
+        }
+        guard minCol <= maxCol, minRow <= maxRow else { return }
+
+        for row in minRow...maxRow {
+            for col in minCol...maxCol {
+                let kind = Self.kind(atCol: col, row: row)
 
                 // Each tile type sizes and anchors itself in its own init,
                 // so this loop only needs to place it.
