@@ -30,7 +30,7 @@ final class FieldLayer: SKNode {
 
         // GroundLayer's tile x-position accumulates `skew * rowIndex`, so a fixed column
         // index drifts rightward on screen as rowIndex grows (this is what makes the mesh
-        // interlock into a continuous diagonal grid — see GroundTileNode.swift). To keep
+        // interlock into a continuous diagonal grid — see GroundLayerNode.swift). To keep
         // the field anchored to the right portion of the screen regardless of which row
         // band it lands on, compute the starting column against the skew contribution of
         // the field's middle row rather than assuming column 0 is screen x 0.
