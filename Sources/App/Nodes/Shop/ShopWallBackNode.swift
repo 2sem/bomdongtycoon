@@ -25,6 +25,17 @@ final class ShopWallBackNode: SKSpriteNode {
     /// (this image's own coordinates, after the same one-off vertical-edge
     /// correction used for the left wall): back-top(416,1),
     /// front-top(32,218), front-bottom(32,622), back-bottom(416,405).
+    ///
+    /// That front-bottom pixel measurement (32,622 — the silhouette's own
+    /// visual tip) turned out *not* to be where this wall's true ground
+    /// corner is: rendered against `ShopWallLeftNode` at this tile's West
+    /// vertex, it left a real, visible gap (confirmed with a debug marker
+    /// at the intended shared corner — the post's tip rendered ~4pt left
+    /// and ~12pt above where it needed to be). `frontBottomAnchor` below
+    /// is corrected empirically from that measurement, not read directly
+    /// off the art — the post's silhouette apparently extends a bit past
+    /// its own true structural base (a foot/shadow flare), same idea as a
+    /// ground tile's skirt bleeding past its footprint.
     private static let nativeSize = CGSize(width: 459, height: 624)
 
     /// Depth vector (back-top → front-top): how far the art's own main
@@ -37,9 +48,12 @@ final class ShopWallBackNode: SKSpriteNode {
     private static let nativeDepthVector = CGVector(dx: 32 - 416, dy: 218 - 1)
 
     /// The front-bottom corner — where this wall meets `ShopWallLeftNode`
-    /// at the tile's own West vertex — as a fraction of `nativeSize`, in
-    /// SpriteKit's bottom-up anchor convention.
-    private static let frontBottomAnchor = CGPoint(x: 32.0 / 459.0, y: 1 - 622.0 / 624.0)
+    /// at the tile's own West vertex — as a fraction of `nativeSize`.
+    /// Empirically calibrated (see `nativeSize`'s doc comment) rather than
+    /// derived from the raw (32, 622) pixel measurement; re-verified with
+    /// the same debug-marker technique afterward — the junction is now
+    /// pixel-tight, no gap.
+    private static let frontBottomAnchor = CGPoint(x: 0.012, y: 0.108)
 
     /// Same non-uniform-fit approach as `ShopWallLeftNode` — see that
     /// type's doc comment. Uses magnitudes throughout since this wall's
