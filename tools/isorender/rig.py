@@ -161,8 +161,12 @@ def add_outline(scene, view_layer, thickness_px):
     settings = view_layer.freestyle_settings
     lineset = settings.linesets.new("outline")
     lineset.select_silhouette = True
-    lineset.select_border = True
     lineset.select_crease = True
+    #: Not `select_border`: a wall built from stacked slabs has a mesh
+    #: boundary at every plank, and two adjacent slabs each contribute one,
+    #: so every seam comes out drawn twice and reads as a heavy black band at
+    #: sprite size. The step between planks is a crease, which is enough.
+    lineset.select_border = False
     linestyle = lineset.linestyle
     #: Linear, not sRGB: 0.08 linear is sRGB ~77, i.e. mid grey. Ink wants to
     #: land near sRGB 25, which is this.
