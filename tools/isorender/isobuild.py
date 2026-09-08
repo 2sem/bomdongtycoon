@@ -8,6 +8,7 @@ that every asset in the set is rendered under identical conditions.
 
 import os
 
+import bmesh
 import bpy
 
 from isogrid import world_point
@@ -227,6 +228,138 @@ def wall(
         "face_bottom_end": (end[0], end[1], 0.0),
         "face_top_start": (start[0], start[1], height),
         "face_top_end": (end[0], end[1], height),
+    }
+    return obj
+
+
+def prop_table(
+    name,
+    center,
+    width,
+    depth,
+    height,
+    top_thickness,
+    leg_thickness,
+    leg_inset,
+    top_material,
+    leg_material,
+):
+    """A free-standing prop: a flat top slab on four legs, footprint centered
+    at grid point `center` with its sides parallel to the col/row axes — like
+    `plane()`, not a wall's edge-perpendicular extrusion.
+
+    `width` runs along the col axis, `depth` along the row axis (independent,
+    since a table is longer one way). `height` is the standing height (top of
+    the slab); `top_thickness` is the slab's own thickness, so the legs run
+    from the ground up to `height - top_thickness`. `leg_thickness` is each
+    leg's square cross-section; `leg_inset` pulls all four legs in from the
+    footprint edges so the top overhangs slightly, the way real furniture
+    does.
+
+    Two material slots, not one: `top_material` for the top face (a worktop
+    panel differs from the apron/legs), `leg_material` for everything else —
+    the underside of the top and all four legs — via `flat_material()`, same
+    as `wall()`'s trim.
+
+    Markers: `base_center` at `(col, row, 0.0)` — the ground-contact anchor —
+    plus the footprint's four base corners (`base_corner_north/east/south/west`,
+    named the same way `isogrid.DIAMOND_VERTICES` names a cell's own corners —
+    "nw/ne/sw/se" would be misleading on a 45deg-yawed grid, since a cell's
+    own "west" vertex is not screen-northwest) so clearance against the cell
+    edge can be read off the numbers instead of eyeballed, and `top_center`
+    at `(col, row, height)` for whatever stands on the table next.
+    """
+    ccol, crow = center
+    half_w, half_d = width / 2.0, depth / 2.0
+    leg_z1 = height - top_thickness
+
+    verts, faces, uvs = [], [], []
+    materials = [leg_material, top_material]
+    LEG, TOP = 0, 1
+    material_indices = []
+
+    def add(part_verts, part_faces, part_uvs, part_material_indices):
+        base = len(verts)
+        verts.extend(part_verts)
+        faces.extend(tuple(i + base for i in face) for face in part_faces)
+        uvs.extend(part_uvs)
+        material_indices.extend(part_material_indices)
+
+    # --- Top slab: a thin box, top face gets `top_material`, everything else
+    # (underside, sides) gets `leg_material` like a wall's trim/end-cap.
+    top_corners = [
+        (ccol - half_w, crow - half_d),
+        (ccol + half_w, crow - half_d),
+        (ccol + half_w, crow + half_d),
+        (ccol - half_w, crow + half_d),
+    ]
+    top_verts = [world_point(col, row, leg_z1) for col, row in top_corners]
+    top_verts += [world_point(col, row, height) for col, row in top_corners]
+    top_faces = [
+        (0, 1, 2, 3),  # bottom (underside)
+        (7, 6, 5, 4),  # top face
+        (0, 4, 5, 1),  # side south
+        (1, 5, 6, 2),  # side east
+        (2, 6, 7, 3),  # side north
+        (3, 7, 4, 0),  # side west
+    ]
+    square = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+    top_uvs = [square, square, square, square, square, square]
+    add(top_verts, top_faces, top_uvs, [LEG, TOP, LEG, LEG, LEG, LEG])
+
+    # --- Four legs: thin prisms from the ground to the underside of the top,
+    # inset from the footprint edges so the top overhangs like real furniture.
+    leg_centers = [
+        (ccol - half_w + leg_inset, crow - half_d + leg_inset),
+        (ccol + half_w - leg_inset, crow - half_d + leg_inset),
+        (ccol + half_w - leg_inset, crow + half_d - leg_inset),
+        (ccol - half_w + leg_inset, crow + half_d - leg_inset),
+    ]
+    leg_half = leg_thickness / 2.0
+    for leg_col, leg_row in leg_centers:
+        corners = [
+            (leg_col - leg_half, leg_row - leg_half),
+            (leg_col + leg_half, leg_row - leg_half),
+            (leg_col + leg_half, leg_row + leg_half),
+            (leg_col - leg_half, leg_row + leg_half),
+        ]
+        leg_verts = [world_point(col, row, 0.0) for col, row in corners]
+        leg_verts += [world_point(col, row, leg_z1) for col, row in corners]
+        leg_faces = [
+            (0, 1, 2, 3),  # bottom
+            (7, 6, 5, 4),  # top (unseen, under the slab)
+            (0, 4, 5, 1),
+            (1, 5, 6, 2),
+            (2, 6, 7, 3),
+            (3, 7, 4, 0),
+        ]
+        leg_uvs = [square] * 6
+        add(leg_verts, leg_faces, leg_uvs, [LEG] * 6)
+
+    obj = _mesh_object(name, verts, faces, uvs, materials, material_indices)
+    #: Five separate boxes (top slab + 4 legs) hand-assembled from raw face
+    #: tuples, unlike `_box()`'s single hand-verified winding — recompute
+    #: outward normals rather than trust it by inspection. Scoped to this
+    #: object only; `_mesh_object` (shared with `wall()`/`plane()`) is
+    #: untouched.
+    mesh = obj.data
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(mesh)
+    bm.free()
+
+    #: Same (col-, row-) / (col+, row-) / (col+, row+) / (col-, row+) winding
+    #: as `top_corners`, named the way `isogrid.DIAMOND_VERTICES` names the
+    #: same four combinations for a cell's own corners.
+    corner_names = ["north", "east", "south", "west"]
+    obj["markers"] = {
+        "base_center": (ccol, crow, 0.0),
+        "top_center": (ccol, crow, height),
+        **{
+            f"base_corner_{corner_names[i]}": (col, row, 0.0)
+            for i, (col, row) in enumerate(top_corners)
+        },
     }
     return obj
 

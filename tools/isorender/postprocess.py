@@ -32,6 +32,18 @@ WALL_FACE_MARKERS = [
     ("bottom-right", "face_bottom_end"),
 ]
 
+#: A free-standing prop's (`isobuild.prop_table`) base footprint corners, in
+#: the order the measurement table prints them. Not part of the anchor
+#: calculation the way the wall's face corners are — printed as extra plain
+#: numbers so a footprint's clearance against the cell edge or a neighbouring
+#: cell can be checked from the numbers alone, without eyeballing the overlay.
+PROP_CORNER_MARKERS = [
+    ("north", "base_corner_north"),
+    ("east", "base_corner_east"),
+    ("south", "base_corner_south"),
+    ("west", "base_corner_west"),
+]
+
 
 def alpha_bbox(image, threshold):
     """The bounding box of everything at least `threshold` opaque."""
@@ -88,13 +100,51 @@ def wall_table(image, points):
     return "\n".join(lines)
 
 
+def prop_table(image, points):
+    """The free-standing-prop measurement table: trimmed size, the base
+    anchor (ported from the portable skill's `base_center` branch, which
+    solved this first — see
+    `~/.claude/skills/2.5d-game-asset-designer/scripts/postprocess.py`), plus
+    the footprint corners and the top-surface anchor as extra plain-number
+    lines, since the asset designer needs those to check footprint clearance
+    without eyeballing the overlay.
+    """
+    if "base_center" not in points:
+        return None
+    width, height = image.size
+    x, y = points["base_center"]
+
+    lines = [
+        f"{'trimmed width':<22}{width}",
+        f"{'trimmed height':<22}{height}",
+        f"{'base center (x, y)':<22}({x}, {y})",
+        f"{'anchor fraction x':<22}{x / width:.5f}",
+        f"{'anchor fraction y':<22}{1 - y / height:.5f}   (from the bottom)",
+    ]
+    for label, name in PROP_CORNER_MARKERS:
+        if name not in points:
+            continue
+        cx, cy = points[name]
+        lines.append(f"{'base corner ' + label:<22}({cx}, {cy})")
+    if "top_center" in points:
+        tx, ty = points["top_center"]
+        lines.append(f"{'top center (x, y)':<22}({tx}, {ty})")
+    return "\n".join(lines)
+
+
+#: Prop markers drawn on the overlay beyond the wall's face corners: the
+#: ground anchor, footprint corners, and the top-surface anchor a later prop
+#: (e.g. a bowl on this table) will be positioned from.
+PROP_OVERLAY_MARKERS = [("base", "base_center")] + PROP_CORNER_MARKERS + [("top", "top_center")]
+
+
 def overlay(image, points, path):
     """Draw the measured box and corners onto a copy, so a human can see that
     the numbers describe the thing they think they describe."""
     canvas = image.copy()
     draw = ImageDraw.Draw(canvas)
     draw.rectangle([0, 0, canvas.width - 1, canvas.height - 1], outline=(0, 160, 255, 255))
-    for label, name in WALL_FACE_MARKERS:
+    for label, name in WALL_FACE_MARKERS + PROP_OVERLAY_MARKERS:
         if name not in points:
             continue
         x, y = points[name]
@@ -149,7 +199,7 @@ def main():
     trimmed.save(trimmed_path)
     overlay(trimmed, points, overlay_path)
 
-    table = wall_table(trimmed, points)
+    table = wall_table(trimmed, points) or prop_table(trimmed, points)
     print(f"asset  {args.asset}   render scale {args.scale:g}x")
     print(table or "no wall face markers — nothing to tabulate")
     print(f"\nwrote {trimmed_path}\nwrote {overlay_path}")
