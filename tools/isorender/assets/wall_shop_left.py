@@ -21,9 +21,10 @@ OUTLINE_PX = 0.45   # ~0.6% of the sprite's width, matching the shipped art
 
 HEIGHT = 0.709
 THICKNESS = 0.06
-#: The shipped art reads as four stacked planks with an ink seam between each
-#: and a stepped end cap. That is geometry, not texture, so the rig builds it.
-PLANK_COUNT = 4
+#: The shipped set reads as five stacked planks with an ink seam between each
+#: and a stepped end cap — count them on `wall_shop_front.png`. That is
+#: geometry, not texture, so the rig builds it.
+PLANK_COUNT = 5
 PLANK_GAP = 0.0
 PLANK_STEP = 0.006
 #: How many planks `plank_wall.png` itself draws, so each slab can be mapped
