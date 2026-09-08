@@ -17,10 +17,19 @@ from isogrid import DIAMOND_VERTICES
 
 CANVAS_UNITS = 2.0
 LOOK_AT = (0.0, 0.5, 0.35)
-OUTLINE_PX = 1.0
+OUTLINE_PX = 0.7   # ~0.6% of the sprite's width, matching the shipped art
 
 HEIGHT = 0.709
 THICKNESS = 0.06
+#: The shipped art reads as four stacked planks with an ink seam between each
+#: and a stepped end cap. That is geometry, not texture, so the rig builds it.
+PLANK_COUNT = 4
+PLANK_GAP = 0.0
+PLANK_STEP = 0.010
+#: How many planks `plank_wall.png` itself draws, so each slab can be mapped
+#: to one whole plank of it rather than showing the panel's seams on top of
+#: the geometry's.
+TEXTURE_PLANKS = 11
 
 
 def build():
@@ -40,5 +49,9 @@ def build():
         face_material=planks,
         trim_material=trim,
         inward_toward=(0.0, 0.0),
+        plank_count=PLANK_COUNT,
+        plank_gap=PLANK_GAP,
+        plank_step=PLANK_STEP,
+        texture_planks=TEXTURE_PLANKS,
     )
     return {}

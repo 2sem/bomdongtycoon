@@ -88,6 +88,13 @@ def configure_render(scene, canvas_units, scale, samples, engine):
     if engine == "CYCLES":
         scene.cycles.samples = samples
         scene.cycles.use_denoising = True
+
+    #: Blender defaults to the AgX view transform, a filmic curve meant for
+    #: photographic renders. It desaturates and darkens, so a texture graded
+    #: to the shipped palette would come out ~20% dark and duller than the
+    #: panel it was painted from. Sprite art wants the colour it was given.
+    scene.view_settings.view_transform = "Standard"
+    scene.view_settings.look = "None"
     return pixels
 
 
@@ -111,7 +118,7 @@ def add_camera(scene, ortho_scale, look_at):
     return camera
 
 
-def add_lights(look_at, key_strength=3.5, fill_strength=0.9, ambient=0.35):
+def add_lights(look_at, key_strength=6.0, fill_strength=1.8, ambient=0.80):
     """A fixed key from the screen's upper right, a weak fill from the left,
     and a little ambient lift — the style bible's "top faces lightest, front
     faces mid, side faces darkest", made mechanical."""
@@ -134,7 +141,7 @@ def add_lights(look_at, key_strength=3.5, fill_strength=0.9, ambient=0.35):
     world = bpy.data.worlds.new("IsoWorld")
     world.use_nodes = True
     background = world.node_tree.nodes["Background"]
-    background.inputs["Color"].default_value = (0.85, 0.86, 0.9, 1.0)
+    background.inputs["Color"].default_value = (0.94, 0.90, 0.84, 1.0)
     background.inputs["Strength"].default_value = ambient
     bpy.context.scene.world = world
     return key, fill
@@ -157,7 +164,9 @@ def add_outline(scene, view_layer, thickness_px):
     lineset.select_border = True
     lineset.select_crease = True
     linestyle = lineset.linestyle
-    linestyle.color = (0.08, 0.06, 0.05)
+    #: Linear, not sRGB: 0.08 linear is sRGB ~77, i.e. mid grey. Ink wants to
+    #: land near sRGB 25, which is this.
+    linestyle.color = (0.012, 0.010, 0.009)
     linestyle.thickness = thickness_px
     return lineset
 
