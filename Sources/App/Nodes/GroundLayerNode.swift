@@ -134,17 +134,27 @@ final class GroundLayer: SKNode {
     /// Every row must be the same length (`layout(for:)` traps otherwise —
     /// a ragged map has no sensible single origin/column count).
     ///
-    /// This is the single source of truth for what's drawn where.
-    /// `layout(for:)` just walks it, translating each `(rowIndex,
-    /// colIndex)` into an `IsoGrid` `(col, row)` via `mapOrigin`. To
-    /// reshape the ground — grow it, move the shop plot, carve out a
-    /// different field shape — edit this array; nothing else needs to
-    /// change.
-    /// The field block is ringed by a 1-tile grass border on every side —
-    /// plain lawn framing the farm — except the south (front) edge, whose
-    /// middle tile is `.road` instead: a stone path continuing straight
-    /// out from the shop plot toward the viewer, like a doorstep leading
-    /// up to where the shop building will eventually stand.
+    /// This is the source of truth for what's drawn where, with one
+    /// deliberate exception: the shop's own cells. `kind(atCol:row:)`
+    /// checks `ShopNode.defaultPlacement` — not this array — to decide
+    /// whether a cell is a shop cell, so the rows this literal spans for
+    /// the shop (7-10 below) are written as plain `.field` and never
+    /// actually read for those cells; `ShopNode.defaultPlacement` is the
+    /// one place that rectangle is spelled out as numbers (see its own
+    /// doc comment for why: a second `.shop` literal here could silently
+    /// drift out of sync with the placement `MainStallScene` actually
+    /// builds its `ShopNode` from). `layout(for:)` walks this array,
+    /// translating each `(rowIndex, colIndex)` into an `IsoGrid` `(col,
+    /// row)` via `mapOrigin`. To reshape the ground — grow it, carve out
+    /// a different field shape — edit this array; to move or resize the
+    /// shop, edit `ShopNode.defaultPlacement` instead.
+    ///
+    /// Shape: a 1-row grass border, six field rows (unchanged from before
+    /// the shop grew — `FieldLayer`/`FarmerLayer` sit at fixed rows
+    /// relative to this block and must not move), four shop rows, then a
+    /// 1-row grass border whose middle tile is `.road` instead: a stone
+    /// path continuing straight out from the shop plot toward the viewer,
+    /// like a doorstep leading up to the shop building.
     private static let map: [[GroundTileKind]] = [
         [.grass, .grass, .grass, .grass, .grass],
         [.grass, .field, .field, .field, .grass],
@@ -153,30 +163,52 @@ final class GroundLayer: SKNode {
         [.grass, .field, .field, .field, .grass],
         [.grass, .field, .field, .field, .grass],
         [.grass, .field, .field, .field, .grass],
-        [.grass, .field, .shop,  .field, .grass],
+        [.grass, .field, .field, .field, .grass],
+        [.grass, .field, .field, .field, .grass],
+        [.grass, .field, .field, .field, .grass],
         [.grass, .field, .field, .field, .grass],
         [.grass, .grass, .road,  .grass, .grass],
     ]
 
     /// `IsoGrid` `(col, row)` of `map[0][0]` — the map's north-west
     /// corner. Every other cell's grid coordinate is this plus its own
-    /// `(rowIndex, colIndex)` offset (see `layout(for:)`). Keeps the shop
-    /// plot's own cell (row 7, col 2 in `map`) at `IsoGrid` row/col 0,
-    /// matching where earlier iterations of this grid anchored it, so
-    /// `FieldLayer`/`FarmerLayer`'s own fixed row constants (tuned against
-    /// that anchor) don't need to change just because `map` grew a border.
-    private static let mapOrigin = (col: -2, row: -7)
+    /// `(rowIndex, colIndex)` offset (see `gridCoordinate(rowIndex:
+    /// colIndex:)`). Keeps the shop plot's own first cell (row 7, col 2 in
+    /// `map` — the single cell it used to occupy before growing to a 3×4
+    /// block) at `IsoGrid` row/col 0, matching where earlier iterations of
+    /// this grid anchored it, so `FieldLayer`/`FarmerLayer`'s own fixed row
+    /// constants (tuned against that anchor) don't need to change just
+    /// because `map` grew rows to fit the shop's new size.
+    ///
+    /// Not private: `ShopNode` reads this indirectly through
+    /// `gridCoordinate(rowIndex:colIndex:)` to convert its own
+    /// map-array-index placement into `IsoGrid` coordinates, rather than
+    /// re-deriving "mapOrigin.col + x" locally.
+    static let mapOrigin = (col: -2, row: -7)
 
-    private static func gridCoordinate(rowIndex: Int, colIndex: Int) -> (col: Int, row: Int) {
+    /// Map-array-index coordinates (`rowIndex`/`colIndex`, 0-based from
+    /// `map`'s own top-left corner — the same space `ShopPlacement`'s
+    /// `originX`/`originY` use) → `IsoGrid` `(col, row)`. Not private:
+    /// `ShopNode` calls this to place itself without duplicating
+    /// `mapOrigin`'s arithmetic.
+    static func gridCoordinate(rowIndex: Int, colIndex: Int) -> (col: Int, row: Int) {
         (mapOrigin.col + colIndex, mapOrigin.row + rowIndex)
     }
 
     /// `map`'s tile at `(col, row)`, or `.grass` if that cell falls
     /// outside `map`'s own bounds — the open lawn ringing the farm/shop
-    /// plot out to `worldColumns`/`worldRows`'s edge.
+    /// plot out to `worldColumns`/`worldRows`'s edge. Checks
+    /// `ShopNode.defaultPlacement` before consulting `map` at all: the
+    /// shop's rectangle lives there, not as a `.shop` literal in `map`
+    /// (see that constant's own doc comment) — this is the one place
+    /// "is this cell a shop cell" gets answered, so it can't disagree with
+    /// what `ShopNode` itself draws.
     private static func kind(atCol col: Int, row: Int) -> GroundTileKind {
         let rowIndex = row - mapOrigin.row
         let colIndex = col - mapOrigin.col
+        if ShopNode.defaultPlacement.contains(mapX: colIndex, mapY: rowIndex) {
+            return .shop
+        }
         guard map.indices.contains(rowIndex), map[rowIndex].indices.contains(colIndex) else {
             return .grass
         }
@@ -299,7 +331,15 @@ final class GroundLayer: SKNode {
                 case .grass: tile = GrassGroundTileNode()
                 case .field: tile = FieldGroundTileNode(fittingTo: Self.grid)
                 case .road: tile = RoadGroundTileNode(fittingTo: Self.grid)
-                case .shop: tile = ShopGroundTileNode(fittingTo: Self.grid)
+                case .shop:
+                    // ShopNode — added separately by whoever assembles the
+                    // scene (MainStallScene, GroundPreviewScene below) —
+                    // draws its own ground tiles for exactly this
+                    // footprint as part of the same unit that also draws
+                    // its walls (see ShopNode's own doc comment). Skipping
+                    // here avoids a second, identically-positioned but
+                    // differently-z-ordered copy underneath it.
+                    continue
                 }
 
                 tile.position = Self.grid.point(col: col, row: row)
@@ -347,6 +387,18 @@ private final class GroundPreviewScene: SKScene {
 
         addChild(groundLayer)
         groundLayer.layout()
+
+        // groundLayer.layout() deliberately leaves the shop's own cells
+        // blank (see its `.shop` case) — ShopNode is what actually draws
+        // there, added here the same way MainStallScene adds its own, so
+        // this preview shows the real, current shop plot rather than a
+        // hole where it used to be a single tile.
+        let shop = ShopNode(
+            originX: ShopNode.defaultPlacement.originX,
+            originY: ShopNode.defaultPlacement.originY,
+            fittingTo: GroundLayer.grid
+        )
+        addChild(shop)
     }
 }
 
