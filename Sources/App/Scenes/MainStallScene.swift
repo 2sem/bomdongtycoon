@@ -19,25 +19,20 @@ final class MainStallScene: SKScene {
     private let shopWallLayer = ShopWallLayer()
     private let kitchenLayer = KitchenLayer()
 
-    /// The shop plot's west side wall — the first piece of the new,
-    /// pre-rendered-art shop construction (replacing the disabled, old
-    /// procedurally-tiled `shopWallLayer` above once enough pieces exist).
-    /// A single static node, not a "layer": it fits itself to
-    /// `GroundLayer.grid` once and never needs relaying out.
-    private let shopWallLeft = ShopWallLeftNode(fittingTo: GroundLayer.grid)
-
-    /// The shop plot's north-west wall — meets `shopWallLeft` at the shop
-    /// tile's own West vertex (both walls anchor there).
-    private let shopWallBack = ShopWallBackNode(fittingTo: GroundLayer.grid)
-
-    /// The shop plot's south-east wall — meets `shopWallLeft`'s far
-    /// (unanchored) end at the shop tile's own South vertex.
-    private let shopWallFront = ShopWallFrontNode(fittingTo: GroundLayer.grid)
-
-    /// The shop plot's north-east wall — meets `shopWallBack`'s far
-    /// (unanchored) end at the shop tile's own North vertex, closing the
-    /// box's fourth side.
-    private let shopWallRight = ShopWallRightNode(fittingTo: GroundLayer.grid)
+    /// The shop building: a self-contained unit of ground tiles and
+    /// perimeter walls covering `ShopNode.defaultPlacement` — the real
+    /// shop's actual size and position on the map (see that constant's
+    /// own doc comment). Replaces the four individually hand-placed wall
+    /// nodes (and their hardcoded 7/8/10/11 zPosition constants) this
+    /// scene used when the shop was still a single map cell; `ShopNode`
+    /// derives both position and draw order from the grid itself, so it
+    /// scales to the shop's now-larger 3×4 footprint without per-wall
+    /// bookkeeping here.
+    private let shop = ShopNode(
+        originX: ShopNode.defaultPlacement.originX,
+        originY: ShopNode.defaultPlacement.originY,
+        fittingTo: GroundLayer.grid
+    )
 
     /// Pans the world; `GroundLayer.worldBounds` clamps how far (see
     /// `clampCameraPosition()`) — "the map data" (`GroundLayer.map` plus
@@ -59,6 +54,9 @@ final class MainStallScene: SKScene {
         // Start framed on the farm/shop plot, same as before panning
         // existed — GroundLayer.layout() no longer centers content itself
         // (see its doc comment), so the camera is what does this now.
+        // mapCentroid is the average of every cell in GroundLayer.map, so
+        // it already accounts for the map's rows growing to fit the
+        // shop's 3×4 block — no separate adjustment needed here.
         cameraNode.position = GroundLayer.mapCentroid
 
         // GroundLayer/FieldLayer/FarmerLayer all draw once, in fixed world
@@ -91,62 +89,7 @@ final class MainStallScene: SKScene {
         // addChild(kitchenLayer)
         // kitchenLayer.layout(for: frame.size)
 
-        // The shop plot's West vertex — grid.point(col: 0, row: 0) is the
-        // shop tile's own center, offset left by half the grid's tile
-        // width lands on its West corner, where this wall's back-bottom
-        // corner belongs (see ShopWallLeftNode's anchorPoint).
-        let shopWestVertex = CGPoint(
-            x: GroundLayer.grid.point(col: 0, row: 0).x - GroundLayer.grid.tileWidth / 2,
-            y: GroundLayer.grid.point(col: 0, row: 0).y
-        )
-        // shopWallBack (North->West edge) draws at the lowest zPosition
-        // of all four walls: it's the farthest-back wall in the box (both
-        // its own ends — West vertex here, North vertex where it meets
-        // shopWallRight — are shared with walls nearer the camera), so
-        // where bounding boxes overlap at either shared corner, the
-        // nearer wall's art (shopWallLeft here, shopWallRight at the
-        // other end) correctly draws on top instead of burying it (bug:
-        // shopWallBack used to sit between shopWallRight and
-        // shopWallLeft's zPositions, so it incorrectly drew over
-        // shopWallRight at their shared North vertex).
-        shopWallBack.position = shopWestVertex
-        shopWallBack.zPosition = 7
-        addChild(shopWallBack)
-
-        shopWallLeft.position = shopWestVertex
-        shopWallLeft.zPosition = 10
-        addChild(shopWallLeft)
-
-        // South vertex — grid.point(col: 0, row: 0) offset down by half
-        // the grid's tile height. ShopWallLeft's own far corner (its
-        // unanchored end, at fraction ~(1, ~0.44) of its own sprite) lands
-        // here automatically once its footprint is fit to the grid; this
-        // wall's own back-bottom corner anchors here too, on purpose, to
-        // meet it. Drawn after shopWallLeft (higher zPosition) for the
-        // same reason shopWallBack draws before it: South->East is the
-        // nearer-camera of the two edges meeting here.
-        let shopSouthVertex = CGPoint(
-            x: GroundLayer.grid.point(col: 0, row: 0).x,
-            y: GroundLayer.grid.point(col: 0, row: 0).y - GroundLayer.grid.tileHeight / 2
-        )
-        shopWallFront.position = shopSouthVertex
-        shopWallFront.zPosition = 11
-        addChild(shopWallFront)
-
-        // North vertex — grid.point(col: 0, row: 0) offset up by half the
-        // grid's tile height. ShopWallBack's own far corner (its
-        // unanchored end) lands here once its footprint is fit to the
-        // grid; this wall's own back-bottom corner anchors here too, to
-        // meet it. Drawn at a higher zPosition than shopWallBack (see its
-        // own comment above) since shopWallRight is the nearer-camera of
-        // the two walls meeting here.
-        let shopNorthVertex = CGPoint(
-            x: GroundLayer.grid.point(col: 0, row: 0).x,
-            y: GroundLayer.grid.point(col: 0, row: 0).y + GroundLayer.grid.tileHeight / 2
-        )
-        shopWallRight.position = shopNorthVertex
-        shopWallRight.zPosition = 8
-        addChild(shopWallRight)
+        addChild(shop)
 
         clampCameraPosition()
     }
