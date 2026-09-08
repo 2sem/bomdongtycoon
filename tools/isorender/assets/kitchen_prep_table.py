@@ -1,41 +1,53 @@
 """The shop's cook/prep table — stands against the windowed north-east ("right")
-wall (`ShopWallRightNode`), directly under the middle window. Bare surface,
-nothing on it yet; a bowl will stand on `top_center` later.
+wall (`ShopWallRightNode`), directly under the middle window, and runs along
+the row axis: a long counter reaching south into the room from the wall, not
+a small table sitting parallel to it. Bare surface, nothing on it yet; a bowl
+will stand on `top_center` later.
 
 The wall it backs onto is the North -> East diamond edge in this rig's local
 frame (`DIAMOND_VERTICES["north"] = (-0.5, -0.5)`, `["east"] = (0.5, -0.5)`),
-i.e. the row = -0.5 edge running along the col axis. In the live game that
-wall runs along the shop's minimum-row edge across all three columns; the
-manager placed this table at the render rig's cell (0, 0), the middle of that
-run. So the footprint is centered at col 0, and pulled south (positive row,
-away from the row = -0.5 edge) by half its depth plus real clearance:
+i.e. the row = -0.5 edge running along the col axis. The counter spans two
+cells along the row axis, `(col: 0, row: 0)` and `(col: 0, row: 1)`, so its
+long-axis (row) extent runs from the wall at row -0.5 down to the far cell's
+south edge at row 1.5, with real clearance at each end rather than flush:
 
-    row_center = -0.5 + clearance + depth/2
-               = -0.5 + 0.10       + 0.25    = -0.15
+    back edge  (against the wall, row -0.5)   = -0.5 + 0.10 = -0.40
+    front edge (against the far cell, row 1.5) =  1.5 - 0.15 =  1.35
+    depth (long axis)  = 1.35 - (-0.40) = 1.75
+    row_center         = (-0.40 + 1.35) / 2    = 0.475
 
-0.10 units of clearance leaves the table clear of the wall's own thickness
-(~0.06, same order as `wall_shop_left.THICKNESS`) with a visible air gap
-rather than sitting flush against it. `width` (0.7, along the col axis) stays
-well inside the cell: half-width 0.35 leaves 0.15 clear on each side of
-col = +-0.5, so the footprint never approaches a neighbouring cell.
+0.10 units of clearance at the back leaves the table clear of the wall's own
+thickness (~0.06, same order as `wall_shop_left.THICKNESS`) with a visible
+air gap rather than sitting flush against it. 0.15 at the south end keeps the
+counter inside its two-cell run rather than touching the next cell edge.
+
+`width` (the short, col-axis side) is unchanged at 0.5 — it already read well
+— centered at col 0, spanning col -0.25 to col 0.25: comfortably inside a
+single column, clear of both neighbouring columns.
 """
 
 import isobuild
 from isogrid import DIAMOND_VERTICES
 
-CANVAS_UNITS = 1.4
-LOOK_AT = (0.0, -0.15, 0.15)
+#: Footprint is now 1.75 long (row) x 0.5 wide (col), against the old 0.7 x
+#: 0.5 — recomputed from the box's own screen-projected corners (world yaw
+#: 135deg, elevation asin(0.61639)) so the whole counter renders with margin,
+#: not carried over from the old one-cell framing.
+CANVAS_UNITS = 2.6
+LOOK_AT = (0.0, 0.475, 0.15)
 OUTLINE_PX = 0.45   # matches wall_shop_left's ~0.6%-of-width ink weight
 
-CENTER = (0.0, -0.15)
-#: Footprint: longer along the wall (col) than deep (row), like real
-#: furniture standing against a wall rather than free in the room.
-WIDTH = 0.7
-DEPTH = 0.5
-#: Wall height is 0.709 (see wall_shop_left.py); a prep table has to read
-#: clearly lower than the wall it backs onto, not just "shorter" — 0.3 is
-#: 42% of that, judged against the rendered wall_shop_left art at on-screen
-#: size (see delivery note) rather than trusted as a raw ratio.
+CENTER = (0.0, 0.475)
+#: Footprint: long axis now runs along row (perpendicular into the room from
+#: the wall), short axis along col (parallel to the wall) — the reverse of
+#: the old, wrong orientation.
+WIDTH = 0.5
+DEPTH = 1.75
+#: Wall height is 0.709 (see wall_shop_left.py). Re-judged at the new,
+#: two-cell-long proportions against the rendered wall_shop_left art at
+#: on-screen size (see delivery note): 0.3 (42% of wall height) still reads
+#: as a clearly-lower counter, not dwarfed by its own new length, so kept
+#: unchanged rather than assumed.
 HEIGHT = 0.3
 #: Worktop slab thickness: thin relative to HEIGHT (13%), like a slab top
 #: rather than a solid block — the legs read as most of the standing height.
