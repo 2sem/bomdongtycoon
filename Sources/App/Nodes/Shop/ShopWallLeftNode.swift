@@ -14,35 +14,42 @@ final class ShopWallLeftNode: SKSpriteNode {
 
     private static let texture = SKTexture(imageNamed: "wall_shop_left")
 
-    /// Measured against the alpha-trimmed art (source had a clean alpha
-    /// channel already). Native bbox 654×731 — wider than just the wall's
-    /// main face because the art also includes a beveled end-cap (the
-    /// wall's visible cut edge/thickness) past the face's own right edge,
-    /// the same kind of "extra content past the measured footprint" a
-    /// ground tile's skirt is.
+    /// Native bbox 205×276 — wider than just the wall's main face because
+    /// the art also includes the end-cap (the wall's visible cut
+    /// edge/thickness) past the face's own right edge, the same kind of
+    /// "extra content past the measured footprint" a ground tile's skirt
+    /// is.
     ///
-    /// The raw source wasn't a true parallelogram: its two vertical edges
-    /// were tilted ~46px off across a 410px run (~11%) — hand-drawn
-    /// imprecision, same as every ground tile so far — so it went through
-    /// the same one-off homography correction technique before being
-    /// saved, this time forcing the left/right edges exactly vertical
-    /// rather than correcting a diamond's corners. In this corrected,
-    /// cropped image's own coordinates, the wall's main face is the
-    /// parallelogram top-left(41,0), top-right(615,320),
-    /// bottom-left(41,410), bottom-right(615,730).
-    private static let nativeSize = CGSize(width: 654, height: 731)
+    /// Unlike the ground tiles and the other three walls, this art is not
+    /// a drawing that had to be corrected. It is rendered by
+    /// `tools/isorender/` from an orthographic camera derived from
+    /// `IsoGrid` itself, so its face edges are exactly vertical and its
+    /// slope is the grid's own (0.61635 against 0.61639) rather than
+    /// something a homography had to force. All the numbers below come
+    /// from that render's measurement table — see the tool's README.
+    ///
+    /// In the trimmed image's own coordinates the main face is the
+    /// parallelogram top-left(2,8.69), top-right(191,125.19),
+    /// bottom-left(2,157.92), bottom-right(191,274.41).
+    private static let nativeSize = CGSize(width: 205, height: 276)
 
     /// Depth vector (top-left → top-right): how far the art's own main
     /// face runs in each direction. This is what `spriteSize(fittingTo:)` scales
     /// against the tile's own half-diagonal edge — not `nativeSize`
     /// directly, since `nativeSize` includes the end-cap bleed.
-    private static let nativeDepthVector = CGVector(dx: 615 - 41, dy: 320 - 0)
+    ///
+    /// Rendered at 3× the grid's own half-edge, so this is exactly
+    /// `(tileWidth / 2, tileHeight / 2) * 3` and `spriteSize(fittingTo:)`
+    /// comes out as a uniform 1/3 on both axes — the art is not stretched
+    /// at all, where the hand-corrected walls each need a different scale
+    /// per axis to reach the same shape.
+    private static let nativeDepthVector = CGVector(dx: 191 - 2, dy: 125.19 - 8.69)
 
     /// The back-bottom corner (top-left → bottom-left's *bottom* point) —
     /// the corner that lands on the shop tile's own West vertex — as a
     /// fraction of `nativeSize`, in SpriteKit's bottom-up anchor
     /// convention.
-    private static let backBottomAnchor = CGPoint(x: 41.0 / 654.0, y: 1 - 410.0 / 731.0)
+    private static let backBottomAnchor = CGPoint(x: 2.0 / 205.0, y: 1 - 157.92 / 276.0)
 
     /// Fits this wall's footprint (its bottom edge, back corner to front
     /// corner) exactly to `grid`'s own West→South tile-edge vector — the
