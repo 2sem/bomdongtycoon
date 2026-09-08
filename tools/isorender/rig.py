@@ -118,10 +118,32 @@ def add_camera(scene, ortho_scale, look_at):
     return camera
 
 
-def add_lights(look_at, key_strength=6.0, fill_strength=1.8, ambient=0.80):
+def add_lights(look_at, key_strength=1.5, fill_strength=1.8, ambient=0.80):
     """A fixed key from the screen's upper right, a weak fill from the left,
     and a little ambient lift — the style bible's "top faces lightest, front
-    faces mid, side faces darkest", made mechanical."""
+    faces mid, side faces darkest", made mechanical.
+
+    `key_strength` was 6.0 until it overexposed every top-facing surface: the
+    key sits at `right*2.5 + up*3.0 + back*2.0`, so its direction is mostly
+    "from above" (N·L ~ 0.82 for a top face — near the most-lit case the rig
+    can produce), while `_screen_right()`/`_screen_up()` and this offset are
+    unchanged, so nothing about *where* the lights point moved. A wall's
+    front face is a different story: for an edge wall built with
+    `inward_toward` pointing at the cell centre (`wall_shop_left`, `_right`,
+    …), the visible face's outward normal has a *negative* dot product with
+    the key direction — it is already outside the key's throw and lit by the
+    fill (N·L ~ 0.68) instead, which is why front faces barely moved when key
+    dropped by 4x here. (A wall built with the opposite `inward_toward`, or
+    any other surface whose normal does face the key, will get proportionally
+    darker — that is the same rebalancing, just seen from the other side.)
+    Measured on `kitchen_prep_table`'s worktop (3x render): R-channel
+    clipping at 255 went 95.2% of top-face pixels (mean R 249) -> 0% (mean R
+    202, max R 215, 40 px of headroom to 255) at this value.
+    `wall_shop_left`'s trimmed-sprite mean RGB moved (172, 117, 67) ->
+    (167, 113, 65), a few percent darker via indirect bounce off the wall's
+    own now-dimmer top sliver/end-caps, not from direct key light on the
+    front face — its own N·L with the key stays negative before and after.
+    """
     right, up, back = _screen_right(), _screen_up(), -_view_direction()
     target = Vector(look_at)
 
