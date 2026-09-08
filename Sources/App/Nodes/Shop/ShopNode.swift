@@ -1,41 +1,26 @@
 import SpriteKit
 
-/// The shop's footprint on the map: origin plus size, in the same
-/// map-array-index coordinate space `GroundLayer.map`'s literal uses —
-/// `x` is a column index, `y` is a row index, both 0-based from that
-/// literal's own top-left corner (see `GroundLayer.gridCoordinate
-/// (rowIndex:colIndex:)`, which is what actually converts a placement's
-/// cells to `IsoGrid` `(col, row)`).
-///
-/// This is the *only* place the shop's rectangle is expressed as raw
-/// numbers. `ShopNode` builds its own ground/walls from one placement,
-/// and `GroundLayer.kind(atCol:row:)` asks `ShopNode.defaultPlacement`
-/// whether a cell is a shop cell instead of hardcoding a second,
-/// possibly-drifting copy of the same rectangle in its own map literal —
-/// see that function's doc comment.
+/// The shop's footprint: origin plus size in map-array-index coordinates
+/// (`GroundLayer.map`'s own row/col indices — `x` is a column, `y` is a
+/// row). `GroundLayer.kind(atCol:row:)` asks `ShopNode.defaultPlacement`
+/// rather than keeping a second copy of this rectangle in its map
+/// literal, so there's exactly one place the shop's rectangle is
+/// expressed as numbers.
 struct ShopPlacement {
     let originX: Int
     let originY: Int
     let width: Int
     let height: Int
 
-    /// Whether the map cell at `(mapX, mapY)` — same coordinate space as
-    /// `originX`/`originY` — falls inside this rectangle. `GroundLayer`
-    /// calls this with the `(colIndex, rowIndex)` it already computes for
-    /// every cell it's about to draw.
     func contains(mapX: Int, mapY: Int) -> Bool {
         (originX..<(originX + width)).contains(mapX)
             && (originY..<(originY + height)).contains(mapY)
     }
 
-    /// World-space centroid of every cell this placement covers, on
-    /// `grid`. Same averaging approach as `GroundLayer.mapCentroid`, just
-    /// over this placement's own (typically much smaller) rectangle
-    /// instead of the whole map — `MainStallScene` uses this, not
-    /// `mapCentroid`, to frame the camera on the shop itself at launch:
-    /// `mapCentroid` averages every cell in `GroundLayer.map`, so once the
-    /// map grew rows of plain field/grass around the shop, that average
-    /// drifted well away from the shop's own much smaller footprint.
+    /// World-space centroid of this placement's cells on `grid`. Used to
+    /// frame the launch camera on the shop — `GroundLayer.mapCentroid`
+    /// averages the whole map, which drifted away from the shop once the
+    /// map grew rows of field/grass around it.
     func centroid(on grid: IsoGrid) -> CGPoint {
         var sum = CGPoint.zero
         var count = 0
@@ -53,54 +38,24 @@ struct ShopPlacement {
     }
 }
 
-/// A shop building: a rectangular block of `ShopGroundTileNode` ground
-/// tiles, ringed on all four outer edges by the `ShopWall{Back,Right,
-/// Left,Front}Node` wall segments, laid out on whatever `IsoGrid` it's
-/// handed.
-///
-/// Placed anywhere on the map via `originX`/`originY` (map-array-index
-/// coordinates — see `ShopPlacement`) and sized via `width`/`height` (in
-/// map cells), defaulting to `defaultWidth`×`defaultHeight` (3×4). Owns
-/// its whole footprint — ground *and* walls — as one unit built from a
-/// single `ShopPlacement`, so there's exactly one place that says which
-/// cells belong to the shop: `GroundLayer.kind(atCol:row:)` reads
-/// `ShopNode.defaultPlacement` rather than encoding a second copy of the
-/// same rectangle in its own map literal, and skips drawing ground tiles
-/// under it (see that function and `GroundLayer.layout()`'s `.shop`
-/// case) so this node's own ground tiles are the only copy drawn.
-///
-/// Generalizes `ShopWallsPreviewScene`'s original 3×3 layout (which
-/// `buildGround`/`buildWalls` below are lifted from almost verbatim) from
-/// a single square `span` to an independent column range and row range —
-/// see that file for the worked example this geometry was first proven
-/// against. Its zPosition scheme (`col + row`, scaled up ×10 per cell)
-/// did *not* carry over unchanged, though — see `slotSpacing`'s own doc
-/// comment for why the original preview's square, always-non-negative
-/// `span` never exposed the bug that scheme had for a real, off-origin
-/// placement.
+/// A shop building: `ShopGroundTileNode` tiles ringed by the four
+/// `ShopWall{Back,Right,Left,Front}Node` segments, laid out on an
+/// `IsoGrid`. Placed via `originX`/`originY` (map-array-index
+/// coordinates) and sized via `width`/`height`, defaulting to
+/// `defaultWidth`×`defaultHeight` (3×4). Ground and walls come from one
+/// `ShopPlacement`, so `GroundLayer.kind(atCol:row:)` can ask it which
+/// cells are shop cells instead of keeping a second copy of the
+/// rectangle.
 final class ShopNode: SKNode {
 
-    /// Default footprint size in map cells: 3 wide (east-west, `width`)
-    /// by 4 tall (north-south, `height`) — the shop's current in-game
-    /// size. Exposed so `defaultPlacement` below composes from these same
-    /// two numbers instead of a second hardcoded 3/4 pair that could
-    /// drift out of sync with `init`'s own default arguments.
+    /// Default footprint: 3 wide (east-west) × 4 tall (north-south).
     static let defaultWidth = 3
     static let defaultHeight = 4
 
-    /// Where the one real shop in the live game sits: map-array column 1,
-    /// row 7 (`GroundLayer.map`'s own index space), at the default 3×4
-    /// size. Both `MainStallScene` (to build the actual `ShopNode`) and
-    /// `GroundLayer.kind(atCol:row:)` (to know which ground cells are
-    /// shop cells) read this one constant rather than each hardcoding the
-    /// rectangle separately — see `ShopPlacement`'s own doc comment.
-    ///
-    /// Row 7 is the first shop row directly beneath `GroundLayer.map`'s
-    /// six field rows (indices 1-6, unchanged by the shop's move to a
-    /// full 3×4 block). Column 1 keeps the block centered under the
-    /// field/grass border exactly like the single legacy shop cell (row
-    /// 7, col 2) it replaces — extending 3 cells wide from column 1
-    /// through 3 still centers on column 2.
+    /// The real shop's placement in the live game: map-array column 1,
+    /// row 7, at the default 3×4 size. `MainStallScene` builds its
+    /// `ShopNode` from this; `GroundLayer.kind(atCol:row:)` reads it too,
+    /// so the two can't disagree about which cells are shop cells.
     static let defaultPlacement = ShopPlacement(
         originX: 1,
         originY: 7,
@@ -108,18 +63,11 @@ final class ShopNode: SKNode {
         height: defaultHeight
     )
 
-    /// This instance's own footprint, as handed to `init` (or the
-    /// defaults it fell back on).
     let placement: ShopPlacement
 
-    /// Painter's-order slot within a single cell — ground first, then the
-    /// four walls in back-to-front order. Mirrors the old
-    /// `MainStallScene`'s hand-assigned 7/8/10/11 constants (back <
-    /// right < left < front, so that at a shared corner the wall nearer
-    /// the camera draws on top) but as an offset added to a *per-cell*
-    /// base instead of one fixed set of four numbers, so it scales to
-    /// however many cells the footprint covers. See `zPosition(col:row:
-    /// slot:)`.
+    /// Painter's-order slot within a cell: ground, then walls back <
+    /// right < left < front, so the wall nearer the camera wins where
+    /// two meet at a shared corner.
     private enum Slot: CGFloat {
         case ground = 0
         case back = 1
@@ -128,48 +76,30 @@ final class ShopNode: SKNode {
         case front = 4
     }
 
-    /// Fraction of one whole `col + row` step to space a cell's own five
-    /// slots apart by. Kept well under `1 / Slot.front.rawValue` (0.25)
-    /// so even the highest slot (front, 4) can never cross into the next
-    /// whole `col + row` step and disturb cell-to-cell ordering.
+    /// Fraction of one `col + row` step to space a cell's five slots
+    /// apart by — kept under 1/4 (the highest slot) so a slot offset can
+    /// never cross into the next `col + row` step and disturb
+    /// cell-to-cell order.
     ///
-    /// This — not the `* 10` this replaced — is what keeps `zPosition`
-    /// on the *same scale* `GroundLayer`/`FieldLayer` use for their own
-    /// plain `col + row` zPosition, which matters because those are
-    /// siblings in the same scene and SpriteKit compares zPosition
-    /// globally. Multiplying `col + row` by 10 works fine wherever
-    /// `col + row >= 0` (every cell just sorts comfortably above its
-    /// small-magnitude neighbors from other layers), but *inverts*
-    /// itself the moment a cell's `col + row` goes negative — negative
-    /// numbers get *more* negative when scaled up, not less — so that
-    /// cell's walls could sort *behind* a neighboring ground/field tile
-    /// they should draw in front of. That's exactly what happened at the
-    /// shop's own north corner (col: -1, row: 0, whose `col + row` is
-    /// -1) once the footprint grew past the single (0, 0) cell `* 10`
-    /// was tuned against, where `col + row` never goes negative — the
-    /// corner's own back/right wall segments sorted behind the field
-    /// tile immediately north of them and vanished behind it.
+    /// `zPosition` has to stay on this same unscaled `col + row` scale
+    /// `GroundLayer`/`FieldLayer` use, since SpriteKit compares
+    /// zPosition globally across the whole node tree. An earlier version
+    /// multiplied `col + row` by 10 instead: fine while `col + row >= 0`,
+    /// but scaling a negative `col + row` makes it *more* negative, so
+    /// cells north/west of the grid origin (e.g. the shop's own north
+    /// corner, col: -1, row: 0) sorted their walls behind neighboring
+    /// ground tiles they should have drawn in front of.
     private static let slotSpacing: CGFloat = 0.1
 
-    /// Spaces every cell's own five slots (ground plus four walls) apart
-    /// by `slotSpacing`, while cell-to-cell draw order still comes from
-    /// the raw, unscaled `col + row` (`col + row` grows toward the
-    /// camera, the same convention `GroundLayer.layout()` uses for its
-    /// own plain `col + row` zPosition — see `slotSpacing`'s own doc
-    /// comment for why this has to stay unscaled rather than the `* 10`
-    /// `ShopWallsPreviewScene`'s original `zPosition(col:row:slot:)` used,
-    /// which is everything else this is lifted from).
+    /// `col + row` orders cells; `slot * slotSpacing` orders a cell's
+    /// own ground/walls without disturbing that (see `slotSpacing`).
     private static func zPosition(col: Int, row: Int, slot: Slot) -> CGFloat {
         CGFloat(col + row) + slot.rawValue * slotSpacing
     }
 
-    /// Builds a shop at `(originX, originY)` in map-array-index
-    /// coordinates (see `ShopPlacement`), `width`×`height` cells in size
-    /// (defaulting to `defaultWidth`×`defaultHeight`, 3×4), laid out on
-    /// `grid`. Every ground tile and wall segment positions and z-orders
-    /// itself immediately — there's no separate `layout()` call, unlike
-    /// `GroundLayer`, since a shop's footprint never changes after it's
-    /// placed.
+    /// Builds a shop at `(originX, originY)`, `width`×`height` cells,
+    /// laid out on `grid` immediately — no separate `layout()` call,
+    /// since a shop's footprint never changes after placement.
     init(
         originX: Int,
         originY: Int,
@@ -180,11 +110,6 @@ final class ShopNode: SKNode {
         placement = ShopPlacement(originX: originX, originY: originY, width: width, height: height)
         super.init()
 
-        // Map-array-index coordinates → IsoGrid (col, row): the same
-        // transform GroundLayer.layout() applies to every other tile
-        // (see GroundLayer.gridCoordinate(rowIndex:colIndex:)), reused
-        // here rather than re-deriving "mapOrigin.col + x" locally so the
-        // two can't drift apart.
         let start = GroundLayer.gridCoordinate(rowIndex: originY, colIndex: originX)
         let end = GroundLayer.gridCoordinate(rowIndex: originY + height - 1, colIndex: originX + width - 1)
         let colRange = start.col...end.col
@@ -210,10 +135,8 @@ final class ShopNode: SKNode {
         }
     }
 
-    /// Rings `colRange` × `rowRange` with wall segments along all four
-    /// outer edges. Identical to `ShopWallsPreviewScene.buildWalls`,
-    /// generalized from a single shared `span` (that preview's footprint
-    /// was square) to an independent column range and row range:
+    /// Rings `colRange` × `rowRange` with wall segments on all four
+    /// edges:
     ///
     /// | Wall | Boundary | Anchors on |
     /// |---|---|---|
@@ -227,8 +150,6 @@ final class ShopNode: SKNode {
         let firstRow = rowRange.lowerBound
         let lastRow = rowRange.upperBound
 
-        // North-west side: the North→West edge of every cell in the
-        // minimum column, anchored on each cell's own West vertex.
         for row in rowRange {
             let wall = ShopWallBackNode(fittingTo: grid)
             wall.position = westVertex(col: firstCol, row: row, on: grid)
@@ -236,8 +157,6 @@ final class ShopNode: SKNode {
             addChild(wall)
         }
 
-        // North-east side: the North→East edge of every cell in the
-        // minimum row, anchored on each cell's own North vertex.
         for col in colRange {
             let wall = ShopWallRightNode(fittingTo: grid)
             wall.position = northVertex(col: col, row: firstRow, on: grid)
@@ -245,8 +164,6 @@ final class ShopNode: SKNode {
             addChild(wall)
         }
 
-        // South-west side: the West→South edge of every cell in the
-        // maximum row, anchored on each cell's own West vertex.
         for col in colRange {
             let wall = ShopWallLeftNode(fittingTo: grid)
             wall.position = westVertex(col: col, row: lastRow, on: grid)
@@ -254,12 +171,10 @@ final class ShopNode: SKNode {
             addChild(wall)
         }
 
-        // South-east side: the South→East edge of every cell in the
-        // maximum column, anchored on each cell's own South vertex.
         // KNOWN COSMETIC ISSUE (art, not geometry — do not "fix" here):
         // `wall_shop_front`'s source art has an entrance gap baked into
         // it, so every one of these segments shows one. Flagged to the
-        // art team; each segment's own placement/z is otherwise correct.
+        // art team.
         for row in rowRange {
             let wall = ShopWallFrontNode(fittingTo: grid)
             wall.position = southVertex(col: lastCol, row: row, on: grid)
@@ -267,10 +182,6 @@ final class ShopNode: SKNode {
             addChild(wall)
         }
     }
-
-    // A cell's own diamond vertices, in the same terms
-    // `ShopWallsPreviewScene` and the old `MainStallScene` hand-placement
-    // used for a single tile.
 
     private func westVertex(col: Int, row: Int, on grid: IsoGrid) -> CGPoint {
         let center = grid.point(col: col, row: row)
