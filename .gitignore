@@ -19,5 +19,8 @@ ProjectDescriptionHelpers/
 
 # Claude / agent session files
 .agents/
-.claude/
+# Everything under .claude/ is session state — except the agent definitions,
+# which are part of how this project is built and belong with the repo.
+.claude/*
+!.claude/agents/
 .firebase/
