@@ -51,13 +51,16 @@ final class MainStallScene: SKScene {
 
         camera = cameraNode
         addChild(cameraNode)
-        // Start framed on the farm/shop plot, same as before panning
-        // existed — GroundLayer.layout() no longer centers content itself
-        // (see its doc comment), so the camera is what does this now.
-        // mapCentroid is the average of every cell in GroundLayer.map, so
-        // it already accounts for the map's rows growing to fit the
-        // shop's 3×4 block — no separate adjustment needed here.
-        cameraNode.position = GroundLayer.mapCentroid
+        // Start framed on the shop itself — the whole point of this
+        // change — rather than `GroundLayer.mapCentroid`: that averages
+        // every cell in `GroundLayer.map`, including the six field rows
+        // and the grass border, so once the map grew to fit the shop's
+        // 3×4 block, that average sat well north-east of the shop's own
+        // footprint (confirmed: it left the shop's west corner ~346pt off
+        // a 402pt-wide screen). `ShopPlacement.centroid(on:)` averages
+        // only the shop's own cells, so the camera centers on the
+        // building regardless of how the surrounding map is shaped.
+        cameraNode.position = ShopNode.defaultPlacement.centroid(on: GroundLayer.grid)
 
         // GroundLayer/FieldLayer/FarmerLayer all draw once, in fixed world
         // space — no `size` argument anymore, and no need to call again on

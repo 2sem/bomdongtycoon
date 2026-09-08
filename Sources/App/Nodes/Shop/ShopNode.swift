@@ -27,6 +27,30 @@ struct ShopPlacement {
         (originX..<(originX + width)).contains(mapX)
             && (originY..<(originY + height)).contains(mapY)
     }
+
+    /// World-space centroid of every cell this placement covers, on
+    /// `grid`. Same averaging approach as `GroundLayer.mapCentroid`, just
+    /// over this placement's own (typically much smaller) rectangle
+    /// instead of the whole map — `MainStallScene` uses this, not
+    /// `mapCentroid`, to frame the camera on the shop itself at launch:
+    /// `mapCentroid` averages every cell in `GroundLayer.map`, so once the
+    /// map grew rows of plain field/grass around the shop, that average
+    /// drifted well away from the shop's own much smaller footprint.
+    func centroid(on grid: IsoGrid) -> CGPoint {
+        var sum = CGPoint.zero
+        var count = 0
+        for mapX in originX..<(originX + width) {
+            for mapY in originY..<(originY + height) {
+                let (col, row) = GroundLayer.gridCoordinate(rowIndex: mapY, colIndex: mapX)
+                let point = grid.point(col: col, row: row)
+                sum.x += point.x
+                sum.y += point.y
+                count += 1
+            }
+        }
+        guard count > 0 else { return .zero }
+        return CGPoint(x: sum.x / CGFloat(count), y: sum.y / CGFloat(count))
+    }
 }
 
 /// A shop building: a rectangular block of `ShopGroundTileNode` ground
