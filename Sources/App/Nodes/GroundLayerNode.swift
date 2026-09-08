@@ -61,9 +61,15 @@ struct IsoGrid {
     /// The screen-space center of the diamond footprint at `(col, row)`,
     /// relative to the grid's own origin (col: 0, row: 0).
     func point(col: Int, row: Int) -> CGPoint {
+        point(col: CGFloat(col), row: CGFloat(row))
+    }
+
+    /// Same projection, for a footprint centered off-cell (a fractional
+    /// `col`/`row`) rather than on a whole grid cell.
+    func point(col: CGFloat, row: CGFloat) -> CGPoint {
         CGPoint(
-            x: CGFloat(col - row) * (tileWidth / 2),
-            y: -CGFloat(col + row) * (tileHeight / 2)
+            x: (col - row) * (tileWidth / 2),
+            y: -(col + row) * (tileHeight / 2)
         )
     }
 }

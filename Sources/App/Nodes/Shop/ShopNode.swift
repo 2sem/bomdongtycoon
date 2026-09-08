@@ -40,12 +40,12 @@ struct ShopPlacement {
 
 /// A shop building: `ShopGroundTileNode` tiles ringed by the four
 /// `ShopWall{Back,Right,Left,Front}Node` segments, laid out on an
-/// `IsoGrid`. Placed via `originX`/`originY` (map-array-index
-/// coordinates) and sized via `width`/`height`, defaulting to
-/// `defaultWidth`×`defaultHeight` (3×4). Ground and walls come from one
-/// `ShopPlacement`, so `GroundLayer.kind(atCol:row:)` can ask it which
-/// cells are shop cells instead of keeping a second copy of the
-/// rectangle.
+/// `IsoGrid`, plus a `ShopPrepTableNode` standing against the right wall.
+/// Placed via `originX`/`originY` (map-array-index coordinates) and sized
+/// via `width`/`height`, defaulting to `defaultWidth`×`defaultHeight`
+/// (3×4). Ground and walls come from one `ShopPlacement`, so
+/// `GroundLayer.kind(atCol:row:)` can ask it which cells are shop cells
+/// instead of keeping a second copy of the rectangle.
 final class ShopNode: SKNode {
 
     /// Default footprint: 3 wide (east-west) × 4 tall (north-south).
@@ -67,19 +67,26 @@ final class ShopNode: SKNode {
 
     /// Painter's-order slot within a cell: ground, then walls back <
     /// right < left < front, so the wall nearer the camera wins where
-    /// two meet at a shared corner.
+    /// two meet at a shared corner; `prop` sits above all four so
+    /// furniture always draws in front of whatever wall shares its cell.
+    /// That's correct for an edge cell with one wall (this table's own
+    /// `(0, 0)`, whose only wall is `right`) but not proven for a corner
+    /// cell, which has two walls of its own (e.g. `left` and `front`) —
+    /// a prop there would draw over both, not just the one behind it.
+    /// Not fixed here because nothing places a prop in a corner cell yet.
     private enum Slot: CGFloat {
         case ground = 0
         case back = 1
         case right = 2
         case left = 3
         case front = 4
+        case prop = 5
     }
 
-    /// Fraction of one `col + row` step to space a cell's five slots
-    /// apart by — kept under 1/4 (the highest slot) so a slot offset can
-    /// never cross into the next `col + row` step and disturb
-    /// cell-to-cell order.
+    /// Fraction of one `col + row` step to space a cell's slots apart by
+    /// — kept small enough that even `prop`, the highest slot at 5, stays
+    /// under 1 (`5 * slotSpacing = 0.5`), so a slot offset can never cross
+    /// into the next `col + row` step and disturb cell-to-cell order.
     ///
     /// `zPosition` has to stay on this same unscaled `col + row` scale
     /// `GroundLayer`/`FieldLayer` use, since SpriteKit compares
@@ -100,11 +107,18 @@ final class ShopNode: SKNode {
     /// Builds a shop at `(originX, originY)`, `width`×`height` cells,
     /// laid out on `grid` immediately — no separate `layout()` call,
     /// since a shop's footprint never changes after placement.
+    ///
+    /// `prepTableCell` is in the same `IsoGrid` `(col, row)` space as
+    /// `buildWalls`' `colRange`/`rowRange`, not map-array indices. `nil`
+    /// (the default) falls back to the middle column of the right-wall
+    /// run (`rowRange`'s lower bound) — the table's spec placement, and
+    /// exactly `(0, 0)` at `defaultPlacement`'s size.
     init(
         originX: Int,
         originY: Int,
         width: Int = ShopNode.defaultWidth,
         height: Int = ShopNode.defaultHeight,
+        prepTableCell: (col: Int, row: Int)? = nil,
         fittingTo grid: IsoGrid
     ) {
         placement = ShopPlacement(originX: originX, originY: originY, width: width, height: height)
@@ -117,6 +131,10 @@ final class ShopNode: SKNode {
 
         buildGround(colRange: colRange, rowRange: rowRange, on: grid)
         buildWalls(colRange: colRange, rowRange: rowRange, on: grid)
+
+        let tableCell = prepTableCell
+            ?? (col: (colRange.lowerBound + colRange.upperBound) / 2, row: rowRange.lowerBound)
+        buildPrepTable(cell: tableCell, on: grid)
     }
 
     @available(*, unavailable)
@@ -181,6 +199,21 @@ final class ShopNode: SKNode {
             wall.zPosition = Self.zPosition(col: lastCol, row: row, slot: .front)
             addChild(wall)
         }
+    }
+
+    /// Places a `ShopPrepTableNode` at `cell`, nudged toward the wall
+    /// behind it by `ShopPrepTableNode.footprintRowOffset` (see that
+    /// constant) — the resulting point isn't a whole grid cell, hence the
+    /// fractional `IsoGrid.point(col:row:)` overload rather than the
+    /// whole-cell one used everywhere else in this file.
+    private func buildPrepTable(cell: (col: Int, row: Int), on grid: IsoGrid) {
+        let table = ShopPrepTableNode(fittingTo: grid)
+        table.position = grid.point(
+            col: CGFloat(cell.col),
+            row: CGFloat(cell.row) + ShopPrepTableNode.footprintRowOffset
+        )
+        table.zPosition = Self.zPosition(col: cell.col, row: cell.row, slot: .prop)
+        addChild(table)
     }
 
     private func westVertex(col: Int, row: Int, on grid: IsoGrid) -> CGPoint {
