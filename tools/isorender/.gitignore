@@ -1,2 +1,3 @@
 # Renders are reproducible from the specs — regenerate, don't commit.
 out/
+__pycache__/
