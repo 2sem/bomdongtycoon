@@ -38,9 +38,32 @@ struct ShopPlacement {
     }
 }
 
+/// A prop's footprint on the shop's `IsoGrid`: the whole cells its base
+/// stands on (`origin`, `colSpan` columns × `rowSpan` rows, each >= 1)
+/// and the exact fractional grid point its sprite is centered on. `center`
+/// is kept separate from the rectangle because a prop's visual center
+/// doesn't have to be its footprint's geometric center — see
+/// `ShopPrepTableNode.footprintCenterOffset`.
+struct ShopPropFootprint {
+    let origin: (col: Int, row: Int)
+    let colSpan: Int
+    let rowSpan: Int
+    let center: (col: CGFloat, row: CGFloat)
+
+    /// `col + row` of the nearest cell the footprint covers. For an
+    /// axis-aligned rectangle that's always the corner with both the
+    /// highest col and highest row — no need to walk every cell. See
+    /// `ShopNode.Slot.prop` for why the *nearest* covered cell, not
+    /// `center`'s cell, has to set draw order.
+    var nearestCellSum: Int {
+        (origin.col + colSpan - 1) + (origin.row + rowSpan - 1)
+    }
+}
+
 /// A shop building: `ShopGroundTileNode` tiles ringed by the four
 /// `ShopWall{Back,Right,Left,Front}Node` segments, laid out on an
-/// `IsoGrid`. Placed via `originX`/`originY` (map-array-index
+/// `IsoGrid`, plus a `ShopPrepTableNode` running into the room from the
+/// right wall. Placed via `originX`/`originY` (map-array-index
 /// coordinates) and sized via `width`/`height`, defaulting to
 /// `defaultWidth`×`defaultHeight` (3×4). Ground and walls come from one
 /// `ShopPlacement`, so `GroundLayer.kind(atCol:row:)` can ask it which
@@ -67,19 +90,33 @@ final class ShopNode: SKNode {
 
     /// Painter's-order slot within a cell: ground, then walls back <
     /// right < left < front, so the wall nearer the camera wins where
-    /// two meet at a shared corner.
+    /// two meet at a shared corner; `prop` sits above all four so
+    /// furniture always draws in front of whatever wall shares its cell.
+    /// A multi-cell prop (`ShopPropFootprint`) uses its *nearest* covered
+    /// cell for this, not its anchor/center cell — right for a solid
+    /// object standing on the floor, since it must draw over that near
+    /// cell's own ground tile too.
+    ///
+    /// Two cases this scheme doesn't handle, left alone because nothing
+    /// exercises them yet:
+    /// - a corner cell has two walls of its own (e.g. `left` and
+    ///   `front`); a prop there would draw over both, not just the one
+    ///   behind it.
+    /// - a prop meant to be partially *occluded* by nearer scenery would
+    ///   need the opposite rule — its farthest cell, not its nearest.
     private enum Slot: CGFloat {
         case ground = 0
         case back = 1
         case right = 2
         case left = 3
         case front = 4
+        case prop = 5
     }
 
-    /// Fraction of one `col + row` step to space a cell's five slots
-    /// apart by — kept under 1/4 (the highest slot) so a slot offset can
-    /// never cross into the next `col + row` step and disturb
-    /// cell-to-cell order.
+    /// Fraction of one `col + row` step to space a cell's slots apart by
+    /// — kept small enough that even `prop`, the highest slot at 5, stays
+    /// under 1 (`5 * slotSpacing = 0.5`), so a slot offset can never cross
+    /// into the next `col + row` step and disturb cell-to-cell order.
     ///
     /// `zPosition` has to stay on this same unscaled `col + row` scale
     /// `GroundLayer`/`FieldLayer` use, since SpriteKit compares
@@ -94,17 +131,29 @@ final class ShopNode: SKNode {
     /// `col + row` orders cells; `slot * slotSpacing` orders a cell's
     /// own ground/walls without disturbing that (see `slotSpacing`).
     private static func zPosition(col: Int, row: Int, slot: Slot) -> CGFloat {
-        CGFloat(col + row) + slot.rawValue * slotSpacing
+        zPosition(cellSum: col + row, slot: slot)
+    }
+
+    /// Same rule, taking the `col + row` sum directly — for a multi-cell
+    /// footprint, that's `ShopPropFootprint.nearestCellSum`, not any
+    /// single cell's own `col + row`.
+    private static func zPosition(cellSum: Int, slot: Slot) -> CGFloat {
+        CGFloat(cellSum) + slot.rawValue * slotSpacing
     }
 
     /// Builds a shop at `(originX, originY)`, `width`×`height` cells,
     /// laid out on `grid` immediately — no separate `layout()` call,
     /// since a shop's footprint never changes after placement.
+    ///
+    /// `prepTableFootprint` is in the same `IsoGrid` `(col, row)` space as
+    /// `buildWalls`' `colRange`/`rowRange`, not map-array indices. `nil`
+    /// (the default) falls back to `defaultPrepTableFootprint`.
     init(
         originX: Int,
         originY: Int,
         width: Int = ShopNode.defaultWidth,
         height: Int = ShopNode.defaultHeight,
+        prepTableFootprint: ShopPropFootprint? = nil,
         fittingTo grid: IsoGrid
     ) {
         placement = ShopPlacement(originX: originX, originY: originY, width: width, height: height)
@@ -117,6 +166,30 @@ final class ShopNode: SKNode {
 
         buildGround(colRange: colRange, rowRange: rowRange, on: grid)
         buildWalls(colRange: colRange, rowRange: rowRange, on: grid)
+
+        let footprint = prepTableFootprint
+            ?? Self.defaultPrepTableFootprint(colRange: colRange, rowRange: rowRange)
+        buildPrepTable(footprint: footprint, on: grid)
+    }
+
+    /// The table's spec placement absent an explicit override: its
+    /// origin (wall-adjacent) cell is the middle column of the
+    /// right-wall run, at that run's row — `(0, 0)` at `defaultPlacement`'s
+    /// size, matching the spec.
+    private static func defaultPrepTableFootprint(
+        colRange: ClosedRange<Int>,
+        rowRange: ClosedRange<Int>
+    ) -> ShopPropFootprint {
+        let origin = (col: (colRange.lowerBound + colRange.upperBound) / 2, row: rowRange.lowerBound)
+        return ShopPropFootprint(
+            origin: origin,
+            colSpan: ShopPrepTableNode.cellSpan.col,
+            rowSpan: ShopPrepTableNode.cellSpan.row,
+            center: (
+                col: CGFloat(origin.col) + ShopPrepTableNode.footprintCenterOffset.col,
+                row: CGFloat(origin.row) + ShopPrepTableNode.footprintCenterOffset.row
+            )
+        )
     }
 
     @available(*, unavailable)
@@ -181,6 +254,17 @@ final class ShopNode: SKNode {
             wall.zPosition = Self.zPosition(col: lastCol, row: row, slot: .front)
             addChild(wall)
         }
+    }
+
+    /// Places a `ShopPrepTableNode` at `footprint.center` — not a whole
+    /// grid cell, hence the fractional `IsoGrid.point(col:row:)` overload
+    /// rather than the whole-cell one used everywhere else in this file —
+    /// and z-orders it by `footprint.nearestCellSum` (see `Slot.prop`).
+    private func buildPrepTable(footprint: ShopPropFootprint, on grid: IsoGrid) {
+        let table = ShopPrepTableNode(fittingTo: grid)
+        table.position = grid.point(col: footprint.center.col, row: footprint.center.row)
+        table.zPosition = Self.zPosition(cellSum: footprint.nearestCellSum, slot: .prop)
+        addChild(table)
     }
 
     private func westVertex(col: Int, row: Int, on grid: IsoGrid) -> CGPoint {
