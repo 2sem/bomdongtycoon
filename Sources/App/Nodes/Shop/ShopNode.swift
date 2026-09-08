@@ -46,10 +46,14 @@ struct ShopPlacement {
 /// case) so this node's own ground tiles are the only copy drawn.
 ///
 /// Generalizes `ShopWallsPreviewScene`'s original 3×3 layout (which
-/// `buildGround`/`buildWalls` below are lifted from almost verbatim,
-/// including its zPosition scheme) from a single square `span` to an
-/// independent column range and row range — see that file for the worked
-/// example this geometry was first proven against.
+/// `buildGround`/`buildWalls` below are lifted from almost verbatim) from
+/// a single square `span` to an independent column range and row range —
+/// see that file for the worked example this geometry was first proven
+/// against. Its zPosition scheme (`col + row`, scaled up ×10 per cell)
+/// did *not* carry over unchanged, though — see `slotSpacing`'s own doc
+/// comment for why the original preview's square, always-non-negative
+/// `span` never exposed the bug that scheme had for a real, off-origin
+/// placement.
 final class ShopNode: SKNode {
 
     /// Default footprint size in map cells: 3 wide (east-west, `width`)
@@ -100,17 +104,39 @@ final class ShopNode: SKNode {
         case front = 4
     }
 
-    /// `(col + row) * 10` spaces every cell's own five slots (ground plus
-    /// four walls) a full 10 units apart from its neighbors' — plenty of
-    /// headroom for the 0...4 a single cell ever uses — while preserving
-    /// cell-to-cell draw order (`col + row` grows toward the camera, the
-    /// same convention `GroundLayer.layout()` uses for its own plain
-    /// `col + row` zPosition). Lifted directly from
-    /// `ShopWallsPreviewScene`'s own `zPosition(col:row:slot:)`, which
-    /// proved this out against a real 3×3 block before the footprint
-    /// became configurable.
+    /// Fraction of one whole `col + row` step to space a cell's own five
+    /// slots apart by. Kept well under `1 / Slot.front.rawValue` (0.25)
+    /// so even the highest slot (front, 4) can never cross into the next
+    /// whole `col + row` step and disturb cell-to-cell ordering.
+    ///
+    /// This — not the `* 10` this replaced — is what keeps `zPosition`
+    /// on the *same scale* `GroundLayer`/`FieldLayer` use for their own
+    /// plain `col + row` zPosition, which matters because those are
+    /// siblings in the same scene and SpriteKit compares zPosition
+    /// globally. Multiplying `col + row` by 10 works fine wherever
+    /// `col + row >= 0` (every cell just sorts comfortably above its
+    /// small-magnitude neighbors from other layers), but *inverts*
+    /// itself the moment a cell's `col + row` goes negative — negative
+    /// numbers get *more* negative when scaled up, not less — so that
+    /// cell's walls could sort *behind* a neighboring ground/field tile
+    /// they should draw in front of. That's exactly what happened at the
+    /// shop's own north corner (col: -1, row: 0, whose `col + row` is
+    /// -1) once the footprint grew past the single (0, 0) cell `* 10`
+    /// was tuned against, where `col + row` never goes negative — the
+    /// corner's own back/right wall segments sorted behind the field
+    /// tile immediately north of them and vanished behind it.
+    private static let slotSpacing: CGFloat = 0.1
+
+    /// Spaces every cell's own five slots (ground plus four walls) apart
+    /// by `slotSpacing`, while cell-to-cell draw order still comes from
+    /// the raw, unscaled `col + row` (`col + row` grows toward the
+    /// camera, the same convention `GroundLayer.layout()` uses for its
+    /// own plain `col + row` zPosition — see `slotSpacing`'s own doc
+    /// comment for why this has to stay unscaled rather than the `* 10`
+    /// `ShopWallsPreviewScene`'s original `zPosition(col:row:slot:)` used,
+    /// which is everything else this is lifted from).
     private static func zPosition(col: Int, row: Int, slot: Slot) -> CGFloat {
-        CGFloat(col + row) * 10 + slot.rawValue
+        CGFloat(col + row) + slot.rawValue * slotSpacing
     }
 
     /// Builds a shop at `(originX, originY)` in map-array-index
