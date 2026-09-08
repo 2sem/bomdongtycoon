@@ -45,6 +45,33 @@ git-ignored — they are reproducible from the specs.
 projects. BomDong uses `tools/isorender/`; only `2.5d-rig-engineer` touches either, and fixes are
 ported to both in the same task.
 
+## Comments: two kinds, only one of them earns its length
+
+Several files here run 50–65% comment lines. That is right for **art-derived code** — the wall
+and tile nodes, `tools/isorender/` — because those comments record measurements you cannot get
+back from the code: a sprite's face corners, that a source image was tilted ~46px over a 410px
+run, why `HEIGHT` is 0.709. Delete them and the constants become unmaintainable numbers.
+
+It is wrong for **structural code**, which has no measurements to record. Do not copy the
+density just because neighbouring files have it — `ShopNode` was written at 50% and trimmed to
+28% with nothing lost.
+
+The test: **keep a comment only if deleting it would lose information the code does not already
+carry.**
+
+Worth writing, always:
+- why a constant is *that* number, especially a measured one
+- a non-obvious invariant, and what breaks without it (the z-scheme in `ShopNode` names the exact
+  bug it prevents, because otherwise someone will "simplify" it back)
+- a mapping that is hard to re-derive (which wall belongs on which tile edge)
+- a known-bad thing deliberately left alone, so it is not "fixed" twice
+
+Not worth writing:
+- restating the line below it
+- cross-reference chains ("see that function's doc comment") where the reader can read the symbol
+- the same coordinate space explained in three places — say it once, well
+- provenance narration about where a helper was copied from
+
 ## Gotcha: swapping art in the asset catalog
 
 Replacing a PNG in place inside `Resources/Assets.xcassets` does **not** invalidate the
