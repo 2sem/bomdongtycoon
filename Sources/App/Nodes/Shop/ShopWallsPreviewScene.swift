@@ -31,8 +31,8 @@ private final class ShopWallsPreviewScene: SKScene {
         // (row 7, col 2) — which `GroundLayer.gridCoordinate(rowIndex:
         // colIndex:)` resolves to `IsoGrid` (0, 0), the same anchor this
         // preview has always used. width/height: 3 keeps the square 3×3
-        // shape the seam/draw-order checks above need, independent of the
-        // real shop's own current (3×4) size.
+        // shape the seam/draw-order checks above need, independent of
+        // whatever the real shop's own current size is (3×3 today).
         let shop = ShopNode(originX: 2, originY: 7, width: 3, height: 3, fittingTo: grid)
         addChild(shop)
 

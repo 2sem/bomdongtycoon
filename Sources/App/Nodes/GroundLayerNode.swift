@@ -144,7 +144,7 @@ final class GroundLayer: SKNode {
     /// deliberate exception: the shop's own cells. `kind(atCol:row:)`
     /// checks `ShopNode.defaultPlacement` — not this array — to decide
     /// whether a cell is a shop cell, so the rows this literal spans for
-    /// the shop (7-10 below) are written as plain `.field` and never
+    /// the shop (7-9 below) are written as plain `.field` and never
     /// actually read for those cells; `ShopNode.defaultPlacement` is the
     /// one place that rectangle is spelled out as numbers (see its own
     /// doc comment for why: a second `.shop` literal here could silently
@@ -157,13 +157,18 @@ final class GroundLayer: SKNode {
     ///
     /// Shape: a 1-row grass border, six field rows (unchanged from before
     /// the shop grew — `FieldLayer`/`FarmerLayer` sit at fixed rows
-    /// relative to this block and must not move), four shop rows, then a
+    /// relative to this block and must not move), three shop rows, then a
     /// 1-row grass border whose middle tile is `.road` instead: a stone
     /// path continuing straight out from the shop plot toward the viewer,
     /// like a doorstep leading up to the shop building.
+    ///
+    /// Row count dropped from 12 to 11 along with `ShopNode.defaultHeight`
+    /// (4 -> 3): trimming only `defaultHeight` would leave this array's
+    /// row 10 as a real, still-read `.field` row wedged between the
+    /// shop's new south wall and its own doorstep, instead of removing
+    /// the shop's last row outright.
     private static let map: [[GroundTileKind]] = [
         [.grass, .grass, .grass, .grass, .grass],
-        [.grass, .field, .field, .field, .grass],
         [.grass, .field, .field, .field, .grass],
         [.grass, .field, .field, .field, .grass],
         [.grass, .field, .field, .field, .grass],
@@ -180,7 +185,7 @@ final class GroundLayer: SKNode {
     /// corner. Every other cell's grid coordinate is this plus its own
     /// `(rowIndex, colIndex)` offset (see `gridCoordinate(rowIndex:
     /// colIndex:)`). Keeps the shop plot's own first cell (row 7, col 2 in
-    /// `map` — the single cell it used to occupy before growing to a 3×4
+    /// `map` — the single cell it used to occupy before growing to a 3×3
     /// block) at `IsoGrid` row/col 0, matching where earlier iterations of
     /// this grid anchored it, so `FieldLayer`/`FarmerLayer`'s own fixed row
     /// constants (tuned against that anchor) don't need to change just
