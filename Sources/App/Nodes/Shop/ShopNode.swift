@@ -65,18 +65,18 @@ struct ShopPropFootprint {
 /// `IsoGrid`, plus a `ShopPrepTableNode` running into the room from the
 /// right wall. Placed via `originX`/`originY` (map-array-index
 /// coordinates) and sized via `width`/`height`, defaulting to
-/// `defaultWidth`×`defaultHeight` (3×4). Ground and walls come from one
+/// `defaultWidth`×`defaultHeight` (3×3). Ground and walls come from one
 /// `ShopPlacement`, so `GroundLayer.kind(atCol:row:)` can ask it which
 /// cells are shop cells instead of keeping a second copy of the
 /// rectangle.
 final class ShopNode: SKNode {
 
-    /// Default footprint: 3 wide (east-west) × 4 tall (north-south).
+    /// Default footprint: 3 wide (east-west) × 3 tall (north-south).
     static let defaultWidth = 3
-    static let defaultHeight = 4
+    static let defaultHeight = 3
 
     /// The real shop's placement in the live game: map-array column 1,
-    /// row 7, at the default 3×4 size. `MainStallScene` builds its
+    /// row 7, at the default 3×3 size. `MainStallScene` builds its
     /// `ShopNode` from this; `GroundLayer.kind(atCol:row:)` reads it too,
     /// so the two can't disagree about which cells are shop cells.
     static let defaultPlacement = ShopPlacement(

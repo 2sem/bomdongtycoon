@@ -26,7 +26,7 @@ final class MainStallScene: SKScene {
     /// nodes (and their hardcoded 7/8/10/11 zPosition constants) this
     /// scene used when the shop was still a single map cell; `ShopNode`
     /// derives both position and draw order from the grid itself, so it
-    /// scales to the shop's now-larger 3×4 footprint without per-wall
+    /// scales to the shop's now-larger 3×3 footprint without per-wall
     /// bookkeeping here.
     private let shop = ShopNode(
         originX: ShopNode.defaultPlacement.originX,
@@ -55,9 +55,9 @@ final class MainStallScene: SKScene {
         // change — rather than `GroundLayer.mapCentroid`: that averages
         // every cell in `GroundLayer.map`, including the six field rows
         // and the grass border, so once the map grew to fit the shop's
-        // 3×4 block, that average sat well north-east of the shop's own
-        // footprint (confirmed: it left the shop's west corner ~346pt off
-        // a 402pt-wide screen). `ShopPlacement.centroid(on:)` averages
+        // (now 3×3) block, that average sat well north-east of the shop's
+        // own footprint (confirmed: it left the shop's west corner ~346pt
+        // off a 402pt-wide screen). `ShopPlacement.centroid(on:)` averages
         // only the shop's own cells, so the camera centers on the
         // building regardless of how the surrounding map is shaped.
         cameraNode.position = ShopNode.defaultPlacement.centroid(on: GroundLayer.grid)
