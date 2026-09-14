@@ -60,6 +60,25 @@ struct ShopPropFootprint {
     }
 }
 
+/// A wall segment `ShopNode.buildWalls` leaves out, addressed in the
+/// shop's own local offsets from its own origin — `x` toward the east
+/// corner (screen lower-right), `y` toward the south corner (screen
+/// lower-left) — the same offsets the user names a cell by ("[2, 0]"),
+/// and offsets that stay correct wherever the shop is placed. Chosen over
+/// `IsoGrid` coordinates (what `ShopPropFootprint`/`prepTableFootprint`
+/// use) because an opening is a property of the shop, not of the grid
+/// cell underneath it — it has to move with the shop, not stay pinned to
+/// wherever the shop happened to be the day the opening was added.
+struct ShopWallOpening: Hashable {
+    enum Side {
+        case back, right, left, front
+    }
+
+    let side: Side
+    let x: Int
+    let y: Int
+}
+
 /// A shop building: `ShopGroundTileNode` tiles ringed by the four
 /// `ShopWall{Back,Right,Left,Front}Node` segments, laid out on an
 /// `IsoGrid`, plus a `ShopPrepTableNode` running into the room from the
@@ -85,6 +104,17 @@ final class ShopNode: SKNode {
         width: defaultWidth,
         height: defaultHeight
     )
+
+    /// The live shop's east side leaves out its two front segments
+    /// nearest the east corner — shop-local `(2, 0)` and `(2, 1)` at the
+    /// default 3×3 size — so the windowed `ShopWallRightNode` segment at
+    /// the east corner stands alone with its corner post showing rather
+    /// than butting into a plain front segment. `(2, 2)`, by the south
+    /// corner, keeps its front wall.
+    static let defaultOpenings: Set<ShopWallOpening> = [
+        ShopWallOpening(side: .front, x: defaultWidth - 1, y: 0),
+        ShopWallOpening(side: .front, x: defaultWidth - 1, y: 1),
+    ]
 
     let placement: ShopPlacement
 
@@ -148,16 +178,25 @@ final class ShopNode: SKNode {
     /// `prepTableFootprint` is in the same `IsoGrid` `(col, row)` space as
     /// `buildWalls`' `colRange`/`rowRange`, not map-array indices. `nil`
     /// (the default) falls back to `defaultPrepTableFootprint`.
+    ///
+    /// `openings` defaults to `defaultOpenings`, so any caller building a
+    /// shop at the default 3×3 size without naming its own openings gets
+    /// the live shop's east-side gap for free (`MainStallScene` and the
+    /// ground-layer preview both do this). A caller that wants the full,
+    /// unbroken wall ring — `ShopWallsPreviewScene` — passes `[]`
+    /// explicitly.
     init(
         originX: Int,
         originY: Int,
         width: Int = ShopNode.defaultWidth,
         height: Int = ShopNode.defaultHeight,
         prepTableFootprint: ShopPropFootprint? = nil,
+        openings: Set<ShopWallOpening> = ShopNode.defaultOpenings,
         fittingTo grid: IsoGrid
     ) {
         placement = ShopPlacement(originX: originX, originY: originY, width: width, height: height)
         super.init()
+        Self.validate(openings, width: width, height: height)
 
         let start = GroundLayer.gridCoordinate(rowIndex: originY, colIndex: originX)
         let end = GroundLayer.gridCoordinate(rowIndex: originY + height - 1, colIndex: originX + width - 1)
@@ -165,7 +204,7 @@ final class ShopNode: SKNode {
         let rowRange = start.row...end.row
 
         buildGround(colRange: colRange, rowRange: rowRange, on: grid)
-        buildWalls(colRange: colRange, rowRange: rowRange, on: grid)
+        buildWalls(colRange: colRange, rowRange: rowRange, on: grid, openings: openings)
 
         let footprint = prepTableFootprint
             ?? Self.defaultPrepTableFootprint(colRange: colRange, rowRange: rowRange)
@@ -209,21 +248,27 @@ final class ShopNode: SKNode {
     }
 
     /// Rings `colRange` × `rowRange` with wall segments on all four
-    /// edges:
+    /// edges, skipping any cell named in `openings`:
     ///
-    /// | Wall | Boundary | Anchors on |
-    /// |---|---|---|
-    /// | `ShopWallBackNode` | minimum column, every row | West vertex |
-    /// | `ShopWallRightNode` | minimum row, every column | North vertex |
-    /// | `ShopWallLeftNode` | maximum row, every column | West vertex |
-    /// | `ShopWallFrontNode` | maximum column, every row | South vertex |
-    private func buildWalls(colRange: ClosedRange<Int>, rowRange: ClosedRange<Int>, on grid: IsoGrid) {
+    /// | Wall | Boundary | Anchors on | Opening `side` | shop-local fixed axis |
+    /// |---|---|---|---|---|
+    /// | `ShopWallBackNode` | minimum column, every row | West vertex | `.back` | `x == 0` |
+    /// | `ShopWallRightNode` | minimum row, every column | North vertex | `.right` | `y == 0` |
+    /// | `ShopWallLeftNode` | maximum row, every column | West vertex | `.left` | `y == height - 1` |
+    /// | `ShopWallFrontNode` | maximum column, every row | South vertex | `.front` | `x == width - 1` |
+    private func buildWalls(
+        colRange: ClosedRange<Int>,
+        rowRange: ClosedRange<Int>,
+        on grid: IsoGrid,
+        openings: Set<ShopWallOpening>
+    ) {
         let firstCol = colRange.lowerBound
         let lastCol = colRange.upperBound
         let firstRow = rowRange.lowerBound
         let lastRow = rowRange.upperBound
 
         for row in rowRange {
+            guard !openings.contains(ShopWallOpening(side: .back, x: 0, y: row - firstRow)) else { continue }
             let wall = ShopWallBackNode(fittingTo: grid)
             wall.position = westVertex(col: firstCol, row: row, on: grid)
             wall.zPosition = Self.zPosition(col: firstCol, row: row, slot: .back)
@@ -231,6 +276,7 @@ final class ShopNode: SKNode {
         }
 
         for col in colRange {
+            guard !openings.contains(ShopWallOpening(side: .right, x: col - firstCol, y: 0)) else { continue }
             let wall = ShopWallRightNode(fittingTo: grid)
             wall.position = northVertex(col: col, row: firstRow, on: grid)
             wall.zPosition = Self.zPosition(col: col, row: firstRow, slot: .right)
@@ -238,6 +284,7 @@ final class ShopNode: SKNode {
         }
 
         for col in colRange {
+            guard !openings.contains(ShopWallOpening(side: .left, x: col - firstCol, y: lastRow - firstRow)) else { continue }
             let wall = ShopWallLeftNode(fittingTo: grid)
             wall.position = westVertex(col: col, row: lastRow, on: grid)
             wall.zPosition = Self.zPosition(col: col, row: lastRow, slot: .left)
@@ -249,10 +296,31 @@ final class ShopNode: SKNode {
         // it, so every one of these segments shows one. Flagged to the
         // art team.
         for row in rowRange {
+            guard !openings.contains(ShopWallOpening(side: .front, x: lastCol - firstCol, y: row - firstRow)) else { continue }
             let wall = ShopWallFrontNode(fittingTo: grid)
             wall.position = southVertex(col: lastCol, row: row, on: grid)
             wall.zPosition = Self.zPosition(col: lastCol, row: row, slot: .front)
             addChild(wall)
+        }
+    }
+
+    /// A requested opening that isn't on the perimeter it names (wrong
+    /// fixed axis, or out of range on the other one) is a caller
+    /// mistake: it never matches a cell in `buildWalls`' loops, so it's
+    /// silently a no-op — every wall stays. `assert` catches that mistake
+    /// during development without taking down a release build.
+    private static func validate(_ openings: Set<ShopWallOpening>, width: Int, height: Int) {
+        for opening in openings {
+            switch opening.side {
+            case .back:
+                assert(opening.x == 0 && (0..<height).contains(opening.y), "\(opening) is not on the shop's back wall")
+            case .front:
+                assert(opening.x == width - 1 && (0..<height).contains(opening.y), "\(opening) is not on the shop's front wall")
+            case .right:
+                assert(opening.y == 0 && (0..<width).contains(opening.x), "\(opening) is not on the shop's right wall")
+            case .left:
+                assert(opening.y == height - 1 && (0..<width).contains(opening.x), "\(opening) is not on the shop's left wall")
+            }
         }
     }
 

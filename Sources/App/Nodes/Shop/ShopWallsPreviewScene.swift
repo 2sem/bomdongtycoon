@@ -33,7 +33,10 @@ private final class ShopWallsPreviewScene: SKScene {
         // preview has always used. width/height: 3 keeps the square 3×3
         // shape the seam/draw-order checks above need, independent of
         // whatever the real shop's own current size is (3×3 today).
-        let shop = ShopNode(originX: 2, originY: 7, width: 3, height: 3, fittingTo: grid)
+        // openings: [] — this preview's whole point is the full,
+        // unbroken wall ring (see the seam/draw-order checks above), not
+        // the live shop's east-side gap (`ShopNode.defaultOpenings`).
+        let shop = ShopNode(originX: 2, originY: 7, width: 3, height: 3, openings: [], fittingTo: grid)
         addChild(shop)
 
         // Frame the block: its center cell, lifted so the walls' height sits
