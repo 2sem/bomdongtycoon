@@ -364,6 +364,89 @@ def prop_table(
     return obj
 
 
+def box(
+    name,
+    center,
+    width,
+    depth,
+    height,
+    face_material,
+    trim_material,
+    top_material,
+    base_z=0.0,
+):
+    """A solid, closed box — a cash counter, a crate, a plinth — where
+    `wall()` gives an open slab on a cell edge and `prop_table()` gives an
+    open frame of legs, this gives four solid sides plus a top and a bottom,
+    the way a counter's front and sides must read as one closed volume with
+    no register-height gap underneath.
+
+    Footprint centered at grid point `center` with its sides parallel to
+    the col/row axes, like `prop_table()` and `plane()`, not a wall's
+    edge-perpendicular extrusion. `width` runs along the col axis, `depth`
+    along the row axis — same convention as `prop_table()`. `height` is the
+    box's own standing height; `base_z` lifts the whole box so it can start
+    above the ground (a register sitting on a counter's top, say) and
+    defaults to flush with it.
+
+    Three material slots, the same split as `wall()`'s face/trim: all four
+    sides take `face_material`, the top takes `top_material`, and the
+    underside — never seen, kept only so the box is solid — takes
+    `trim_material`.
+
+    Markers: `base_center`/`top_center` on the vertical axis through
+    `center`, plus the footprint's four base corners
+    (`base_corner_north/east/south/west`, `prop_table()`'s naming and
+    winding) at `base_z` — not always 0.0 — so a spec can read clearance
+    against a neighbouring piece off plain numbers instead of eyeballing it.
+    """
+    ccol, crow = center
+    half_w, half_d = width / 2.0, depth / 2.0
+    top_z = base_z + height
+
+    corners = [
+        (ccol - half_w, crow - half_d),
+        (ccol + half_w, crow - half_d),
+        (ccol + half_w, crow + half_d),
+        (ccol - half_w, crow + half_d),
+    ]
+    verts = [world_point(col, row, base_z) for col, row in corners]
+    verts += [world_point(col, row, top_z) for col, row in corners]
+    faces = [
+        (3, 2, 1, 0),  # bottom
+        (4, 5, 6, 7),  # top
+        (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7),  # sides
+    ]
+    square = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+    materials = [trim_material, top_material, face_material]
+    TRIM, TOP, FACE = 0, 1, 2
+    material_indices = [TRIM, TOP, FACE, FACE, FACE, FACE]
+
+    obj = _mesh_object(name, verts, faces, [square] * 6, materials, material_indices)
+
+    #: Hand-assembled from raw face tuples, same as `prop_table()`'s
+    #: multi-part mesh and unlike `_box()`'s single hand-verified winding —
+    #: recompute outward normals rather than trust it by inspection.
+    mesh = obj.data
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(mesh)
+    bm.free()
+
+    #: Same winding and naming as `prop_table()`'s footprint-corner markers.
+    corner_names = ["north", "east", "south", "west"]
+    obj["markers"] = {
+        "base_center": (ccol, crow, base_z),
+        "top_center": (ccol, crow, top_z),
+        **{
+            f"base_corner_{corner_names[i]}": (col, row, base_z)
+            for i, (col, row) in enumerate(corners)
+        },
+    }
+    return obj
+
+
 def plane(name, material, size=1.0, center=(0.0, 0.0), height=0.0):
     """A flat `size` x `size` cell-aligned quad — one grid diamond when
     `size` is 1. Used by the calibration asset."""
