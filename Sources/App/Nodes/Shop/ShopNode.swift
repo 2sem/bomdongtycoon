@@ -178,36 +178,13 @@ final class ShopNode: SKNode {
         y: 1 - bowlBaseCenterPixel.y / bowlNativeSize.height
     )
 
-    /// Bowl rim diameter, in grid units (0.24), and its radius — how far
-    /// the bowl's centre must stay from the worktop's bare edge so the
-    /// rim doesn't hang off it.
-    private static let bowlRimDiameter: CGFloat = 0.24
-    private static let bowlRadius: CGFloat = bowlRimDiameter / 2
-
-    /// The prep table's worktop, in grid rows local to its own footprint
-    /// centre (`ShopPrepTableNode.footprintCenterOffset.row`, 0.475): half
-    /// its `DEPTH` spec (1.75, from `tools/isorender/assets/kitchen_prep_table.py`)
-    /// each side of centre. `IsoGrid.point` maps increasing row toward the
-    /// screen's lower-left, so this table's *low*-row end is the one that
-    /// reads as screen-*right* — the end next to the windowed wall — and
-    /// "align right" means sliding the bowl toward that end, i.e. toward
-    /// more negative row.
-    private static let prepTableWorktopDepth: CGFloat = 1.75
-    private static let prepTableWorktopLowRowOffset = -(prepTableWorktopDepth / 2)
-
-    /// How far the bowl sits in from the worktop's bare low-row edge, past
-    /// its own radius, so the rim clears the edge with a small margin
-    /// instead of touching it.
-    private static let bowlEdgeInset: CGFloat = 0.05
-
-    /// The bowl's target row, expressed as an offset from the table's own
-    /// footprint-centre row (`footprintCenterOffset.row`) rather than an
-    /// absolute row — so it stays correct regardless of where the table's
-    /// footprint is placed. Column stays at the footprint centre (`0`):
-    /// this only slides the bowl along the table's length, not across its
-    /// width.
-    private static let bowlRowOffsetFromTableCenter =
-        prepTableWorktopLowRowOffset + bowlEdgeInset + bowlRadius
+    /// Which of `ShopPrepTableNode`'s equal-length worktop slots the bowl
+    /// stands in. Slot 0 is the worktop's low-row end — screen-right, next
+    /// to the windowed wall (see `buildBowl`) — where the bowl was aligned
+    /// in the previous, ad-hoc placement; kept as a named default rather
+    /// than a bare `0` at the call site since a second prop standing on
+    /// this table later will want a different slot.
+    private static let bowlSlotIndex = 0
 
     let placement: ShopPlacement
 
@@ -520,9 +497,13 @@ final class ShopNode: SKNode {
         addChild(register)
     }
 
-    /// Stands the bowl on `table`'s worktop, then slides it along the
-    /// table's length toward the low-row end (screen right — see
-    /// `prepTableWorktopDepth`), rather than leaving it centred.
+    /// Stands the bowl on `table`'s worktop, in slot `slotIndex` of
+    /// `ShopPrepTableNode`'s three worktop slots (default 0, the low-row
+    /// end). `IsoGrid.point` maps increasing row toward the screen's
+    /// lower-left, so the worktop's *low*-row end is the one that reads
+    /// as screen-*right* — the end next to the windowed wall, and slot 0
+    /// under `ShopPrepTableNode.slotCenterRowOffset`. The bowl's 0.24 rim
+    /// diameter comfortably clears a ~0.583-long slot either side.
     ///
     /// The vertical lift is the same trick `buildCashRegister` uses for
     /// the register: the table's top-center and base-center share x =
@@ -538,10 +519,15 @@ final class ShopNode: SKNode {
     /// width.
     ///
     /// Z-ordered at `.onProp` on the table's own footprint sum, so it
-    /// always draws above the table; moving toward row 0 only takes it
-    /// further from `nearestCellSum`'s corner, never past it, so draw
-    /// order can't change.
-    private func buildBowl(standingOn table: ShopPrepTableNode, footprintCellSum: Int, on grid: IsoGrid) {
+    /// always draws above the table; every slot sits closer to row 0 than
+    /// `nearestCellSum`'s corner, never past it, so draw order can't
+    /// change.
+    private func buildBowl(
+        standingOn table: ShopPrepTableNode,
+        inSlot slotIndex: Int = ShopNode.bowlSlotIndex,
+        footprintCellSum: Int,
+        on grid: IsoGrid
+    ) {
         let bowl = ShopPropSpriteNode(
             imageName: Self.bowlImageName,
             nativeSize: Self.bowlNativeSize,
@@ -550,7 +536,7 @@ final class ShopNode: SKNode {
         )
         let topOffset = (ShopPrepTableNode.baseCenterY - ShopPrepTableNode.topCenterY)
             * ShopPropSpriteNode.isorenderScale(fittingTo: grid)
-        let alongTable = grid.point(col: 0, row: Self.bowlRowOffsetFromTableCenter)
+        let alongTable = grid.point(col: 0, row: ShopPrepTableNode.slotCenterRowOffset(slotIndex))
         bowl.position = CGPoint(
             x: table.position.x + alongTable.x,
             y: table.position.y + topOffset + alongTable.y
