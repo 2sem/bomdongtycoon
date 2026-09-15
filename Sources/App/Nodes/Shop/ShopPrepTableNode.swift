@@ -16,6 +16,13 @@ final class ShopPrepTableNode: SKSpriteNode {
     private static let nativeSize = CGSize(width: 429, height: 321)
     private static let baseAnchor = CGPoint(x: 0.5, y: 0.38919)
 
+    /// Same table, base-center and top-center y only, top-left origin
+    /// (196.07, 132.93) — not `private`, so `ShopNode.buildBowl` can turn
+    /// their difference into the bowl's stand-on-table offset, the same
+    /// way the cash counter's own base/top-center y feed the register.
+    static let baseCenterY: CGFloat = 196.07
+    static let topCenterY: CGFloat = 132.93
+
     /// `grid.tileWidth` at the moment this asset was rendered — the
     /// isorender pipeline always renders at exactly 3× whatever the live
     /// grid's tile width is. Dividing `nativeSize` by `3 ×
