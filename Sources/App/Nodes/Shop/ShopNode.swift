@@ -82,12 +82,13 @@ struct ShopWallOpening: Hashable {
 /// A shop building: `ShopGroundTileNode` tiles ringed by the four
 /// `ShopWall{Back,Right,Left,Front}Node` segments, laid out on an
 /// `IsoGrid`, plus a `ShopPrepTableNode` running into the room from the
-/// right wall. Placed via `originX`/`originY` (map-array-index
-/// coordinates) and sized via `width`/`height`, defaulting to
-/// `defaultWidth`×`defaultHeight` (3×3). Ground and walls come from one
-/// `ShopPlacement`, so `GroundLayer.kind(atCol:row:)` can ask it which
-/// cells are shop cells instead of keeping a second copy of the
-/// rectangle.
+/// right wall and, when the east-side opening is present, a cash counter
+/// (with a register standing on it) filling that opening. Placed via
+/// `originX`/`originY` (map-array-index coordinates) and sized via
+/// `width`/`height`, defaulting to `defaultWidth`×`defaultHeight` (3×3).
+/// Ground and walls come from one `ShopPlacement`, so
+/// `GroundLayer.kind(atCol:row:)` can ask it which cells are shop cells
+/// instead of keeping a second copy of the rectangle.
 final class ShopNode: SKNode {
 
     /// Default footprint: 3 wide (east-west) × 3 tall (north-south).
@@ -116,12 +117,56 @@ final class ShopNode: SKNode {
         ShopWallOpening(side: .front, x: defaultWidth - 1, y: 1),
     ]
 
+    /// The wall openings the cash counter needs before it's drawn at all
+    /// — the same two cells `defaultOpenings` removes by default. Gating
+    /// on the openings actually passed in (not just on being the default
+    /// shop) means `ShopWallsPreviewScene`, which asks for `openings: []`
+    /// to show the whole unbroken ring, doesn't get a counter standing in
+    /// front of a wall that's still there.
+    private static func requiredCashCounterOpenings(width: Int) -> Set<ShopWallOpening> {
+        [
+            ShopWallOpening(side: .front, x: width - 1, y: 0),
+            ShopWallOpening(side: .front, x: width - 1, y: 1),
+        ]
+    }
+
+    /// Camera-matrix measurement table (3× render), used as printed:
+    /// trimmed 409×338, base-center anchor at (0.50000, 0.37399 from the
+    /// bottom).
+    private static let cashCounterImageName = "shop_cash_counter"
+    private static let cashCounterNativeSize = CGSize(width: 409, height: 338)
+    private static let cashCounterBaseAnchor = CGPoint(x: 0.5, y: 0.37399)
+
+    /// Top-center minus base-center, in the counter's own native (3×
+    /// render) pixel space (211.59 − 127.41) — how far above its own
+    /// `baseAnchor` point the counter's worktop sits. Used to derive the
+    /// register's stand-on-counter offset instead of hardcoding a point
+    /// value; see `buildCashRegister`.
+    private static let cashCounterBaseCenterY: CGFloat = 211.59
+    private static let cashCounterTopCenterY: CGFloat = 127.41
+
+    /// Whole grid cells the counter's footprint covers (1 column × 2
+    /// rows) and the spec center's offset from that footprint's origin
+    /// cell — (1.20, 0.475) at the default size, `origin + (0.20,
+    /// 0.475)`. See `defaultCashCounterFootprint`.
+    private static let cashCounterCellSpan = (col: 1, row: 2)
+    private static let cashCounterFootprintCenterOffset: (col: CGFloat, row: CGFloat) = (0.20, 0.475)
+
+    /// Camera-matrix measurement table (3× render), used as printed:
+    /// trimmed 95×88, base-center anchor at (0.50000, 0.33648 from the
+    /// bottom).
+    private static let cashRegisterImageName = "shop_cash_register"
+    private static let cashRegisterNativeSize = CGSize(width: 95, height: 88)
+    private static let cashRegisterBaseAnchor = CGPoint(x: 0.5, y: 0.33648)
+
     let placement: ShopPlacement
 
     /// Painter's-order slot within a cell: ground, then walls back <
     /// right < left < front, so the wall nearer the camera wins where
     /// two meet at a shared corner; `prop` sits above all four so
     /// furniture always draws in front of whatever wall shares its cell.
+    /// `onProp` sits above `prop` for a prop that stands on another prop
+    /// (the cash register on the cash counter) rather than on the floor.
     /// A multi-cell prop (`ShopPropFootprint`) uses its *nearest* covered
     /// cell for this, not its anchor/center cell — right for a solid
     /// object standing on the floor, since it must draw over that near
@@ -131,7 +176,9 @@ final class ShopNode: SKNode {
     /// exercises them yet:
     /// - a corner cell has two walls of its own (e.g. `left` and
     ///   `front`); a prop there would draw over both, not just the one
-    ///   behind it.
+    ///   behind it. (The cash counter is in exactly such a corner cell,
+    ///   `(1, 0)` at the default size — see `buildCashCounter` for why
+    ///   that's the correct outcome there, not an instance of this gap.)
     /// - a prop meant to be partially *occluded* by nearer scenery would
     ///   need the opposite rule — its farthest cell, not its nearest.
     private enum Slot: CGFloat {
@@ -141,12 +188,13 @@ final class ShopNode: SKNode {
         case left = 3
         case front = 4
         case prop = 5
+        case onProp = 6
     }
 
     /// Fraction of one `col + row` step to space a cell's slots apart by
-    /// — kept small enough that even `prop`, the highest slot at 5, stays
-    /// under 1 (`5 * slotSpacing = 0.5`), so a slot offset can never cross
-    /// into the next `col + row` step and disturb cell-to-cell order.
+    /// — kept small enough that even `onProp`, the highest slot at 6,
+    /// stays under 1 (`6 * slotSpacing = 0.6`), so a slot offset can never
+    /// cross into the next `col + row` step and disturb cell-to-cell order.
     ///
     /// `zPosition` has to stay on this same unscaled `col + row` scale
     /// `GroundLayer`/`FieldLayer` use, since SpriteKit compares
@@ -185,12 +233,19 @@ final class ShopNode: SKNode {
     /// ground-layer preview both do this). A caller that wants the full,
     /// unbroken wall ring — `ShopWallsPreviewScene` — passes `[]`
     /// explicitly.
+    ///
+    /// `cashCounterFootprint` follows the same nil-falls-back-to-default
+    /// pattern as `prepTableFootprint`, but the counter it places is only
+    /// actually built when `openings` removes the two front-wall segments
+    /// it stands in front of (see `requiredCashCounterOpenings`) — so
+    /// `ShopWallsPreviewScene`'s `openings: []` correctly gets no counter.
     init(
         originX: Int,
         originY: Int,
         width: Int = ShopNode.defaultWidth,
         height: Int = ShopNode.defaultHeight,
         prepTableFootprint: ShopPropFootprint? = nil,
+        cashCounterFootprint: ShopPropFootprint? = nil,
         openings: Set<ShopWallOpening> = ShopNode.defaultOpenings,
         fittingTo grid: IsoGrid
     ) {
@@ -206,9 +261,16 @@ final class ShopNode: SKNode {
         buildGround(colRange: colRange, rowRange: rowRange, on: grid)
         buildWalls(colRange: colRange, rowRange: rowRange, on: grid, openings: openings)
 
-        let footprint = prepTableFootprint
+        let prepTableFootprint = prepTableFootprint
             ?? Self.defaultPrepTableFootprint(colRange: colRange, rowRange: rowRange)
-        buildPrepTable(footprint: footprint, on: grid)
+        buildPrepTable(footprint: prepTableFootprint, on: grid)
+
+        if openings.isSuperset(of: Self.requiredCashCounterOpenings(width: width)) {
+            let cashCounterFootprint = cashCounterFootprint
+                ?? Self.defaultCashCounterFootprint(colRange: colRange, rowRange: rowRange)
+            let counter = buildCashCounter(footprint: cashCounterFootprint, on: grid)
+            buildCashRegister(standingOn: counter, footprintCellSum: cashCounterFootprint.nearestCellSum, on: grid)
+        }
     }
 
     /// The table's spec placement absent an explicit override: its
@@ -227,6 +289,27 @@ final class ShopNode: SKNode {
             center: (
                 col: CGFloat(origin.col) + ShopPrepTableNode.footprintCenterOffset.col,
                 row: CGFloat(origin.row) + ShopPrepTableNode.footprintCenterOffset.row
+            )
+        )
+    }
+
+    /// The counter's spec placement absent an explicit override: its
+    /// footprint's origin (wall-adjacent) cell is `colRange`'s upper
+    /// bound — the shop's east corner — at `rowRange`'s lower bound,
+    /// `(1, 0)`-`(1, 1)` at `defaultPlacement`'s size, the same two
+    /// cells `defaultOpenings` removes the front wall from.
+    private static func defaultCashCounterFootprint(
+        colRange: ClosedRange<Int>,
+        rowRange: ClosedRange<Int>
+    ) -> ShopPropFootprint {
+        let origin = (col: colRange.upperBound, row: rowRange.lowerBound)
+        return ShopPropFootprint(
+            origin: origin,
+            colSpan: cashCounterCellSpan.col,
+            rowSpan: cashCounterCellSpan.row,
+            center: (
+                col: CGFloat(origin.col) + cashCounterFootprintCenterOffset.col,
+                row: CGFloat(origin.row) + cashCounterFootprintCenterOffset.row
             )
         )
     }
@@ -333,6 +416,55 @@ final class ShopNode: SKNode {
         table.position = grid.point(col: footprint.center.col, row: footprint.center.row)
         table.zPosition = Self.zPosition(cellSum: footprint.nearestCellSum, slot: .prop)
         addChild(table)
+    }
+
+    /// Places the cash counter at `footprint.center` (`(1.20, 0.475)` at
+    /// the default size) and z-orders it by `footprint.nearestCellSum`
+    /// (see `Slot.prop`).
+    ///
+    /// Its origin cell, `(1, 0)` at the default size, is the shop's east
+    /// corner — a cell with two walls of its own, the general gap
+    /// `Slot`'s doc comment flags. It's benign here: that corner's
+    /// *front* segment is the opening this counter fills (removed by
+    /// `defaultOpenings`), and its *right* (windowed) segment runs along
+    /// the row −0.5 edge, behind where the counter's own footprint starts
+    /// (row −0.40, from its center at 0.475 minus half the spec `DEPTH`
+    /// 1.75) — so the counter drawing over both is correct, not just
+    /// harmless. Do not "fix" this by giving the counter its own slot
+    /// exception.
+    private func buildCashCounter(footprint: ShopPropFootprint, on grid: IsoGrid) -> ShopPropSpriteNode {
+        let counter = ShopPropSpriteNode(
+            imageName: Self.cashCounterImageName,
+            nativeSize: Self.cashCounterNativeSize,
+            baseAnchor: Self.cashCounterBaseAnchor,
+            fittingTo: grid
+        )
+        counter.position = grid.point(col: footprint.center.col, row: footprint.center.row)
+        counter.zPosition = Self.zPosition(cellSum: footprint.nearestCellSum, slot: .prop)
+        addChild(counter)
+        return counter
+    }
+
+    /// Stands the register on `counter`'s own top-center: same x, and y
+    /// raised by the counter's measured top-center-minus-base-center
+    /// offset, converted from the counter's native (3× render) pixels to
+    /// points by `ShopPropSpriteNode.isorenderScale` — the same ratio the
+    /// counter's own sprite is scaled by — rather than a separately
+    /// measured or hardcoded point offset. Z-ordered at `.onProp` on the
+    /// counter's own footprint sum, so it always draws above the counter
+    /// it stands on.
+    private func buildCashRegister(standingOn counter: ShopPropSpriteNode, footprintCellSum: Int, on grid: IsoGrid) {
+        let register = ShopPropSpriteNode(
+            imageName: Self.cashRegisterImageName,
+            nativeSize: Self.cashRegisterNativeSize,
+            baseAnchor: Self.cashRegisterBaseAnchor,
+            fittingTo: grid
+        )
+        let topOffset = (Self.cashCounterBaseCenterY - Self.cashCounterTopCenterY)
+            * ShopPropSpriteNode.isorenderScale(fittingTo: grid)
+        register.position = CGPoint(x: counter.position.x, y: counter.position.y + topOffset)
+        register.zPosition = Self.zPosition(cellSum: footprintCellSum, slot: .onProp)
+        addChild(register)
     }
 
     private func westVertex(col: Int, row: Int, on grid: IsoGrid) -> CGPoint {
