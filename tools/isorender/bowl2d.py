@@ -15,6 +15,15 @@ Blender.
     python3 tools/isorender/bowl2d.py --rim 0.24 --foot 0.15 --height 0.10 \\
         --name shop_empty_bowl_repro
 
+Every shipped bowl's exact rim/foot/height *and palette* is recorded in
+`PRESETS` below, so it can be regenerated with no other arguments:
+
+    python3 tools/isorender/bowl2d.py --preset shop_large_empty_bowl
+
+A palette passed by hand (`--rim`/`--foot`/`--height` free-form, as above)
+is not reproducible from this file alone — only a `PRESETS` entry is. Add
+one whenever a render's output actually ships.
+
 See `tools/isorender/README.md` for where these projection constants come
 from; they are re-derived here only as much as needed to keep this file
 self-contained and reproducible.
@@ -75,6 +84,40 @@ DEFAULT_PALETTE = {
     "mid": (130, 90, 55),
     "highlight": (158, 113, 70),
     "shadow": (92, 61, 38),
+}
+
+#: Every shipped (or accepted-as-shipped) bowl, with the *exact* rim/foot/
+#: height/palette it was rendered with — the only way `--rim`/`--foot`/
+#: `--height`/`--mid` free-form flags don't leave a render unreproducible
+#: is to write the values down here once the render is accepted.
+PRESETS = {
+    "shop_empty_bowl": {
+        # The small bowl's own generator (PR #86) was never committed, so
+        # this is a *reproduction*, not the shipped PNG byte-for-byte: it
+        # comes out 67x56 vs. the shipped 66x55 (1px rounding) with softer
+        # shading. Accepted by the art director because the difference
+        # washes out at the 1x size this sprite actually ships at — see
+        # commit 5a239eb. Uses this script's own DEFAULT_PALETTE, since
+        # there was no shipped generator to match a palette against.
+        "rim": 0.24,
+        "foot": 0.15,
+        "height": 0.10,
+        "palette": dict(DEFAULT_PALETTE),
+    },
+    "shop_large_empty_bowl": {
+        # The exact palette shop_large_empty_bowl.png (in
+        # Resources/Assets.xcassets/shop/) was rendered with — "a slightly
+        # richer glaze tone" than the small bowl per commit 5a239eb, spelled
+        # out here so that description is no longer the only record of it.
+        "rim": 0.38,
+        "foot": 0.24,
+        "height": 0.16,
+        "palette": {
+            "mid": (140, 88, 50),
+            "highlight": (172, 116, 68),
+            "shadow": (98, 58, 34),
+        },
+    },
 }
 
 
@@ -263,17 +306,32 @@ def _parse_rgb(text):
 
 def main():
     parser = argparse.ArgumentParser(prog="bowl2d.py")
-    parser.add_argument("--rim", type=float, required=True, help="rim diameter, grid units")
-    parser.add_argument("--foot", type=float, required=True, help="foot diameter, grid units")
-    parser.add_argument("--height", type=float, required=True, help="rim-to-foot rise, grid units")
-    parser.add_argument("--name", required=True, help="output basename under tools/isorender/out/")
-    parser.add_argument("--mid", type=_parse_rgb, help="body mid-tone, R,G,B")
-    parser.add_argument("--highlight", type=_parse_rgb, help="upper-right highlight, R,G,B")
-    parser.add_argument("--shadow", type=_parse_rgb, help="lower-left shadow, R,G,B")
+    parser.add_argument(
+        "--preset", choices=sorted(PRESETS), help="a named PRESETS entry — records rim/foot/height/palette"
+    )
+    parser.add_argument("--rim", type=float, help="rim diameter, grid units (overrides --preset's)")
+    parser.add_argument("--foot", type=float, help="foot diameter, grid units (overrides --preset's)")
+    parser.add_argument("--height", type=float, help="rim-to-foot rise, grid units (overrides --preset's)")
+    parser.add_argument("--name", help="output basename under tools/isorender/out/ (defaults to --preset)")
+    parser.add_argument("--mid", type=_parse_rgb, help="body mid-tone, R,G,B (overrides --preset's)")
+    parser.add_argument("--highlight", type=_parse_rgb, help="upper-right highlight, R,G,B (overrides --preset's)")
+    parser.add_argument("--shadow", type=_parse_rgb, help="lower-left shadow, R,G,B (overrides --preset's)")
     parser.add_argument("--out-dir", default=OUT_DIR)
     args = parser.parse_args()
 
-    palette = {}
+    if args.preset:
+        spec = PRESETS[args.preset]
+        rim = spec["rim"] if args.rim is None else args.rim
+        foot = spec["foot"] if args.foot is None else args.foot
+        height = spec["height"] if args.height is None else args.height
+        name = args.name or args.preset
+        palette = dict(spec["palette"])
+    else:
+        if args.rim is None or args.foot is None or args.height is None or not args.name:
+            parser.error("either --preset, or all of --rim/--foot/--height/--name, are required")
+        rim, foot, height, name = args.rim, args.foot, args.height, args.name
+        palette = {}
+
     if args.mid:
         palette["mid"] = args.mid
     if args.highlight:
@@ -281,7 +339,7 @@ def main():
     if args.shadow:
         palette["shadow"] = args.shadow
 
-    build(args.rim, args.foot, args.height, args.name, palette=palette or None, out_dir=args.out_dir)
+    build(rim, foot, height, name, palette=palette or None, out_dir=args.out_dir)
 
 
 if __name__ == "__main__":
