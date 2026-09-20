@@ -21,6 +21,11 @@ public final class GameStore: ObservableObject {
 
     private let defaults: UserDefaults
     private var cookAccumulators: [Double] = [0, 0, 0];   // per-menu
+    /// In-flight manual (tap) cook progress (0..<1), keyed by menu index —
+    /// presence of a key means a manual cook is running for that index.
+    /// Transient like `cookAccumulators`: not part of `StallState`'s
+    /// Codable keys, so a cook in flight when the app dies is simply lost.
+    private var manualCookProgress: [Int: Double] = [:]
     private var cashierAccumulator: Double = 0
     private var activitySaveTimer: Double = 0            // flush lastActiveDate + earningRate to disk every 5s
     private var earningWindowCoins: Double = 0           // coins earned in current 5s window
@@ -211,6 +216,24 @@ public final class GameStore: ObservableObject {
             }
         }
 
+        // Manual (tap) cook: one running session per menu index, advanced
+        // at the fixed `manualCookRate` (slower than any hired cook — see
+        // its own doc comment). Unlike the auto-cook loop above, a session
+        // produces at most one portion, so this checks the threshold once
+        // rather than draining it in a `while`. Preconditions are
+        // re-checked at completion, not just at start — the warehouse can
+        // empty or stock can fill while the cook is running, in which case
+        // it ends without producing.
+        for menuIndex in manualCookProgress.keys.sorted() {
+            manualCookProgress[menuIndex, default: 0] += Self.manualCookRate * deltaTime
+            guard manualCookProgress[menuIndex] ?? 0 >= 1.0 else { continue }
+            manualCookProgress[menuIndex] = nil
+            guard canManualCook(menuIndex: menuIndex) else { continue }
+            stall.warehouse -= 1
+            stall.menuStock[menuIndex] += 1
+            save()
+        }
+
         // Cashier auto-collect pendingCoins
         if stall.cashierCount > 0, stall.pendingCoins > 0 {
             cashierAccumulator += deltaTime
@@ -308,8 +331,23 @@ public final class GameStore: ObservableObject {
     /// there draining it back down — so a caller reading it mid-tick must
     /// not see a raw value past 1. An out-of-range index reads as 0.
     public func cookProgress(menuIndex: Int) -> Double {
+        // A manual cook running with no dedicated cook assigned owns the
+        // gauge — once a cook is hired for this menu, the auto-cook
+        // accumulator is the one actually producing, so it takes over
+        // display even if a manual session happens to still be in flight.
+        let hasDedicatedCook = menuIndex < stall.menuCooks.count && stall.menuCooks[menuIndex] > 0
+        if !hasDedicatedCook, let manual = manualCookProgress[menuIndex] {
+            return min(max(manual, 0), 1)
+        }
         guard cookAccumulators.indices.contains(menuIndex) else { return 0 }
         return min(max(cookAccumulators[menuIndex], 0), 1)
+    }
+
+    /// Whether a manual (tap) cook is currently running for `menuIndex` —
+    /// lets a caller show the gauge even in the first instant after
+    /// starting, before `cookProgress` has anything above 0 to report.
+    public func isManualCookRunning(menuIndex: Int) -> Bool {
+        manualCookProgress[menuIndex] != nil
     }
 
     /// Energy levels for each menu cook slot (0.0–1.0).
@@ -334,16 +372,27 @@ public final class GameStore: ObservableObject {
         }
     }
 
-    /// Manually cook 1 item for the given menu (regardless of cook assignment).
-    public func manualCook(menuIndex: Int) {
+    /// Starts a timed manual cook for `menuIndex` (a tap on its bowl) if
+    /// one isn't already running there; `tick` advances it and lands the
+    /// portion on completion. Returns whether it actually started, so a
+    /// caller (the tap handler) knows whether to play accept feedback —
+    /// tapping again mid-cook is a no-op.
+    @discardableResult
+    public func startManualCook(menuIndex: Int) -> Bool {
+        guard manualCookProgress[menuIndex] == nil, canManualCook(menuIndex: menuIndex) else { return false }
+        manualCookProgress[menuIndex] = 0
+        return true
+    }
+
+    /// Preconditions a manual cook needs both to start and, since the
+    /// warehouse or stock can change while one is running, to actually
+    /// produce at completion.
+    private func canManualCook(menuIndex: Int) -> Bool {
         let maxStock = EarningsSystem.maxStock(for: stall)
-        guard menuIndex <= stall.menuTier,
-              menuIndex < stall.menuStock.count,
-              stall.warehouse > 0,
-              stall.menuStock[menuIndex] < maxStock else { return }
-        stall.warehouse    -= 1
-        stall.menuStock[menuIndex] += 1
-        save()
+        return menuIndex <= stall.menuTier
+            && menuIndex < stall.menuStock.count
+            && stall.warehouse > 0
+            && stall.menuStock[menuIndex] < maxStock
     }
 
     /// Cooks 1 item for each menu that has no dedicated cook assigned.
@@ -373,6 +422,12 @@ public final class GameStore: ObservableObject {
         // tier2 (×4.0) → 0.28/s  ~3.6s per item
         // tier3 (×7.0) → 0.49/s  ~2s per item
     }
+
+    /// Items per second a manual (tap) cook produces — one portion per
+    /// 10s. Deliberately below tier-1's auto-cook rate (0.14/s, ~7s/item):
+    /// staff has to buy both speed and automation, so tap-spamming a bowl
+    /// can never outpace hiring the cheapest cook.
+    private static let manualCookRate: Double = 0.10
 
     /// Human-readable cook speed label for the given tier.
     public static func cookSpeedLabel(forTier tier: Int) -> String {

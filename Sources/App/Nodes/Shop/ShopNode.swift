@@ -652,6 +652,38 @@ final class ShopNode: SKNode {
         cookGaugeNode?.update(progress: progress, isVisible: isVisible)
     }
 
+    /// Smallest side length a tap target may have, independent of a
+    /// sprite's own measured size — HIG's 44pt minimum. The small bowl's
+    /// own frame (~22×18pt) is well under it, so `smallBowlContains` pads
+    /// the *hit test* out to this, leaving the sprite itself untouched.
+    private static let minimumTouchTarget: CGFloat = 44
+
+    /// Whether `scenePoint` (a touch location in the owning scene's
+    /// coordinate space, as `SKScene.touchesEnded` reports it) falls
+    /// within the small bowl's tap target. `MainStallScene` hit-tests
+    /// through here rather than reaching into `tableItemsBySlot` itself,
+    /// keeping this node the only thing that knows the bowl's frame.
+    func smallBowlContains(_ scenePoint: CGPoint) -> Bool {
+        guard let scene, let bowlItem = tableItemsBySlot[Self.smallBowl.slotIndex] else { return false }
+        let localPoint = convert(scenePoint, from: scene)
+        let frame = bowlItem.frame
+        let width = max(frame.width, Self.minimumTouchTarget)
+        let height = max(frame.height, Self.minimumTouchTarget)
+        let hitArea = CGRect(x: frame.midX - width / 2, y: frame.midY - height / 2, width: width, height: height)
+        return hitArea.contains(localPoint)
+    }
+
+    /// Accept-tap feedback on the small bowl: scales up and back over
+    /// ~0.12s. Only ever called from an accepted tap, never per-frame, so
+    /// building a fresh `SKAction` here each time is fine.
+    func pulseSmallBowl() {
+        guard let bowlItem = tableItemsBySlot[Self.smallBowl.slotIndex] else { return }
+        bowlItem.run(.sequence([
+            .scale(to: 1.08, duration: 0.06),
+            .scale(to: 1.0, duration: 0.06),
+        ]))
+    }
+
     private func westVertex(col: Int, row: Int, on grid: IsoGrid) -> CGPoint {
         let center = grid.point(col: col, row: row)
         return CGPoint(x: center.x - grid.tileWidth / 2, y: center.y)
