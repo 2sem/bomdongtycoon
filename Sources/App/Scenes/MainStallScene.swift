@@ -34,6 +34,12 @@ final class MainStallScene: SKScene {
         fittingTo: GroundLayer.grid
     )
 
+    /// Last tier `shop.applyMenuTier` ran with. `nil` can't match a real
+    /// tier, so the first `updateShopMenuTier()` call always applies —
+    /// needed even before any tier change, e.g. loading a save already at
+    /// tier 2.
+    private var lastAppliedMenuTier: Int?
+
     /// Pans the world; `GroundLayer.worldBounds` clamps how far (see
     /// `clampCameraPosition()`) — "the map data" (`GroundLayer.map` plus
     /// its margin) is what actually limits the scrollable area, not the
@@ -93,8 +99,17 @@ final class MainStallScene: SKScene {
         // kitchenLayer.layout(for: frame.size)
 
         addChild(shop)
+        updateShopMenuTier()
 
         clampCameraPosition()
+    }
+
+    /// Toggles the prep table's items for `store.stall.menuTier`, only
+    /// when it actually changed — avoids poking `isHidden` every frame.
+    private func updateShopMenuTier() {
+        guard let tier = store?.stall.menuTier, tier != lastAppliedMenuTier else { return }
+        shop.applyMenuTier(tier)
+        lastAppliedMenuTier = tier
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -146,6 +161,8 @@ final class MainStallScene: SKScene {
         let rawDelta = lastUpdateTime == 0 ? 0 : currentTime - lastUpdateTime
         let delta = min(rawDelta, Self.maxDelta)
         lastUpdateTime = currentTime
+
+        updateShopMenuTier()
 
         Task { @MainActor [weak self] in
             guard let self, let store = self.store else { return }

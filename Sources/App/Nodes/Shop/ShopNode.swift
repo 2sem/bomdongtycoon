@@ -217,6 +217,14 @@ final class ShopNode: SKNode {
 
     let placement: ShopPlacement
 
+    /// Table items built by `buildTableItem`, keyed by their own
+    /// `TableItemSpec.slotIndex` — what `applyMenuTier` toggles
+    /// `isHidden` on. Starts empty and every item starts visible
+    /// (`isHidden` defaults to `false`), so a caller that never applies a
+    /// tier — `ShopWallsPreviewScene` — shows the full set rather than an
+    /// empty table.
+    private var tableItemsBySlot: [Int: ShopPropSpriteNode] = [:]
+
     /// Painter's-order slot within a cell: ground, then walls back <
     /// right < left < front, so the wall nearer the camera wins where
     /// two meet at a shared corner; `prop` sits above all four so
@@ -326,9 +334,10 @@ final class ShopNode: SKNode {
         // pair's combined half-widths: small bowl 0.24 across vs. large
         // bowl 0.38 (0.12 + 0.19 = 0.31), large bowl vs. daejeop bowl 0.45
         // (0.19 + 0.225 = 0.415) — so no two footprints ever reach each other.
-        buildTableItem(Self.smallBowl, standingOn: table, footprintCellSum: prepTableFootprint.nearestCellSum, on: grid)
-        buildTableItem(Self.largeBowl, standingOn: table, footprintCellSum: prepTableFootprint.nearestCellSum, on: grid)
-        buildTableItem(Self.daejeopBowl, standingOn: table, footprintCellSum: prepTableFootprint.nearestCellSum, on: grid)
+        for spec in [Self.smallBowl, Self.largeBowl, Self.daejeopBowl] {
+            let item = buildTableItem(spec, standingOn: table, footprintCellSum: prepTableFootprint.nearestCellSum, on: grid)
+            tableItemsBySlot[spec.slotIndex] = item
+        }
 
         if openings.isSuperset(of: Self.requiredCashCounterOpenings(width: width)) {
             let cashCounterFootprint = cashCounterFootprint
@@ -583,6 +592,18 @@ final class ShopNode: SKNode {
         item.zPosition = Self.zPosition(cellSum: footprintCellSum, slot: .onProp)
         addChild(item)
         return item
+    }
+
+    /// Shows/hides table items by menu tier: slot index and menu index are
+    /// the same number by construction (`smallBowl`/`largeBowl`/`daejeopBowl`
+    /// claim slots 0/1/2 for exactly the menus — 겉절이/봄동김치/봄동비빔밥—
+    /// that unlock them), so gating each item on `slotIndex <= tier` gates
+    /// it on the menu it belongs to directly, with no separate threshold
+    /// table to keep in sync.
+    func applyMenuTier(_ tier: Int) {
+        for (slotIndex, item) in tableItemsBySlot {
+            item.isHidden = slotIndex > tier
+        }
     }
 
     private func westVertex(col: Int, row: Int, on grid: IsoGrid) -> CGPoint {
