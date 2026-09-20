@@ -118,6 +118,26 @@ PRESETS = {
             "shadow": (98, 58, 34),
         },
     },
+    "shop_empty_pot": {
+        # Slot 2 (the prep table's high-row end) — a cooking pot, not a
+        # third bowl. Rim/foot are close together (1.15:1, vs. the bowls'
+        # ~1.6:1) for straight sides, and height/width is 0.8 vs. the
+        # bowls' ~0.42, so it reads tall and cylindrical next to their
+        # wide, flared silhouettes. Rim 0.30 keeps it narrower than
+        # shop_large_empty_bowl (0.38, the widest prop on the table) with
+        # clear air either side of its 0.583-grid-unit slot. Palette is
+        # the same warm glazed-earthenware family as both bowls (between
+        # the two shipped mid-tones), deliberately not a metal/cast-iron
+        # read, per the art director's set-coherence call.
+        "rim": 0.30,
+        "foot": 0.26,
+        "height": 0.24,
+        "palette": {
+            "mid": (132, 87, 50),
+            "highlight": (162, 112, 66),
+            "shadow": (90, 57, 35),
+        },
+    },
 }
 
 
