@@ -147,6 +147,40 @@ PRESETS = {
             "shadow": (58, 68, 82),        # blue-grey shadow side, cooler & darker than mid
         },
     },
+    "shop_daejeop_bowl": {
+        # A large ceramic mixing/serving bowl (대접) for the shop's slot 2,
+        # replacing shop_empty_pot there (that preset and its art stay in
+        # the repo, just unused). Third vessel in the warm glazed-
+        # earthenware family on purpose, but it must read as *deeper and
+        # steeper-walled* than a scaled-up shop_large_empty_bowl, not just
+        # bigger — a mixing bowl, not a serving plate.
+        #
+        # Both shipped bowls sit at rim:foot ~1.6 and height:rim ~0.42 (a
+        # shallow, flared profile). This one is rim:foot 1.41 (0.45/0.32 —
+        # less taper, steeper wall) and height:rim 0.53 (0.24/0.45 —
+        # noticeably deeper). Rim 0.45 is the widest vessel in the set on
+        # purpose, the visible size step up from 0.38; still clears the
+        # 0.583-grid-unit slot spacing against shop_large_empty_bowl in
+        # slot 1 (0.19 + 0.225 = 0.415 combined half-width, well under
+        # 0.583).
+        #
+        # Palette is the same brown family but deliberately not the
+        # midpoint of the two shipped bowls' values (which would read as a
+        # straight re-scale) — darker and a shade more saturated, since a
+        # bigger mixing vessel reads better with a richer, less "clean"
+        # glaze than the two shallow serving bowls. mid (122,76,42) is
+        # darker than both shop_empty_bowl (130,90,55) and
+        # shop_large_empty_bowl (140,88,50); highlight/shadow follow the
+        # same darker-and-richer direction.
+        "rim": 0.45,
+        "foot": 0.32,
+        "height": 0.24,
+        "palette": {
+            "mid": (122, 76, 42),
+            "highlight": (162, 108, 58),
+            "shadow": (76, 46, 24),
+        },
+    },
 }
 
 
