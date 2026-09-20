@@ -14,16 +14,26 @@ final class ShopCookGaugeNode: SKNode {
     let width: CGFloat
     let height: CGFloat
 
-    private static let fillColor = SKColor(red: 0.15, green: 0.55, blue: 0.25, alpha: 1)
-    private static let strokeColor = SKColor(red: 0.10, green: 0.38, blue: 0.18, alpha: 1)
+    // Deliberately not CookButtonNode's greens: that button is 110×50pt on a
+    // plain background, where a mid-dark green reads fine. This bar is
+    // 26×6pt sitting on a brown bowl/table against green ground tiles, so a
+    // green fill has neither hue nor value separation from what's behind
+    // it. Amber sits opposite the ground's green in hue and well above the
+    // bowl/table in luminance, separating on both axes; the near-opaque
+    // dark track and near-black stroke keep the empty portion and the edge
+    // readable against light and dark art alike. Do not "fix" this back to
+    // match the button — the two contexts need different palettes on purpose.
+    private static let fillColor = SKColor(red: 1.0, green: 0.69, blue: 0.13, alpha: 1)
+    private static let trackColor = SKColor(red: 0.10, green: 0.09, blue: 0.08, alpha: 0.85)
+    private static let strokeColor = SKColor(white: 0.05, alpha: 1)
 
     /// Same derivation every isorender prop in this catalog uses —
     /// `grid.tileWidth` divided by its own reference tile width — so a
     /// hand-drawn shape (no native pixel size to scale from) still holds
-    /// its ~26×5pt proportions if the grid is retuned.
+    /// its ~26×6pt proportions if the grid is retuned.
     private static let referenceTileWidth: CGFloat = 126
     private static let referenceWidth: CGFloat = 26
-    private static let referenceHeight: CGFloat = 5
+    private static let referenceHeight: CGFloat = 6
 
     init(fittingTo grid: IsoGrid) {
         width = grid.tileWidth * (Self.referenceWidth / Self.referenceTileWidth)
@@ -35,7 +45,7 @@ final class ShopCookGaugeNode: SKNode {
             roundedRect: CGRect(x: -width / 2, y: -height / 2, width: width, height: height),
             cornerWidth: corner, cornerHeight: corner, transform: nil
         )
-        track.fillColor = SKColor(white: 0, alpha: 0.35)
+        track.fillColor = Self.trackColor
         track.strokeColor = Self.strokeColor
         track.lineWidth = 1
         addChild(track)

@@ -52,6 +52,17 @@ final class MainStallScene: SKScene {
     /// the baseline rather than jumping the camera).
     private var lastPanLocation: CGPoint?
 
+    /// The touch's location when it began — unlike `lastPanLocation`,
+    /// which chases the finger on every move, this stays put so
+    /// `touchesEnded` can measure the touch's *total* travel and tell a
+    /// tap from a pan, even though the same touch drives both.
+    private var touchStartLocation: CGPoint?
+
+    /// Below this much total movement, a touch counts as a tap rather
+    /// than a pan — small enough not to swallow real drags, large enough
+    /// to absorb a finger's natural wobble while resting on the glass.
+    private static let tapSlop: CGFloat = 10
+
     override func didMove(to view: SKView) {
         backgroundColor = GroundTile.fillColor
 
@@ -117,11 +128,16 @@ final class MainStallScene: SKScene {
     /// unlike `updateShopMenuTier`'s tier, progress changes continuously, so
     /// there's no "did it change" guard to skip on.
     private func updateShopCookGauge() {
-        guard let stall = store?.stall else { return }
+        guard let store else { return }
+        let stall = store.stall
         let hasCook = stall.menuCooks.indices.contains(0) && stall.menuCooks[0] > 0
         let hasStock = stall.menuStock.indices.contains(0) && stall.menuStock[0] > 0
-        let progress = store?.cookProgress(menuIndex: 0) ?? 0
-        shop.updateCookGauge(progress: progress, isVisible: hasCook || hasStock)
+        // A manual (tap) cook with no dedicated cook and no stock yet must
+        // still show the gauge, or the player taps the bowl and sees
+        // nothing happen until the first portion lands.
+        let hasManualCook = store.isManualCookRunning(menuIndex: 0)
+        let progress = store.cookProgress(menuIndex: 0)
+        shop.updateCookGauge(progress: progress, isVisible: hasCook || hasStock || hasManualCook)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -144,7 +160,9 @@ final class MainStallScene: SKScene {
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        lastPanLocation = touches.first?.location(in: self)
+        let location = touches.first?.location(in: self)
+        lastPanLocation = location
+        touchStartLocation = location
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -162,11 +180,31 @@ final class MainStallScene: SKScene {
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if let touch = touches.first, let start = touchStartLocation {
+            let location = touch.location(in: self)
+            let dx = location.x - start.x
+            let dy = location.y - start.y
+            if dx * dx + dy * dy <= Self.tapSlop * Self.tapSlop {
+                handleTap(at: location)
+            }
+        }
         lastPanLocation = nil
+        touchStartLocation = nil
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         lastPanLocation = nil
+        touchStartLocation = nil
+    }
+
+    /// Accepts a tap on the small bowl (menu index 0): starts its timed
+    /// manual cook and, only if that actually started one, plays the
+    /// accept pulse — a tap while a cook is already running does nothing,
+    /// visibly as well as mechanically.
+    private func handleTap(at location: CGPoint) {
+        guard shop.smallBowlContains(location) else { return }
+        guard store?.startManualCook(menuIndex: 0) == true else { return }
+        shop.pulseSmallBowl()
     }
 
     override func update(_ currentTime: TimeInterval) {

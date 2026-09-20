@@ -37,7 +37,7 @@ final class GameStoreTests: XCTestCase {
         // Seed a plot as ready and assign a worker — tick should harvest into warehouse
         store.farm.plots[0].growth = 1.0
         store.farm.plots[0].isPlanted = true
-        store.farm.plots[0].hasWorker = true
+        store.farm.plots[0].workerType = .alba
         let warehouseBefore = store.stall.warehouse
         store.tick(deltaTime: 0.0)  // deltaTime irrelevant — worker harvests on every tick
         XCTAssertGreaterThan(store.stall.warehouse, warehouseBefore)
@@ -55,7 +55,7 @@ final class GameStoreTests: XCTestCase {
     func test_applyOfflineEarnings_updatesCoins() {
         // Set lastActiveDate to 1 hour ago so OfflineProgressSystem produces earnings
         store.progress.lastActiveDate = Date().addingTimeInterval(-3600)
-        store.applyOfflineEarnings()
+        store.calculateOfflineEarnings()
         XCTAssertGreaterThan(store.offlineEarnings, 0)
     }
 
@@ -72,5 +72,58 @@ final class GameStoreTests: XCTestCase {
         store.purchaseUpgrade(.staff)
         XCTAssertEqual(store.stall.coins, 10, accuracy: 0.001)
         XCTAssertEqual(store.stall.staffTier, 0)
+    }
+
+    // MARK: - Manual (tap) cook
+
+    func test_startManualCook_thenTick_landsOnePortionAfterTenSeconds() {
+        // The default save's plot 0 auto-harvests on its own (see
+        // `FarmState.init`) and would add back to the warehouse mid-test,
+        // masking the manual cook's own -1 — unassign it so this test
+        // isolates the manual-cook path.
+        store.farm.plots[0].workerType = .none
+        let stockBefore = store.stall.menuStock[0]
+        let warehouseBefore = store.stall.warehouse
+
+        XCTAssertTrue(store.startManualCook(menuIndex: 0))
+        store.tick(deltaTime: 5.0)
+        // Halfway through the 10s cook — nothing has landed yet
+        XCTAssertEqual(store.stall.menuStock[0], stockBefore)
+        XCTAssertEqual(store.cookProgress(menuIndex: 0), 0.5, accuracy: 0.001)
+
+        store.tick(deltaTime: 5.0)
+        XCTAssertEqual(store.stall.menuStock[0], stockBefore + 1)
+        XCTAssertEqual(store.stall.warehouse, warehouseBefore - 1)
+        XCTAssertFalse(store.isManualCookRunning(menuIndex: 0))
+    }
+
+    func test_startManualCook_calledTwice_onlyOnePortionLands() {
+        store.farm.plots[0].workerType = .none   // isolate from farm auto-harvest — see previous test
+        let stockBefore = store.stall.menuStock[0]
+
+        XCTAssertTrue(store.startManualCook(menuIndex: 0))
+        // Already running — a second start (e.g. a repeat tap) is a no-op
+        XCTAssertFalse(store.startManualCook(menuIndex: 0))
+
+        store.tick(deltaTime: 10.0)
+        XCTAssertEqual(store.stall.menuStock[0], stockBefore + 1)
+
+        // No second cook was queued behind the first, so a further tick
+        // produces nothing more
+        store.tick(deltaTime: 10.0)
+        XCTAssertEqual(store.stall.menuStock[0], stockBefore + 1)
+    }
+
+    func test_startManualCook_warehouseEmptiesBeforeCompletion_producesNothing() {
+        store.farm.plots[0].workerType = .none   // isolate from farm auto-harvest — see first test
+        store.stall.warehouse = 1
+        let stockBefore = store.stall.menuStock[0]
+
+        XCTAssertTrue(store.startManualCook(menuIndex: 0))
+        store.stall.warehouse = 0   // drained by something else mid-cook
+        store.tick(deltaTime: 10.0)
+
+        XCTAssertEqual(store.stall.menuStock[0], stockBefore)
+        XCTAssertFalse(store.isManualCookRunning(menuIndex: 0))
     }
 }
