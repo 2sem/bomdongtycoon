@@ -100,6 +100,7 @@ final class MainStallScene: SKScene {
 
         addChild(shop)
         updateShopMenuTier()
+        updateShopCookGauge()
 
         clampCameraPosition()
     }
@@ -110,6 +111,17 @@ final class MainStallScene: SKScene {
         guard let tier = store?.stall.menuTier, tier != lastAppliedMenuTier else { return }
         shop.applyMenuTier(tier)
         lastAppliedMenuTier = tier
+    }
+
+    /// Pushes menu-0 cook progress into the small-bowl gauge every frame —
+    /// unlike `updateShopMenuTier`'s tier, progress changes continuously, so
+    /// there's no "did it change" guard to skip on.
+    private func updateShopCookGauge() {
+        guard let stall = store?.stall else { return }
+        let hasCook = stall.menuCooks.indices.contains(0) && stall.menuCooks[0] > 0
+        let hasStock = stall.menuStock.indices.contains(0) && stall.menuStock[0] > 0
+        let progress = store?.cookProgress(menuIndex: 0) ?? 0
+        shop.updateCookGauge(progress: progress, isVisible: hasCook || hasStock)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -163,6 +175,7 @@ final class MainStallScene: SKScene {
         lastUpdateTime = currentTime
 
         updateShopMenuTier()
+        updateShopCookGauge()
 
         Task { @MainActor [weak self] in
             guard let self, let store = self.store else { return }

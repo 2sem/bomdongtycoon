@@ -302,8 +302,15 @@ public final class GameStore: ObservableObject {
 
     // MARK: - Manual cook
 
-    /// Auto-cook accumulators exposed for progress bar display (0.0–1.0 each).
-    public var cookProgress: [Double] { cookAccumulators }
+    /// Progress toward `menuIndex`'s next portion, for gauge display. Clamped
+    /// to 0...1 because the accumulator can sit briefly above 1.0 — between
+    /// the `tick` that pushes it over the threshold and the `while` loop
+    /// there draining it back down — so a caller reading it mid-tick must
+    /// not see a raw value past 1. An out-of-range index reads as 0.
+    public func cookProgress(menuIndex: Int) -> Double {
+        guard cookAccumulators.indices.contains(menuIndex) else { return 0 }
+        return min(max(cookAccumulators[menuIndex], 0), 1)
+    }
 
     /// Energy levels for each menu cook slot (0.0–1.0).
     public var menuCookEnergies: [Double] { stall.menuCookEnergy }
