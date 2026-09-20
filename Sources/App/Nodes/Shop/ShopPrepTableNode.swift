@@ -17,8 +17,8 @@ final class ShopPrepTableNode: SKSpriteNode {
     private static let baseAnchor = CGPoint(x: 0.5, y: 0.38919)
 
     /// Same table, base-center and top-center y only, top-left origin
-    /// (196.07, 132.93) — not `private`, so `ShopNode.buildBowl` can turn
-    /// their difference into the bowl's stand-on-table offset, the same
+    /// (196.07, 132.93) — not `private`, so `ShopNode.buildTableItem` can
+    /// turn their difference into an item's stand-on-table offset, the same
     /// way the cash counter's own base/top-center y feed the register.
     static let baseCenterY: CGFloat = 196.07
     static let topCenterY: CGFloat = 132.93
@@ -49,13 +49,13 @@ final class ShopPrepTableNode: SKSpriteNode {
     static let worktopDepth: CGFloat = 1.75
 
     /// Equal-length slots along the worktop, for anything that stands on this table (the
-    /// bowl today; a second bowl or a pot later) to claim a position without redoing the
+    /// small bowl, the large bowl, and the pot) to claim a position without redoing the
     /// worktop math itself.
     static let slotCount = 3
 
     /// Row offset of slot `index`'s centre from this table's own footprint-centre row
     /// (`footprintCenterOffset.row`). Slot 0 is the worktop's low-row end — the end that
-    /// reads as screen-right, next to the windowed wall (see `ShopNode.buildBowl`'s
+    /// reads as screen-right, next to the windowed wall (see `ShopNode.buildTableItem`'s
     /// placement comment for why low row is screen-right).
     ///
     /// An `index` outside `0..<slotCount` is a caller mistake — same class of error as an

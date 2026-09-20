@@ -205,6 +205,16 @@ final class ShopNode: SKNode {
         slotIndex: 1
     )
 
+    /// Camera-matrix measurement table (3× render), used as printed:
+    /// trimmed 83×99, base-center pixel (41.5, 76.23). Stands in the
+    /// worktop's high-row end (slot 2), opposite the small bowl.
+    private static let pot = TableItemSpec(
+        imageName: "shop_empty_pot",
+        nativeSize: CGSize(width: 83, height: 99),
+        baseCenterPixel: CGPoint(x: 41.5, y: 76.23),
+        slotIndex: 2
+    )
+
     let placement: ShopPlacement
 
     /// Painter's-order slot within a cell: ground, then walls back <
@@ -310,12 +320,15 @@ final class ShopNode: SKNode {
         let prepTableFootprint = prepTableFootprint
             ?? Self.defaultPrepTableFootprint(colRange: colRange, rowRange: rowRange)
         let table = buildPrepTable(footprint: prepTableFootprint, on: grid)
-        // Both bowls draw at `.onProp` on the same `nearestCellSum`, so they
-        // tie on zPosition — harmless since slot 0 and slot 1 (0.583 apart,
-        // centre to centre) never overlap: the small bowl is 0.24 across,
-        // the large one 0.38.
+        // All three items draw at `.onProp` on the same `nearestCellSum`, so
+        // they tie on zPosition — harmless because every slot is 0.583
+        // apart, centre to centre, which is wider than any neighbouring
+        // pair's combined half-widths: small bowl 0.24 across vs. large
+        // bowl 0.38 (0.12 + 0.19 = 0.31), large bowl vs. pot 0.30 (0.19 +
+        // 0.15 = 0.34) — so no two footprints ever reach each other.
         buildTableItem(Self.smallBowl, standingOn: table, footprintCellSum: prepTableFootprint.nearestCellSum, on: grid)
         buildTableItem(Self.largeBowl, standingOn: table, footprintCellSum: prepTableFootprint.nearestCellSum, on: grid)
+        buildTableItem(Self.pot, standingOn: table, footprintCellSum: prepTableFootprint.nearestCellSum, on: grid)
 
         if openings.isSuperset(of: Self.requiredCashCounterOpenings(width: width)) {
             let cashCounterFootprint = cashCounterFootprint
