@@ -160,31 +160,50 @@ final class ShopNode: SKNode {
     private static let cashRegisterNativeSize = CGSize(width: 95, height: 88)
     private static let cashRegisterBaseAnchor = CGPoint(x: 0.5, y: 0.33648)
 
-    /// Camera-matrix measurement table (3× render), used as printed:
-    /// trimmed 66×55, base-center pixel (32.57, 41.19) — top-left origin,
-    /// y down, where the bowl's foot touches whatever it stands on.
-    private static let bowlImageName = "shop_empty_bowl"
-    private static let bowlNativeSize = CGSize(width: 66, height: 55)
-    private static let bowlBaseCenterPixel = CGPoint(x: 32.57, y: 41.19)
+    /// One item's spec for `buildTableItem`: its art, native size, the
+    /// pixel where its base touches the worktop (top-left origin, y down —
+    /// every measurement table in this catalog reports pixels that way),
+    /// and which of `ShopPrepTableNode`'s worktop slots it claims.
+    private struct TableItemSpec {
+        let imageName: String
+        let nativeSize: CGSize
+        let baseCenterPixel: CGPoint
+        let slotIndex: Int
 
-    /// `anchorPoint` wants a fraction from the *bottom*; every measurement
-    /// table in this catalog (this one included) reports pixels from the
-    /// *top*. Deriving `1 − y / height` here, instead of pasting a
-    /// pre-flipped literal, keeps the flip visible — the hand-off's own
-    /// pre-flipped value (0.749, measured from the rim) would sink the
-    /// bowl into the table if it were used directly.
-    private static let bowlBaseAnchor = CGPoint(
-        x: bowlBaseCenterPixel.x / bowlNativeSize.width,
-        y: 1 - bowlBaseCenterPixel.y / bowlNativeSize.height
+        /// `anchorPoint` wants a fraction from the *bottom*; `baseCenterPixel`
+        /// is from the *top*. Deriving `1 − y / height` here, instead of
+        /// pasting a pre-flipped literal, keeps the flip visible — the small
+        /// bowl's own pre-flipped hand-off value (0.749, measured from the
+        /// rim) would sink it into the table if pasted directly.
+        var baseAnchor: CGPoint {
+            CGPoint(
+                x: baseCenterPixel.x / nativeSize.width,
+                y: 1 - baseCenterPixel.y / nativeSize.height
+            )
+        }
+    }
+
+    /// Camera-matrix measurement table (3× render), used as printed:
+    /// trimmed 66×55, base-center pixel (32.57, 41.19). Stands in the
+    /// worktop's low-row end (slot 0) — screen-right, next to the windowed
+    /// wall (see `buildTableItem`) — where the bowl was aligned in the
+    /// previous, ad-hoc placement.
+    private static let smallBowl = TableItemSpec(
+        imageName: "shop_empty_bowl",
+        nativeSize: CGSize(width: 66, height: 55),
+        baseCenterPixel: CGPoint(x: 32.57, y: 41.19),
+        slotIndex: 0
     )
 
-    /// Which of `ShopPrepTableNode`'s equal-length worktop slots the bowl
-    /// stands in. Slot 0 is the worktop's low-row end — screen-right, next
-    /// to the windowed wall (see `buildBowl`) — where the bowl was aligned
-    /// in the previous, ad-hoc placement; kept as a named default rather
-    /// than a bare `0` at the call site since a second prop standing on
-    /// this table later will want a different slot.
-    private static let bowlSlotIndex = 0
+    /// Camera-matrix measurement table (3× render), used as printed:
+    /// trimmed 104×87, base-center pixel (52.0, 65.98). Stands in the
+    /// worktop's middle slot (slot 1).
+    private static let largeBowl = TableItemSpec(
+        imageName: "shop_large_empty_bowl",
+        nativeSize: CGSize(width: 104, height: 87),
+        baseCenterPixel: CGPoint(x: 52.0, y: 65.98),
+        slotIndex: 1
+    )
 
     let placement: ShopPlacement
 
@@ -291,7 +310,12 @@ final class ShopNode: SKNode {
         let prepTableFootprint = prepTableFootprint
             ?? Self.defaultPrepTableFootprint(colRange: colRange, rowRange: rowRange)
         let table = buildPrepTable(footprint: prepTableFootprint, on: grid)
-        buildBowl(standingOn: table, footprintCellSum: prepTableFootprint.nearestCellSum, on: grid)
+        // Both bowls draw at `.onProp` on the same `nearestCellSum`, so they
+        // tie on zPosition — harmless since slot 0 and slot 1 (0.583 apart,
+        // centre to centre) never overlap: the small bowl is 0.24 across,
+        // the large one 0.38.
+        buildTableItem(Self.smallBowl, standingOn: table, footprintCellSum: prepTableFootprint.nearestCellSum, on: grid)
+        buildTableItem(Self.largeBowl, standingOn: table, footprintCellSum: prepTableFootprint.nearestCellSum, on: grid)
 
         if openings.isSuperset(of: Self.requiredCashCounterOpenings(width: width)) {
             let cashCounterFootprint = cashCounterFootprint
@@ -497,17 +521,16 @@ final class ShopNode: SKNode {
         addChild(register)
     }
 
-    /// Stands the bowl on `table`'s worktop, in slot `slotIndex` of
-    /// `ShopPrepTableNode`'s three worktop slots (default 0, the low-row
-    /// end). `IsoGrid.point` maps increasing row toward the screen's
-    /// lower-left, so the worktop's *low*-row end is the one that reads
-    /// as screen-*right* — the end next to the windowed wall, and slot 0
-    /// under `ShopPrepTableNode.slotCenterRowOffset`. The bowl's 0.24 rim
-    /// diameter comfortably clears a ~0.583-long slot either side.
+    /// Stands one item on `table`'s worktop, in `spec.slotIndex` of
+    /// `ShopPrepTableNode`'s three worktop slots. `IsoGrid.point` maps
+    /// increasing row toward the screen's lower-left, so the worktop's
+    /// *low*-row end is the one that reads as screen-*right* — the end
+    /// next to the windowed wall, and slot 0 under
+    /// `ShopPrepTableNode.slotCenterRowOffset`.
     ///
     /// The vertical lift is the same trick `buildCashRegister` uses for
     /// the register: the table's top-center and base-center share x =
-    /// 214.5, so lifting the bowl onto the worktop is a pure y offset, the
+    /// 214.5, so lifting an item onto the worktop is a pure y offset, the
     /// table's measured top-center-minus-base-center converted to points
     /// by `ShopPropSpriteNode.isorenderScale`.
     ///
@@ -521,28 +544,32 @@ final class ShopNode: SKNode {
     /// Z-ordered at `.onProp` on the table's own footprint sum, so it
     /// always draws above the table; every slot sits closer to row 0 than
     /// `nearestCellSum`'s corner, never past it, so draw order can't
-    /// change.
-    private func buildBowl(
+    /// change relative to the rest of the shop. Two items in different
+    /// slots tie on this zPosition — fine as long as their footprints
+    /// don't overlap (see the call site).
+    @discardableResult
+    private func buildTableItem(
+        _ spec: TableItemSpec,
         standingOn table: ShopPrepTableNode,
-        inSlot slotIndex: Int = ShopNode.bowlSlotIndex,
         footprintCellSum: Int,
         on grid: IsoGrid
-    ) {
-        let bowl = ShopPropSpriteNode(
-            imageName: Self.bowlImageName,
-            nativeSize: Self.bowlNativeSize,
-            baseAnchor: Self.bowlBaseAnchor,
+    ) -> ShopPropSpriteNode {
+        let item = ShopPropSpriteNode(
+            imageName: spec.imageName,
+            nativeSize: spec.nativeSize,
+            baseAnchor: spec.baseAnchor,
             fittingTo: grid
         )
         let topOffset = (ShopPrepTableNode.baseCenterY - ShopPrepTableNode.topCenterY)
             * ShopPropSpriteNode.isorenderScale(fittingTo: grid)
-        let alongTable = grid.point(col: 0, row: ShopPrepTableNode.slotCenterRowOffset(slotIndex))
-        bowl.position = CGPoint(
+        let alongTable = grid.point(col: 0, row: ShopPrepTableNode.slotCenterRowOffset(spec.slotIndex))
+        item.position = CGPoint(
             x: table.position.x + alongTable.x,
             y: table.position.y + topOffset + alongTable.y
         )
-        bowl.zPosition = Self.zPosition(cellSum: footprintCellSum, slot: .onProp)
-        addChild(bowl)
+        item.zPosition = Self.zPosition(cellSum: footprintCellSum, slot: .onProp)
+        addChild(item)
+        return item
     }
 
     private func westVertex(col: Int, row: Int, on grid: IsoGrid) -> CGPoint {
