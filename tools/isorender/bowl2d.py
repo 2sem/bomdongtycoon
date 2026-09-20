@@ -125,17 +125,26 @@ PRESETS = {
         # bowls' ~0.42, so it reads tall and cylindrical next to their
         # wide, flared silhouettes. Rim 0.30 keeps it narrower than
         # shop_large_empty_bowl (0.38, the widest prop on the table) with
-        # clear air either side of its 0.583-grid-unit slot. Palette is
-        # the same warm glazed-earthenware family as both bowls (between
-        # the two shipped mid-tones), deliberately not a metal/cast-iron
-        # read, per the art director's set-coherence call.
+        # clear air either side of its 0.583-grid-unit slot.
+        #
+        # Palette was originally the same warm glazed-earthenware family as
+        # both bowls, per the art director's set-coherence call — the user
+        # overrode that on review (it didn't read as a pot) and asked for
+        # stainless steel instead: cool grey body, near-white highlight,
+        # blue-grey shadow. The ink outline stays warm (INK is shared by
+        # every vessel, untouched here). Note this script's shading model
+        # (see `build()`) is a linear diffuse ramp across the whole
+        # rim-to-foot height, not a true specular term with a falloff
+        # curve — so "near-white highlight" below is an approximation of a
+        # tight specular band, not the real thing; it can only push the
+        # existing broad gradient toward metal via color choice alone.
         "rim": 0.30,
         "foot": 0.26,
         "height": 0.24,
         "palette": {
-            "mid": (132, 87, 50),
-            "highlight": (162, 112, 66),
-            "shadow": (90, 57, 35),
+            "mid": (140, 146, 152),        # cool neutral grey body, faint blue cast
+            "highlight": (238, 241, 243),  # near-white specular
+            "shadow": (58, 68, 82),        # blue-grey shadow side, cooler & darker than mid
         },
     },
 }
