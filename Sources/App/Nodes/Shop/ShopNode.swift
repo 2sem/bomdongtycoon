@@ -205,6 +205,16 @@ final class ShopNode: SKNode {
         slotIndex: 1
     )
 
+    /// Camera-matrix measurement table (3× render), used as printed:
+    /// trimmed 123×116, base-center pixel (61.5, 88.58). Stands in the
+    /// worktop's high-row end (slot 2), opposite the small bowl.
+    private static let daejeopBowl = TableItemSpec(
+        imageName: "shop_daejeop_bowl",
+        nativeSize: CGSize(width: 123, height: 116),
+        baseCenterPixel: CGPoint(x: 61.5, y: 88.58),
+        slotIndex: 2
+    )
+
     let placement: ShopPlacement
 
     /// Painter's-order slot within a cell: ground, then walls back <
@@ -310,12 +320,15 @@ final class ShopNode: SKNode {
         let prepTableFootprint = prepTableFootprint
             ?? Self.defaultPrepTableFootprint(colRange: colRange, rowRange: rowRange)
         let table = buildPrepTable(footprint: prepTableFootprint, on: grid)
-        // Both bowls draw at `.onProp` on the same `nearestCellSum`, so they
-        // tie on zPosition — harmless since slot 0 and slot 1 (0.583 apart,
-        // centre to centre) never overlap: the small bowl is 0.24 across,
-        // the large one 0.38.
+        // All three items draw at `.onProp` on the same `nearestCellSum`, so
+        // they tie on zPosition — harmless because every slot is 0.583
+        // apart, centre to centre, which is wider than any neighbouring
+        // pair's combined half-widths: small bowl 0.24 across vs. large
+        // bowl 0.38 (0.12 + 0.19 = 0.31), large bowl vs. daejeop bowl 0.45
+        // (0.19 + 0.225 = 0.415) — so no two footprints ever reach each other.
         buildTableItem(Self.smallBowl, standingOn: table, footprintCellSum: prepTableFootprint.nearestCellSum, on: grid)
         buildTableItem(Self.largeBowl, standingOn: table, footprintCellSum: prepTableFootprint.nearestCellSum, on: grid)
+        buildTableItem(Self.daejeopBowl, standingOn: table, footprintCellSum: prepTableFootprint.nearestCellSum, on: grid)
 
         if openings.isSuperset(of: Self.requiredCashCounterOpenings(width: width)) {
             let cashCounterFootprint = cashCounterFootprint
