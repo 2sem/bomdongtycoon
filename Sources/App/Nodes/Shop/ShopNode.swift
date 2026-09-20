@@ -225,6 +225,10 @@ final class ShopNode: SKNode {
     /// empty table.
     private var tableItemsBySlot: [Int: ShopPropSpriteNode] = [:]
 
+    /// The small-bowl cook gauge (menu index 0). `nil` until the small
+    /// bowl's own item exists to hang it off of — see the end of `init`.
+    private var cookGaugeNode: ShopCookGaugeNode?
+
     /// Painter's-order slot within a cell: ground, then walls back <
     /// right < left < front, so the wall nearer the camera wins where
     /// two meet at a shared corner; `prop` sits above all four so
@@ -337,6 +341,14 @@ final class ShopNode: SKNode {
         for spec in [Self.smallBowl, Self.largeBowl, Self.daejeopBowl] {
             let item = buildTableItem(spec, standingOn: table, footprintCellSum: prepTableFootprint.nearestCellSum, on: grid)
             tableItemsBySlot[spec.slotIndex] = item
+        }
+        if let smallBowlItem = tableItemsBySlot[Self.smallBowl.slotIndex] {
+            cookGaugeNode = buildCookGauge(
+                standingOn: smallBowlItem,
+                spec: Self.smallBowl,
+                footprintCellSum: prepTableFootprint.nearestCellSum,
+                on: grid
+            )
         }
 
         if openings.isSuperset(of: Self.requiredCashCounterOpenings(width: width)) {
@@ -594,6 +606,34 @@ final class ShopNode: SKNode {
         return item
     }
 
+    /// Sits the cook gauge just above the small bowl's rim: `bowlItem`'s
+    /// `position` is where `spec.baseAnchor` sits, so the rim is
+    /// `(1 - baseAnchor.y)` of the bowl's own screen height further up —
+    /// derived from the bowl's measurements rather than a guessed point
+    /// offset, per `spec`'s doc comment. One more bar-height of clearance
+    /// on top keeps the bar off the sprite itself.
+    ///
+    /// Z-ordered one `slotSpacing` step above `.onProp` on the same
+    /// `footprintCellSum` the bowl itself uses, so it always draws above
+    /// the bowl without needing its own `Slot` case.
+    private func buildCookGauge(
+        standingOn bowlItem: ShopPropSpriteNode,
+        spec: TableItemSpec,
+        footprintCellSum: Int,
+        on grid: IsoGrid
+    ) -> ShopCookGaugeNode {
+        let gauge = ShopCookGaugeNode(fittingTo: grid)
+        let bowlHeight = spec.nativeSize.height * ShopPropSpriteNode.isorenderScale(fittingTo: grid)
+        let rimOffset = bowlHeight * (1 - spec.baseAnchor.y)
+        gauge.position = CGPoint(
+            x: bowlItem.position.x,
+            y: bowlItem.position.y + rimOffset + gauge.height
+        )
+        gauge.zPosition = Self.zPosition(cellSum: footprintCellSum, slot: .onProp) + Self.slotSpacing / 2
+        addChild(gauge)
+        return gauge
+    }
+
     /// Shows/hides table items by menu tier: slot index and menu index are
     /// the same number by construction (`smallBowl`/`largeBowl`/`daejeopBowl`
     /// claim slots 0/1/2 for exactly the menus — 겉절이/봄동김치/봄동비빔밥—
@@ -604,6 +644,12 @@ final class ShopNode: SKNode {
         for (slotIndex, item) in tableItemsBySlot {
             item.isHidden = slotIndex > tier
         }
+    }
+
+    /// Feeds the small-bowl cook gauge; `MainStallScene` is the store-aware
+    /// caller, so this only forwards the numbers it already computed.
+    func updateCookGauge(progress: Double, isVisible: Bool) {
+        cookGaugeNode?.update(progress: progress, isVisible: isVisible)
     }
 
     private func westVertex(col: Int, row: Int, on grid: IsoGrid) -> CGPoint {
