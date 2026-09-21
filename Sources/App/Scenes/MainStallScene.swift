@@ -40,6 +40,15 @@ final class MainStallScene: SKScene {
     /// tier 2.
     private var lastAppliedMenuTier: Int?
 
+    /// Last fill state `shop.applyCookFill` ran with. `nil` can't match a
+    /// real `Bool`, so the first `updateShopCookGauge()` call always
+    /// applies — same reasoning as `lastAppliedMenuTier`. Unlike the
+    /// gauge's own `progress`, which changes continuously and pushes every
+    /// frame, this flips rarely (crossing the 0.5 threshold), so it's
+    /// worth guarding rather than assigning `isHidden` on two nodes every
+    /// frame for no visible change.
+    private var lastAppliedCookFill: Bool?
+
     /// Pans the world; `GroundLayer.worldBounds` clamps how far (see
     /// `clampCameraPosition()`) — "the map data" (`GroundLayer.map` plus
     /// its margin) is what actually limits the scrollable area, not the
@@ -124,9 +133,19 @@ final class MainStallScene: SKScene {
         lastAppliedMenuTier = tier
     }
 
-    /// Pushes menu-0 cook progress into the small-bowl gauge every frame —
-    /// unlike `updateShopMenuTier`'s tier, progress changes continuously, so
-    /// there's no "did it change" guard to skip on.
+    /// The small bowl reads as "filled" once a cook is more than half
+    /// done, and empty again the moment the portion completes and stock
+    /// is credited (`cookProgress` resets toward 0 on completion) — a
+    /// cooking vessel, not storage, so it does not stay full while stock
+    /// exists. Both a hired cook and the manual (tap) cook drive
+    /// `cookProgress`, so both fill the bowl.
+    private static let cookFillThreshold: Double = 0.5
+
+    /// Pushes menu-0 cook progress into the small-bowl gauge every frame,
+    /// and the derived fill state into the small bowl's frame toggle —
+    /// unlike the gauge's own `progress`, which changes continuously, the
+    /// fill boolean flips rarely, so `lastAppliedCookFill` guards it the
+    /// same way `updateShopMenuTier` guards the tier.
     private func updateShopCookGauge() {
         guard let store else { return }
         let stall = store.stall
@@ -138,6 +157,12 @@ final class MainStallScene: SKScene {
         let hasManualCook = store.isManualCookRunning(menuIndex: 0)
         let progress = store.cookProgress(menuIndex: 0)
         shop.updateCookGauge(progress: progress, isVisible: hasCook || hasStock || hasManualCook)
+
+        let isFilled = progress > Self.cookFillThreshold
+        if isFilled != lastAppliedCookFill {
+            shop.applyCookFill(isFilled)
+            lastAppliedCookFill = isFilled
+        }
     }
 
     override func didChangeSize(_ oldSize: CGSize) {

@@ -24,6 +24,35 @@ A palette passed by hand (`--rim`/`--foot`/`--height` free-form, as above)
 is not reproducible from this file alone — only a `PRESETS` entry is. Add
 one whenever a render's output actually ships.
 
+`build()` also takes two optional, independent parameters. Both default to
+`None`, and every existing preset renders byte-identical with both omitted:
+
+- `contents={"base": (r,g,b), "highlight": (r,g,b), "shadow": (r,g,b),
+  "flecks": [(r,g,b), ...], "seed": int, "fleck_count": int,
+  "fleck_radius_px": float}` — a broken-surface food fill seated flush with
+  the rim's top ellipse, inset inside the inner-rim line so that line still
+  reads as a ring around the food. `base` is the only required key;
+  `highlight`/`shadow` default to `base` (still gradient-lit in the same
+  upper-right light direction as the vessel, just monochrome if only `base`
+  is given). `flecks`/`seed` are optional — a small, deterministic scatter
+  of 1-3 alternate colors so the surface reads as chopped/mixed food rather
+  than a poured-in solid; `fleck_count` (default 10) and `fleck_radius_px`
+  (default 2.2, final-resolution px) tune how much of it shows. A `PRESETS`
+  entry drops this in as e.g.:
+  `"contents": {"base": (196, 214, 168), "highlight": (222, 236, 196),
+  "shadow": (140, 158, 112), "flecks": [(196, 60, 48), (150, 46, 36)],
+  "seed": 7}`.
+- `pin_to={"width": int, "height": int, "base_center": (x, y)}` — forces the
+  trimmed output onto an exact target pixel grid (typically a previously
+  shipped PNG's own dimensions and base-center) instead of whatever the
+  alpha-threshold `getbbox()` trim happens to produce, computed directly
+  from this render's own known rim-center/foot-center geometry rather than
+  by matching alpha edges. Use it to land a second frame of an existing
+  vessel (like a filled bowl) on that vessel's already-shipped pixel grid,
+  so swapping frames moves nothing on screen. A `PRESETS` entry drops this
+  in as e.g. `"pin_to": {"width": 66, "height": 55, "base_center": (32.57,
+  41.19)}`.
+
 See `tools/isorender/README.md` for where these projection constants come
 from; they are re-derived here only as much as needed to keep this file
 self-contained and reproducible.
@@ -66,6 +95,13 @@ INK = (34, 34, 34)  # outline core, sampled off the shipped shop_empty_bowl.png'
 OUTLINE_PX = 1.4  # final-resolution stroke width, independent of bowl size
 INNER_RIM_INSET_PX = 3.0  # gap between the outer rim outline and the thin inner-rim
     # line that gives the rim its wall thickness — also held constant across sizes
+
+CONTENTS_INSET_PX = INNER_RIM_INSET_PX + 3.0  # how far inside the outer rim a `contents`
+    # fill's own edge sits — deliberately further in than the inner-rim line's ring (inset
+    # 3.0px, ~1.4px wide) so that ring reads as a ring around the food, not overlapped by it
+DEFAULT_CONTENTS_FLECK_COUNT = 10  # a handful — the fill patch itself is a double-digit-px
+    # smudge at the size a bowl actually ships, so more flecks just get lost in the downsample
+DEFAULT_CONTENTS_FLECK_RADIUS_PX = 2.2  # final-resolution px, one fleck blob's radius
 
 SUPERSAMPLE = 4  # draw this many times bigger than the final size, then Lanczos back down;
     # that downsample is what turns a hard-edged polygon/ellipse fill into the ~1px
@@ -181,6 +217,43 @@ PRESETS = {
             "shadow": (76, 46, 24),
         },
     },
+    "shop_geotjeori_bowl": {
+        # The small prep-table bowl's second, "filled" frame — swapped in at the
+        # cook gauge's halfway point and back out to shop_empty_bowl on completion
+        # (ShopNode's cook-progress flow). Same vessel as shop_empty_bowl (rim/
+        # foot/height/palette identical, copied from that preset rather than
+        # re-typed) because it is the same physical bowl with food added, not a
+        # new prop — only `contents` differs.
+        "rim": 0.24,
+        "foot": 0.15,
+        "height": 0.10,
+        "palette": dict(DEFAULT_PALETTE),
+        # 겉절이 (fresh spring-cabbage kimchi, lightly seasoned) — pale green
+        # cabbage carrying a threaded red-pepper seasoning, not the deep uniform
+        # red of aged kimchi. base/highlight/shadow are a green ramp so the
+        # vessel's own upper-right diffuse light still models the surface (same
+        # gradient the vessel body uses — see `_apply_contents`); shadow is
+        # noticeably darker+cooler than base (140,158,112 vs. 196,214,168) so
+        # the lower-left corner of the patch reads as a leaf-shadow break rather
+        # than a flat-lit disc. flecks carries the red pepper as a *minority*
+        # accent color, not a fill: two red tones (fresh-looking (196,60,48) and
+        # a darker (150,46,36), so the pepper itself isn't flat either) plus a
+        # third, darker green (90,120,60) so some flecks read as chopped leaf
+        # rather than only pepper — three fleck colors keep any single one from
+        # dominating the ~10-fleck scatter. fleck_count/fleck_radius left at
+        # this file's defaults (10 / 2.2px) — the brief warned the whole patch
+        # is only a handful of px at ship size, so more flecks would just
+        # smear together under the Lanczos downsample rather than read as
+        # texture. seed 7 fixed so this preset reproduces byte-identical; no
+        # significance to the number beyond "picked once and recorded."
+        "contents": {
+            "base": (196, 214, 168),
+            "highlight": (222, 236, 196),
+            "shadow": (140, 158, 112),
+            "flecks": [(196, 60, 48), (150, 46, 36), (90, 120, 60)],
+            "seed": 7,
+        },
+    },
 }
 
 
@@ -203,7 +276,116 @@ def _ring(mask, radius_px):
     return Image.fromarray(np.clip(ring, 0, 255).astype(np.uint8), "L")
 
 
-def build(rim, foot, height, name, palette=None, out_dir=OUT_DIR):
+def _apply_contents(canvas, contents, cx, rim_cy, rim_w, rim_h, ss, S, highlight_amt, shadow_amt, body_alpha):
+    """Composite a broken-surface food fill onto `canvas`, seated flush with the rim's top
+    ellipse and inset inside the inner-rim line. Called only when `contents` is truthy, after
+    the vessel's own gradient/silhouette are already final — so an omitted `contents` leaves
+    `canvas` (and therefore the whole render) untouched. See module docstring for the dict
+    schema. Alpha is clamped to both the inset fill ellipse and the vessel's own opaque
+    silhouette (`body_alpha`), so this can never add a visible pixel outside the existing body
+    or past the inner-rim inset, regardless of how the fill/flecks are drawn."""
+    inset = CONTENTS_INSET_PX
+    w = rim_w - inset * 2
+    h = rim_h - inset * 2 * SIN_ELEV
+    if w <= 0 or h <= 0:
+        return canvas  # vessel too small for an inset content patch at all — skip, don't error
+
+    bbox = (S(cx - w / 2), S(rim_cy - h / 2), S(cx + w / 2), S(rim_cy + h / 2))
+    fill_mask = Image.new("L", canvas.size, 0)
+    ImageDraw.Draw(fill_mask).ellipse(bbox, fill=255)
+    fill_mask_arr = np.array(fill_mask)
+
+    base = np.array(contents["base"], dtype=np.float32)
+    hi = np.array(contents.get("highlight", contents["base"]), dtype=np.float32)
+    sh = np.array(contents.get("shadow", contents["base"]), dtype=np.float32)
+    # Same linear diffuse ramp as the vessel's own gradient, in the same upper-right light
+    # direction (highlight_amt/shadow_amt are the body's own gradient fields) — a shape-
+    # vocabulary addition, not a new lighting concept.
+    color = (
+        base[None, None, :]
+        + (hi - base)[None, None, :] * highlight_amt[..., None]
+        + (sh - base)[None, None, :] * shadow_amt[..., None]
+    )
+    color = np.clip(color, 0, 255).astype(np.uint8)
+
+    alpha = np.minimum(fill_mask_arr, body_alpha).astype(np.uint8)
+    content_layer = Image.fromarray(np.dstack([color, alpha]), "RGBA")
+
+    flecks = contents.get("flecks") or []
+    if flecks:
+        rng = np.random.RandomState(contents.get("seed", 0))
+        count = contents.get("fleck_count", DEFAULT_CONTENTS_FLECK_COUNT)
+        radius = S(contents.get("fleck_radius_px", DEFAULT_CONTENTS_FLECK_RADIUS_PX))
+        fleck_draw = ImageDraw.Draw(content_layer)
+        for _ in range(count):
+            theta = rng.uniform(0, 2 * math.pi)
+            r = math.sqrt(rng.uniform(0, 1)) * 0.72  # keep flecks off the patch's own edge
+            fx = cx + r * (w / 2) * math.cos(theta)
+            fy = rim_cy + r * (h / 2) * math.sin(theta)
+            fr, fg, fb = flecks[rng.randint(0, len(flecks))]
+            fleck_draw.ellipse(
+                [S(fx) - radius, S(fy) - radius, S(fx) + radius, S(fy) + radius],
+                fill=(int(fr), int(fg), int(fb), 255),
+            )
+        # Flecks are drawn as hard circles, not alpha-blended — reclamp in case one bled a
+        # pixel past the inset ellipse at a very small vessel size, so containment is exact
+        # regardless of fleck placement rather than merely "usually inside."
+        c_alpha = np.array(content_layer.split()[3])
+        clamped = np.minimum(c_alpha, np.minimum(fill_mask_arr, body_alpha))
+        content_layer.putalpha(Image.fromarray(clamped.astype(np.uint8), "L"))
+
+    return Image.alpha_composite(canvas, content_layer)
+
+
+def _pin_trim(final, cx, rim_cy, foot_cy, pin_to):
+    """Re-crop `final` (the full, untrimmed render) onto an exact target pixel grid — width,
+    height and base_center — computed directly from the known cx/foot_cy geometry, instead of
+    from `getbbox()`'s alpha-threshold trim. For aligning a second frame of an existing vessel
+    onto a previously shipped PNG's own pixel grid. Returns (trimmed, base_center, top_center,
+    clipped), where `clipped` is True if the target box excludes any pixel `final` actually
+    considers non-transparent (TRIM_ALPHA_THRESHOLD, the same convention as the normal trim) —
+    i.e. forcing this box would cut off real silhouette, not just margin."""
+    target_w = pin_to["width"]
+    target_h = pin_to["height"]
+    target_bx, target_by = pin_to["base_center"]
+
+    ox = round(cx - target_bx)
+    oy = round(foot_cy - target_by)
+    target_box = (ox, oy, ox + target_w, oy + target_h)
+
+    natural_box = final.split()[3].point(lambda v: 255 if v >= TRIM_ALPHA_THRESHOLD else 0).getbbox()
+    clipped = natural_box is not None and (
+        natural_box[0] < target_box[0]
+        or natural_box[1] < target_box[1]
+        or natural_box[2] > target_box[2]
+        or natural_box[3] > target_box[3]
+    )
+    if clipped:
+        print(
+            f"WARNING: pin_to clips real pixels — natural alpha bbox {natural_box} "
+            f"vs. pin_to target box {target_box}"
+        )
+
+    trimmed = Image.new("RGBA", (target_w, target_h), (0, 0, 0, 0))
+    # Overlap between the target box and final's actual canvas — a target box that reaches
+    # past final's own edges pads with transparent pixels instead of erroring.
+    src_box = (
+        max(target_box[0], 0),
+        max(target_box[1], 0),
+        min(target_box[2], final.width),
+        min(target_box[3], final.height),
+    )
+    if src_box[0] < src_box[2] and src_box[1] < src_box[3]:
+        region = final.crop(src_box)
+        paste_at = (src_box[0] - target_box[0], src_box[1] - target_box[1])
+        trimmed.paste(region, paste_at)
+
+    base_center = (round(cx - ox, 2), round(foot_cy - oy, 2))
+    top_center = (round(cx - ox, 2), round(rim_cy - oy, 2))
+    return trimmed, base_center, top_center, clipped
+
+
+def build(rim, foot, height, name, palette=None, out_dir=OUT_DIR, contents=None, pin_to=None):
     """Render a bowl: rim ellipse (diameter `rim` grid units) tapering down
     to a foot ellipse (diameter `foot`), `height` grid units of rise between
     them. Writes `<name>.png` (trimmed) and `<name>.overlay.png`, and returns
@@ -276,6 +458,11 @@ def build(rim, foot, height, name, palette=None, out_dir=OUT_DIR):
     rgba = np.dstack([color, body_alpha])
     canvas = Image.fromarray(rgba, "RGBA")
 
+    if contents:
+        canvas = _apply_contents(
+            canvas, contents, cx, rim_cy, rim_w, rim_h, ss, S, highlight_amt, shadow_amt, body_alpha
+        )
+
     # Outer silhouette outline.
     outer_ring = _ring(silhouette, OUTLINE_PX / 2 * ss)
     # Inner rim line: a thin ellipse inset from the outer rim, full (both
@@ -295,12 +482,15 @@ def build(rim, foot, height, name, palette=None, out_dir=OUT_DIR):
     composed = Image.alpha_composite(canvas, ink_layer)
     final = composed.resize((round(canvas_w), round(canvas_h)), Image.LANCZOS)
 
-    box = final.split()[3].point(lambda v: 255 if v >= TRIM_ALPHA_THRESHOLD else 0).getbbox()
-    trimmed = final.crop(box)
+    if pin_to:
+        trimmed, base_center, top_center, _clipped = _pin_trim(final, cx, rim_cy, foot_cy, pin_to)
+    else:
+        box = final.split()[3].point(lambda v: 255 if v >= TRIM_ALPHA_THRESHOLD else 0).getbbox()
+        trimmed = final.crop(box)
 
-    ox, oy = box[0], box[1]
-    base_center = (round(cx - ox, 2), round(foot_cy - oy, 2))
-    top_center = (round(cx - ox, 2), round(rim_cy - oy, 2))
+        ox, oy = box[0], box[1]
+        base_center = (round(cx - ox, 2), round(foot_cy - oy, 2))
+        top_center = (round(cx - ox, 2), round(rim_cy - oy, 2))
 
     os.makedirs(out_dir, exist_ok=True)
     png_path = os.path.join(out_dir, f"{name}.png")
@@ -367,6 +557,14 @@ def _parse_rgb(text):
     return tuple(parts)
 
 
+def _parse_pin_to(text):
+    parts = [float(p) for p in text.split(",")]
+    if len(parts) != 4:
+        raise argparse.ArgumentTypeError("expected WIDTH,HEIGHT,BASE_X,BASE_Y")
+    w, h, bx, by = parts
+    return {"width": int(w), "height": int(h), "base_center": (bx, by)}
+
+
 def main():
     parser = argparse.ArgumentParser(prog="bowl2d.py")
     parser.add_argument(
@@ -380,6 +578,12 @@ def main():
     parser.add_argument("--highlight", type=_parse_rgb, help="upper-right highlight, R,G,B (overrides --preset's)")
     parser.add_argument("--shadow", type=_parse_rgb, help="lower-left shadow, R,G,B (overrides --preset's)")
     parser.add_argument("--out-dir", default=OUT_DIR)
+    parser.add_argument(
+        "--pin-to",
+        type=_parse_pin_to,
+        help="WIDTH,HEIGHT,BASE_X,BASE_Y — override/force pin_to without adding a PRESETS entry, "
+        "for a one-off comparison render pinned to another asset's shipped pixel grid",
+    )
     args = parser.parse_args()
 
     if args.preset:
@@ -389,11 +593,15 @@ def main():
         height = spec["height"] if args.height is None else args.height
         name = args.name or args.preset
         palette = dict(spec["palette"])
+        contents = spec.get("contents")
+        pin_to = spec.get("pin_to")
     else:
         if args.rim is None or args.foot is None or args.height is None or not args.name:
             parser.error("either --preset, or all of --rim/--foot/--height/--name, are required")
         rim, foot, height, name = args.rim, args.foot, args.height, args.name
         palette = {}
+        contents = None
+        pin_to = None
 
     if args.mid:
         palette["mid"] = args.mid
@@ -402,7 +610,10 @@ def main():
     if args.shadow:
         palette["shadow"] = args.shadow
 
-    build(rim, foot, height, name, palette=palette or None, out_dir=args.out_dir)
+    if args.pin_to is not None:
+        pin_to = args.pin_to
+
+    build(rim, foot, height, name, palette=palette or None, out_dir=args.out_dir, contents=contents, pin_to=pin_to)
 
 
 if __name__ == "__main__":
