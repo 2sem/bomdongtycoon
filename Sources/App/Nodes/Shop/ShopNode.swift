@@ -813,46 +813,42 @@ final class ShopNode: SKNode {
 
     // MARK: - Customer service point
 
-    /// Spacing (in `IsoGrid` row units) between queued customers standing
-    /// outside the counter, along `customerServicePoint`'s own approach
-    /// line — far enough that neighbouring queue slots' sprites (~40pt
-    /// wide) don't overlap at this grid's usual scale, without crossing a
+    /// Spacing (in `IsoGrid` column units) between queued customers
+    /// standing outside the counter, stepping further east per slot —
+    /// far enough that neighbouring queue slots' sprites (~40pt wide)
+    /// don't overlap at this grid's usual scale, without crossing a
     /// whole tile and looking like a separate line.
-    private static let customerQueueRowSpacing: CGFloat = 0.65
+    private static let customerQueueColSpacing: CGFloat = 0.65
 
-    /// Where a customer stands to be served, `queueSlot` steps back from
+    /// The `IsoGrid` row every customer queue slot (and, in
+    /// `ShopCustomerSpawner`, the spawn point far to the east on the same
+    /// row) shares: centred on the two rows `defaultOpenings` removes the
+    /// front wall from. A `static var`, not folded into
+    /// `customerServicePoint` alone, so the spawner can put its own point
+    /// on this row without faking an oversized queue slot to reach it.
+    static var customerServiceRow: CGFloat {
+        let start = GroundLayer.gridCoordinate(rowIndex: defaultPlacement.originY, colIndex: defaultPlacement.originX)
+        return CGFloat(start.row) + 0.5
+    }
+
+    /// Where a customer stands to be served, `queueSlot` steps east of
     /// the counter itself (`0` is the customer actually being served).
     /// One cell east of `defaultPlacement`'s own east corner (the same
     /// column the front wall's opening — and the counter filling it —
-    /// sit against), centred on the two rows `defaultOpenings` removes
-    /// the front wall from, then stepped further out per slot along that
-    /// same column so a queue forms outside the shop rather than stacking
-    /// on one point. Derived from `defaultPlacement` rather than a
-    /// hardcoded point so it can't drift from where the counter itself is
-    /// actually drawn.
+    /// sit against) on `customerServiceRow`, then stepped further east
+    /// per slot so a queue forms outside the shop rather than stacking on
+    /// one point. Every slot's column is `> colRange.upperBound`, so the
+    /// whole queue — like the counter it lines up in front of — stays
+    /// clear of the shop rectangle regardless of `queueSlot`. Derived
+    /// from `defaultPlacement` rather than a hardcoded point so it can't
+    /// drift from where the counter itself is actually drawn.
     static func customerServicePoint(on grid: IsoGrid, queueSlot: Int = 0) -> CGPoint {
-        let start = GroundLayer.gridCoordinate(rowIndex: defaultPlacement.originY, colIndex: defaultPlacement.originX)
         let end = GroundLayer.gridCoordinate(
             rowIndex: defaultPlacement.originY + defaultPlacement.height - 1,
             colIndex: defaultPlacement.originX + defaultPlacement.width - 1
         )
-        let row = CGFloat(start.row) + 0.5 + CGFloat(queueSlot) * customerQueueRowSpacing
-        return grid.point(col: CGFloat(end.col + 1), row: row)
-    }
-
-    /// A transit waypoint one cell outside the shop's own south-east
-    /// corner — south of the front (counter) wall's column and east of
-    /// the left wall's row, so it never sits over shop ground. A walk
-    /// from `GroundLayer.roadGridCoordinate` (south of the shop) to
-    /// `customerServicePoint` (east of it) via this point stays on two
-    /// straight, row-only-then-column-only legs that never cross the
-    /// building, instead of one diagonal line cutting across it.
-    static func customerApproachWaypoint(on grid: IsoGrid) -> CGPoint {
-        let end = GroundLayer.gridCoordinate(
-            rowIndex: defaultPlacement.originY + defaultPlacement.height - 1,
-            colIndex: defaultPlacement.originX + defaultPlacement.width - 1
-        )
-        return grid.point(col: CGFloat(end.col + 1), row: CGFloat(end.row + 1))
+        let col = CGFloat(end.col + 1) + CGFloat(queueSlot) * customerQueueColSpacing
+        return grid.point(col: col, row: customerServiceRow)
     }
 
     /// Z-order for an actor (a customer) standing at world-space `y` on

@@ -1,10 +1,11 @@
 import SpriteKit
 import GameCore
 
-/// A spawned customer's walk state: `walkingIn` (spawn → the counter,
-/// leg-by-leg through `path`), `waitingForStock` (parked at the counter,
-/// polling `GameStore.sellItem` every `pollInterval` up to `maxWait`), and
-/// `walkingOut` (counter → spawn, then removed).
+/// A spawned customer's walk state: `walkingIn` (spawn → the counter, one
+/// straight leg west along `ShopNode.customerServiceRow`), `waitingForStock`
+/// (parked at the counter, polling `GameStore.sellItem` every
+/// `pollInterval` up to `maxWait`), and `walkingOut` (back east to spawn,
+/// then removed).
 private enum CustomerPhase {
     case walkingIn
     case waitingForStock
@@ -34,9 +35,13 @@ private final class CustomerSession {
 /// the scene was rebuilt for the isometric ground: a timed spawn (first
 /// customer 1s after the shop opens, then `GameStore.customerSpawnInterval`
 /// ±jitter), a walk in to `ShopNode.customerServicePoint`, an immediate
-/// sell-or-wait-and-poll decision, and a walk back out. `MainStallScene`
-/// owns the instance and drives it once a frame from its own already-
-/// `@MainActor` update block, matching how it already calls `store.tick`.
+/// sell-or-wait-and-poll decision, and a walk back out. Customers enter and
+/// leave from east of the map (screen bottom-right in this projection, the
+/// side the counter already faces) rather than the south road tile — a
+/// road/rail placeholder for that entrance may land there later, but
+/// nothing here depends on it. `MainStallScene` owns the instance and
+/// drives it once a frame from its own already-`@MainActor` update block,
+/// matching how it already calls `store.tick`.
 ///
 /// `@MainActor`, like `GameStore` itself — every method here but `init`
 /// touches `store` or a scene node — with a `nonisolated init` so
@@ -61,6 +66,15 @@ final class ShopCustomerSpawner {
     private static let minLegDuration: TimeInterval = 0.15
     private static let pollInterval: TimeInterval = 0.5
     private static let maxWait: TimeInterval = 8.0
+
+    /// Columns east of `GroundLayer.eastMapEdgeColumn` a customer
+    /// spawns/exits at — enough to sit off whatever's rendered at the
+    /// map's own edge, without being an arbitrary absolute column.
+    private static let spawnColumnsPastMapEdge = 4
+
+    /// Fade-in at spawn / fade-out at exit, so a customer doesn't just pop
+    /// in or out if its spawn point happens to be on screen.
+    private static let fadeDuration: TimeInterval = 0.3
 
     /// Counts down to the next spawn attempt; only decremented once the
     /// shop is open (see `update`), so it always reads as "1s after the
@@ -106,6 +120,8 @@ final class ShopCustomerSpawner {
         let node = ShopCustomerNode(archetype: archetype, wantedMenuIndex: menuIndex, fittingTo: grid)
         node.position = spawnPoint(on: grid)
         node.zPosition = ShopNode.actorZPosition(atWorldY: node.position.y, on: grid)
+        node.alpha = 0
+        node.run(.fadeIn(withDuration: Self.fadeDuration))
         parent.addChild(node)
 
         // The lowest slot no current session holds — not sessions.count,
@@ -120,11 +136,7 @@ final class ShopCustomerSpawner {
         let session = CustomerSession(
             node: node,
             queueSlot: queueSlot,
-            path: [
-                roadPoint(on: grid),
-                ShopNode.customerApproachWaypoint(on: grid),
-                ShopNode.customerServicePoint(on: grid, queueSlot: queueSlot),
-            ],
+            path: [ShopNode.customerServicePoint(on: grid, queueSlot: queueSlot)],
             phase: .walkingIn
         )
         sessions.append(session)
@@ -148,7 +160,7 @@ final class ShopCustomerSpawner {
         case .waitingForStock:
             advanceWaiting(session, delta: delta, store: store, grid: grid)
         case .walkingOut:
-            advanceWalk(session) {
+            advanceWalk(session, fadesOut: true) {
                 session.node.stopWalking()
                 session.node.removeFromParent()
             }
@@ -161,8 +173,10 @@ final class ShopCustomerSpawner {
     /// `MainStallScene`'s per-frame `@MainActor` block, and a completion
     /// closure fired from SpriteKit's own action-evaluation pass would
     /// step outside that same call frame for no benefit. `onArrival` runs
-    /// once `path` is empty and the customer is standing still.
-    private func advanceWalk(_ session: CustomerSession, onArrival: () -> Void) {
+    /// once `path` is empty and the customer is standing still. `fadesOut`
+    /// grouped onto the move (not a separate fixed-length action) so the
+    /// fade finishes exactly when the leg — and the walk-out — does.
+    private func advanceWalk(_ session: CustomerSession, fadesOut: Bool = false, onArrival: () -> Void) {
         guard session.node.action(forKey: "walk") == nil else { return }
         guard let next = session.path.first else {
             onArrival()
@@ -174,7 +188,8 @@ final class ShopCustomerSpawner {
         let distance = (dx * dx + dy * dy).squareRoot()
         let duration = max(TimeInterval(distance / Self.walkSpeed), Self.minLegDuration)
         session.node.startWalking()
-        session.node.run(.move(to: next, duration: duration), withKey: "walk")
+        let move = SKAction.move(to: next, duration: duration)
+        session.node.run(fadesOut ? .group([move, .fadeOut(withDuration: duration)]) : move, withKey: "walk")
     }
 
     /// First sell attempt on arrival at the counter: served immediately
@@ -215,11 +230,7 @@ final class ShopCustomerSpawner {
 
     private func beginWalkingOut(_ session: CustomerSession, grid: IsoGrid) {
         session.phase = .walkingOut
-        session.path = [
-            ShopNode.customerApproachWaypoint(on: grid),
-            roadPoint(on: grid),
-            spawnPoint(on: grid),
-        ]
+        session.path = [spawnPoint(on: grid)]
     }
 
     /// A small "+N" `money_bag` pop above the customer's head, floating up
@@ -253,16 +264,11 @@ final class ShopCustomerSpawner {
         ]))
     }
 
-    private func roadPoint(on grid: IsoGrid) -> CGPoint {
-        let road = GroundLayer.roadGridCoordinate
-        return grid.point(col: road.col, row: road.row)
-    }
-
-    /// One map row beyond the road tile — "walk in from beyond it, and
-    /// exit back the same way": a customer appears here, takes its first
-    /// leg onto the road tile itself, and (leaving) disappears back here.
+    /// East of the whole map, on `ShopNode.customerServiceRow` — a
+    /// customer appears here, walks the one straight leg west to its
+    /// queue slot, and (leaving) disappears back out here the same way.
     private func spawnPoint(on grid: IsoGrid) -> CGPoint {
-        let road = GroundLayer.roadGridCoordinate
-        return grid.point(col: road.col, row: road.row + 1)
+        let col = GroundLayer.eastMapEdgeColumn + Self.spawnColumnsPastMapEdge
+        return grid.point(col: CGFloat(col), row: ShopNode.customerServiceRow)
     }
 }
