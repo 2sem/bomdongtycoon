@@ -133,29 +133,40 @@ final class MainStallScene: SKScene {
         lastAppliedMenuTier = tier
     }
 
+    /// Menu indices with their own tap-to-cook bowl and gauge — the small
+    /// bowl (0) and the large bowl (1). The daejeop bowl (slot 2) has
+    /// neither; see `ShopNode.tappedBowlMenuIndex`.
+    private static let tappableMenuIndices = [0, 1]
+
     /// The small bowl reads as "filled" once a cook is more than half
     /// done, and empty again the moment the portion completes and stock
     /// is credited (`cookProgress` resets toward 0 on completion) — a
     /// cooking vessel, not storage, so it does not stay full while stock
     /// exists. Both a hired cook and the manual (tap) cook drive
-    /// `cookProgress`, so both fill the bowl.
+    /// `cookProgress`, so both fill the bowl. Menu-0 only — there's no
+    /// filled art for the large bowl yet.
     private static let cookFillThreshold: Double = 0.5
 
-    /// Pushes menu-0 cook progress into the small-bowl gauge every frame,
-    /// and the derived fill state into the small bowl's frame toggle —
-    /// unlike the gauge's own `progress`, which changes continuously, the
-    /// fill boolean flips rarely, so `lastAppliedCookFill` guards it the
-    /// same way `updateShopMenuTier` guards the tier.
+    /// Pushes each tappable bowl's cook progress into its own gauge every
+    /// frame, and menu 0's derived fill state into the small bowl's frame
+    /// toggle — unlike a gauge's own `progress`, which changes
+    /// continuously, the fill boolean flips rarely, so `lastAppliedCookFill`
+    /// guards it the same way `updateShopMenuTier` guards the tier.
     private func updateShopCookGauge() {
         guard let store else { return }
-        // Gauge shows only while menu 0 is actually cooking — a manual tap
-        // session in flight, or a hired cook whose auto-cook loop is
-        // currently producing (see `GameStore.isCooking`) — not just
-        // because a cook is hired or stock happens to be sitting there.
-        let progress = store.cookProgress(menuIndex: 0)
-        shop.updateCookGauge(progress: progress, isVisible: store.isCooking(menuIndex: 0))
+        var smallBowlProgress = 0.0
+        for menuIndex in Self.tappableMenuIndices {
+            // Gauge shows only while this menu is actually cooking — a
+            // manual tap session in flight, or a hired cook whose
+            // auto-cook loop is currently producing (see
+            // `GameStore.isCooking`) — not just because a cook is hired or
+            // stock happens to be sitting there.
+            let progress = store.cookProgress(menuIndex: menuIndex)
+            shop.updateCookGauge(menuIndex: menuIndex, progress: progress, isVisible: store.isCooking(menuIndex: menuIndex))
+            if menuIndex == 0 { smallBowlProgress = progress }
+        }
 
-        let isFilled = progress > Self.cookFillThreshold
+        let isFilled = smallBowlProgress > Self.cookFillThreshold
         if isFilled != lastAppliedCookFill {
             shop.applyCookFill(isFilled)
             lastAppliedCookFill = isFilled
@@ -219,14 +230,14 @@ final class MainStallScene: SKScene {
         touchStartLocation = nil
     }
 
-    /// Accepts a tap on the small bowl (menu index 0): starts its timed
-    /// manual cook and, only if that actually started one, plays the
-    /// accept pulse — a tap while a cook is already running does nothing,
-    /// visibly as well as mechanically.
+    /// Accepts a tap on a tappable bowl: starts its timed manual cook and,
+    /// only if that actually started one, plays the accept pulse — a tap
+    /// while a cook is already running (or on a menu-tier-hidden bowl)
+    /// does nothing, visibly as well as mechanically.
     private func handleTap(at location: CGPoint) {
-        guard shop.smallBowlContains(location) else { return }
-        guard store?.startManualCook(menuIndex: 0) == true else { return }
-        shop.pulseSmallBowl()
+        guard let menuIndex = shop.tappedBowlMenuIndex(at: location) else { return }
+        guard store?.startManualCook(menuIndex: menuIndex) == true else { return }
+        shop.pulseBowl(menuIndex: menuIndex)
     }
 
     override func update(_ currentTime: TimeInterval) {
