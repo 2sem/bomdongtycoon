@@ -201,9 +201,8 @@ public final class GameStore: ObservableObject {
         // Per-menu auto-cook: dedicated cook produces at tier-based speed
         let maxStock = EarningsSystem.maxStock(for: stall)
         for i in 0..<stall.menuCooks.count {
+            guard canAutoCook(menuIndex: i, maxStock: maxStock) else { continue }
             let tier = stall.menuCooks[i]
-            guard tier > 0, stall.warehouse > 0, i <= stall.menuTier else { continue }
-            guard i < stall.menuStock.count, stall.menuStock[i] < maxStock else { continue }
             let energy = i < stall.menuCookEnergy.count ? stall.menuCookEnergy[i] : 1.0;
             cookAccumulators[i] += cookRate(forTier: tier) * energyMultiplier(energy) * deltaTime;
             while cookAccumulators[i] >= 1.0,
@@ -350,6 +349,16 @@ public final class GameStore: ObservableObject {
         manualCookProgress[menuIndex] != nil
     }
 
+    /// Whether `menuIndex` is actually producing right now — a manual
+    /// session in flight, or a hired cook that `tick`'s auto-cook loop
+    /// would currently advance. False whenever there's nothing to show:
+    /// no cook and no manual session, warehouse empty, tier locked, or
+    /// stock already at max.
+    public func isCooking(menuIndex: Int) -> Bool {
+        isManualCookRunning(menuIndex: menuIndex)
+            || canAutoCook(menuIndex: menuIndex, maxStock: EarningsSystem.maxStock(for: stall))
+    }
+
     /// Energy levels for each menu cook slot (0.0–1.0).
     public var menuCookEnergies: [Double] { stall.menuCookEnergy }
 
@@ -393,6 +402,16 @@ public final class GameStore: ObservableObject {
             && menuIndex < stall.menuStock.count
             && stall.warehouse > 0
             && stall.menuStock[menuIndex] < maxStock
+    }
+
+    /// Shared by `tick`'s auto-cook loop and `isCooking` so the two can't
+    /// drift: a hired cook only actually produces when the warehouse has
+    /// stock, its menu tier is unlocked, and its stock isn't already full.
+    private func canAutoCook(menuIndex: Int, maxStock: Int) -> Bool {
+        menuIndex >= 0 && menuIndex < stall.menuCooks.count && stall.menuCooks[menuIndex] > 0
+            && stall.warehouse > 0
+            && menuIndex <= stall.menuTier
+            && menuIndex < stall.menuStock.count && stall.menuStock[menuIndex] < maxStock
     }
 
     /// Cooks 1 item for each menu that has no dedicated cook assigned.
