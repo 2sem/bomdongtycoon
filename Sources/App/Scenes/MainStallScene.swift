@@ -148,15 +148,12 @@ final class MainStallScene: SKScene {
     /// same way `updateShopMenuTier` guards the tier.
     private func updateShopCookGauge() {
         guard let store else { return }
-        let stall = store.stall
-        let hasCook = stall.menuCooks.indices.contains(0) && stall.menuCooks[0] > 0
-        let hasStock = stall.menuStock.indices.contains(0) && stall.menuStock[0] > 0
-        // A manual (tap) cook with no dedicated cook and no stock yet must
-        // still show the gauge, or the player taps the bowl and sees
-        // nothing happen until the first portion lands.
-        let hasManualCook = store.isManualCookRunning(menuIndex: 0)
+        // Gauge shows only while menu 0 is actually cooking — a manual tap
+        // session in flight, or a hired cook whose auto-cook loop is
+        // currently producing (see `GameStore.isCooking`) — not just
+        // because a cook is hired or stock happens to be sitting there.
         let progress = store.cookProgress(menuIndex: 0)
-        shop.updateCookGauge(progress: progress, isVisible: hasCook || hasStock || hasManualCook)
+        shop.updateCookGauge(progress: progress, isVisible: store.isCooking(menuIndex: 0))
 
         let isFilled = progress > Self.cookFillThreshold
         if isFilled != lastAppliedCookFill {

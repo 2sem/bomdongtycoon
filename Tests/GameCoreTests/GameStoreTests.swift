@@ -126,4 +126,36 @@ final class GameStoreTests: XCTestCase {
         XCTAssertEqual(store.stall.menuStock[0], stockBefore)
         XCTAssertFalse(store.isManualCookRunning(menuIndex: 0))
     }
+
+    // MARK: - isCooking
+
+    func test_isCooking_noCookNoManual_isFalse() {
+        XCTAssertFalse(store.isCooking(menuIndex: 0))
+    }
+
+    func test_isCooking_manualCookStarted_isTrue() {
+        store.farm.plots[0].workerType = .none   // isolate from farm auto-harvest — see manual-cook tests above
+        XCTAssertTrue(store.startManualCook(menuIndex: 0))
+        XCTAssertTrue(store.isCooking(menuIndex: 0))
+    }
+
+    func test_isCooking_cookHiredButWarehouseEmpty_isFalse() {
+        store.stall.menuCooks[0] = 1
+        store.stall.warehouse = 0
+        XCTAssertFalse(store.isCooking(menuIndex: 0))
+    }
+
+    func test_isCooking_cookHiredWithWarehouseAndStockBelowMax_isTrue() {
+        store.stall.menuCooks[0] = 1
+        store.stall.warehouse = 5
+        store.stall.menuStock[0] = 0
+        XCTAssertTrue(store.isCooking(menuIndex: 0))
+    }
+
+    func test_isCooking_stockAtMax_isFalse() {
+        store.stall.menuCooks[0] = 1
+        store.stall.warehouse = 5
+        store.stall.menuStock[0] = EarningsSystem.maxStock(for: store.stall)
+        XCTAssertFalse(store.isCooking(menuIndex: 0))
+    }
 }
