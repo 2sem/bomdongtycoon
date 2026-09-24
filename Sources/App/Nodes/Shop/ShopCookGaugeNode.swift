@@ -1,9 +1,9 @@
 import SpriteKit
 
-/// A thin progress bar over the prep table's small-bowl slot (menu index 0)
-/// — fills left-to-right toward the next portion, resets when one
-/// completes. Holds no game state itself: `ShopNode` owns and positions it
-/// as furniture, `MainStallScene` pushes fresh numbers in every frame.
+/// A thin progress bar over one of the prep table's bowl slots — fills
+/// left-to-right toward the next portion, resets when one completes. Holds
+/// no game state itself: `ShopNode` owns and positions one per tappable
+/// bowl as furniture, `MainStallScene` pushes fresh numbers in every frame.
 final class ShopCookGaugeNode: SKNode {
 
     private let track = SKShapeNode()

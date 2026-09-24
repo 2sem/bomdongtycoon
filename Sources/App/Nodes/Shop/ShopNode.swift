@@ -263,9 +263,13 @@ final class ShopNode: SKNode {
     /// result before either `applyMenuTier` or `applyCookFill` has run.
     private var isSmallBowlFilled = false
 
-    /// The small-bowl cook gauge (menu index 0). `nil` until the small
-    /// bowl's own item exists to hang it off of — see the end of `init`.
-    private var cookGaugeNode: ShopCookGaugeNode?
+    /// Cook gauges keyed by menu index — slot index and menu index are the
+    /// same number by construction (see `applyMenuTier`'s doc comment), so
+    /// one dictionary serves both the small bowl (0) and large bowl (1).
+    /// The daejeop bowl (slot 2) has no entry: not tappable, nothing to
+    /// gauge. Built at the end of `init`, once each bowl's own item exists
+    /// to hang a gauge off of.
+    private var cookGaugeNodesByMenuIndex: [Int: ShopCookGaugeNode] = [:]
 
     /// Painter's-order slot within a cell: ground, then walls back <
     /// right < left < front, so the wall nearer the camera wins where
@@ -387,9 +391,17 @@ final class ShopNode: SKNode {
             tableItemsBySlot[spec.slotIndex] = item
         }
         if let smallBowlItem = smallBowlEmptyItem {
-            cookGaugeNode = buildCookGauge(
+            cookGaugeNodesByMenuIndex[Self.smallBowl.slotIndex] = buildCookGauge(
                 standingOn: smallBowlItem,
                 spec: Self.smallBowl,
+                footprintCellSum: prepTableFootprint.nearestCellSum,
+                on: grid
+            )
+        }
+        if let largeBowlItem = tableItemsBySlot[Self.largeBowl.slotIndex] {
+            cookGaugeNodesByMenuIndex[Self.largeBowl.slotIndex] = buildCookGauge(
+                standingOn: largeBowlItem,
+                spec: Self.largeBowl,
                 footprintCellSum: prepTableFootprint.nearestCellSum,
                 on: grid
             )
@@ -650,7 +662,7 @@ final class ShopNode: SKNode {
         return item
     }
 
-    /// Sits the cook gauge just above the small bowl's rim: `bowlItem`'s
+    /// Sits a cook gauge just above `bowlItem`'s rim: `bowlItem`'s
     /// `position` is where `spec.baseAnchor` sits, so the rim is
     /// `(1 - baseAnchor.y)` of the bowl's own screen height further up —
     /// derived from the bowl's measurements rather than a guessed point
@@ -723,46 +735,77 @@ final class ShopNode: SKNode {
         smallBowlFilledItem?.isHidden = isSmallBowlGateHidden || !isSmallBowlFilled
     }
 
-    /// Feeds the small-bowl cook gauge; `MainStallScene` is the store-aware
-    /// caller, so this only forwards the numbers it already computed.
-    func updateCookGauge(progress: Double, isVisible: Bool) {
-        cookGaugeNode?.update(progress: progress, isVisible: isVisible)
+    /// Feeds `menuIndex`'s cook gauge; `MainStallScene` is the store-aware
+    /// caller, so this only forwards the numbers it already computed. A
+    /// `menuIndex` with no gauge (the daejeop bowl, or anything out of
+    /// range) is a no-op.
+    func updateCookGauge(menuIndex: Int, progress: Double, isVisible: Bool) {
+        cookGaugeNodesByMenuIndex[menuIndex]?.update(progress: progress, isVisible: isVisible)
     }
 
     /// Smallest side length a tap target may have, independent of a
     /// sprite's own measured size — HIG's 44pt minimum. The small bowl's
-    /// own frame (~22×18pt) is well under it, so `smallBowlContains` pads
+    /// own frame (~22×18pt) is well under it, so `tappedBowlMenuIndex` pads
     /// the *hit test* out to this, leaving the sprite itself untouched.
     private static let minimumTouchTarget: CGFloat = 44
 
-    /// Whether `scenePoint` (a touch location in the owning scene's
-    /// coordinate space, as `SKScene.touchesEnded` reports it) falls
-    /// within the small bowl's tap target. `MainStallScene` hit-tests
-    /// through here rather than reaching into the small bowl's nodes
-    /// itself, keeping this node the only thing that knows the bowl's
-    /// frame. Always tests against `smallBowlEmptyItem`'s frame, not
-    /// whichever frame is currently visible: the two frames' specs place
-    /// them within a fraction of a pixel of each other (see
-    /// `filledSmallBowl`'s doc comment), so one frame's padded rect is a
-    /// fine stand-in for both.
-    func smallBowlContains(_ scenePoint: CGPoint) -> Bool {
-        guard let scene, let bowlItem = smallBowlEmptyItem else { return false }
-        let localPoint = convert(scenePoint, from: scene)
-        let frame = bowlItem.frame
-        let width = max(frame.width, Self.minimumTouchTarget)
-        let height = max(frame.height, Self.minimumTouchTarget)
-        let hitArea = CGRect(x: frame.midX - width / 2, y: frame.midY - height / 2, width: width, height: height)
-        return hitArea.contains(localPoint)
+    /// The bowls a tap can currently land on, each paired with the menu
+    /// index it cooks — the daejeop bowl (slot 2) is never in here, per
+    /// spec. Gated on visibility so a menu-tier-hidden bowl can't be
+    /// tapped through. The small bowl always contributes
+    /// `smallBowlEmptyItem`'s frame, not whichever frame is currently
+    /// visible: the two frames' specs place them within a fraction of a
+    /// pixel of each other (see `filledSmallBowl`'s doc comment), so one
+    /// frame's frame is a fine stand-in for both.
+    private func tappableBowlItems() -> [(menuIndex: Int, item: ShopPropSpriteNode)] {
+        var items: [(menuIndex: Int, item: ShopPropSpriteNode)] = []
+        if let smallBowlItem = smallBowlEmptyItem, !isSmallBowlGateHidden {
+            items.append((Self.smallBowl.slotIndex, smallBowlItem))
+        }
+        if let largeBowlItem = tableItemsBySlot[Self.largeBowl.slotIndex], !largeBowlItem.isHidden {
+            items.append((Self.largeBowl.slotIndex, largeBowlItem))
+        }
+        return items
     }
 
-    /// Accept-tap feedback on the small bowl: scales up and back over
+    /// The menu index of the bowl `scenePoint` (a touch location in the
+    /// owning scene's coordinate space, as `SKScene.touchesEnded` reports
+    /// it) hits, or `nil` if it hits none. `MainStallScene` hit-tests
+    /// through here rather than reaching into the bowls' nodes itself,
+    /// keeping this node the only thing that knows their frames. If two
+    /// bowls' padded rects both contain the point (only possible right at
+    /// their shared boundary), the nearer one by centre distance wins, so
+    /// the tap always resolves to exactly one bowl.
+    func tappedBowlMenuIndex(at scenePoint: CGPoint) -> Int? {
+        guard let scene else { return nil }
+        let localPoint = convert(scenePoint, from: scene)
+        var best: (menuIndex: Int, distance: CGFloat)?
+        for (menuIndex, item) in tappableBowlItems() {
+            let frame = item.frame
+            let width = max(frame.width, Self.minimumTouchTarget)
+            let height = max(frame.height, Self.minimumTouchTarget)
+            let hitArea = CGRect(x: frame.midX - width / 2, y: frame.midY - height / 2, width: width, height: height)
+            guard hitArea.contains(localPoint) else { continue }
+            let dx = localPoint.x - frame.midX
+            let dy = localPoint.y - frame.midY
+            let distance = dx * dx + dy * dy
+            if best == nil || distance < best!.distance {
+                best = (menuIndex, distance)
+            }
+        }
+        return best?.menuIndex
+    }
+
+    /// Accept-tap feedback on `menuIndex`'s bowl: scales up and back over
     /// ~0.12s. Only ever called from an accepted tap, never per-frame, so
-    /// building a fresh `SKAction` here each time is fine. Animates
-    /// whichever frame `isSmallBowlFilled` currently shows — animating the
-    /// hidden node would silently do nothing on screen.
-    func pulseSmallBowl() {
-        guard let bowlItem = isSmallBowlFilled ? smallBowlFilledItem : smallBowlEmptyItem else { return }
-        bowlItem.run(.sequence([
+    /// building a fresh `SKAction` here each time is fine. For the small
+    /// bowl, animates whichever frame `isSmallBowlFilled` currently shows —
+    /// animating the hidden node would silently do nothing on screen.
+    func pulseBowl(menuIndex: Int) {
+        let bowlItem = menuIndex == Self.smallBowl.slotIndex
+            ? (isSmallBowlFilled ? smallBowlFilledItem : smallBowlEmptyItem)
+            : tableItemsBySlot[menuIndex]
+        bowlItem?.run(.sequence([
             .scale(to: 1.08, duration: 0.06),
             .scale(to: 1.0, duration: 0.06),
         ]))
