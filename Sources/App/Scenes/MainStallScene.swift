@@ -19,6 +19,14 @@ final class MainStallScene: SKScene {
     private let shopWallLayer = ShopWallLayer()
     private let kitchenLayer = KitchenLayer()
 
+    /// Spawns, walks and serves customers at `shop`'s counter — added
+    /// directly to the scene (see `update`) rather than under `shop` or
+    /// `groundLayer`, so its `ShopNode.actorZPosition`-derived zPosition
+    /// compares against theirs on the same unscaled `col + row` origin,
+    /// with no ancestor zPosition offset (like `fieldLayer`'s `10`) to
+    /// account for.
+    private let customerSpawner = ShopCustomerSpawner()
+
     /// The shop building: a self-contained unit of ground tiles and
     /// perimeter walls covering `ShopNode.defaultPlacement` — the real
     /// shop's actual size and position on the map (see that constant's
@@ -251,6 +259,7 @@ final class MainStallScene: SKScene {
         Task { @MainActor [weak self] in
             guard let self, let store = self.store else { return }
             store.tick(deltaTime: delta)
+            self.customerSpawner.update(delta: delta, store: store, grid: GroundLayer.grid, parent: self)
         }
     }
 }
