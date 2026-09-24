@@ -16,13 +16,15 @@ private enum CustomerPhase {
 /// rather than replacing array elements.
 private final class CustomerSession {
     let node: ShopCustomerNode
+    let queueSlot: Int
     var path: [CGPoint]
     var phase: CustomerPhase
     var waited: TimeInterval = 0
     var pollTimer: TimeInterval = 0
 
-    init(node: ShopCustomerNode, path: [CGPoint], phase: CustomerPhase) {
+    init(node: ShopCustomerNode, queueSlot: Int, path: [CGPoint], phase: CustomerPhase) {
         self.node = node
+        self.queueSlot = queueSlot
         self.path = path
         self.phase = phase
     }
@@ -106,16 +108,22 @@ final class ShopCustomerSpawner {
         node.zPosition = ShopNode.actorZPosition(atWorldY: node.position.y, on: grid)
         parent.addChild(node)
 
-        // Queue slot = however many customers are already ahead of this
-        // one in the pipeline, so a customer spawned while others are
-        // still walking in or waiting takes the next free spot in line
-        // instead of stacking on the counter's own point.
+        // The lowest slot no current session holds — not sessions.count,
+        // which reassigns a slot still held by an earlier customer once
+        // someone ahead of it leaves (e.g. slot 0 exits while slot 1 is
+        // still waiting: count drops to 1, so the next spawn would also
+        // claim slot 1 and stack on the waiting customer). A session keeps
+        // its slot until its node is removed — walking out still holds it —
+        // so slots never get reused mid-exit.
+        let heldSlots = Set(sessions.map(\.queueSlot))
+        let queueSlot = (0..<Self.maxConcurrentCustomers).first { !heldSlots.contains($0) } ?? sessions.count
         let session = CustomerSession(
             node: node,
+            queueSlot: queueSlot,
             path: [
                 roadPoint(on: grid),
                 ShopNode.customerApproachWaypoint(on: grid),
-                ShopNode.customerServicePoint(on: grid, queueSlot: sessions.count),
+                ShopNode.customerServicePoint(on: grid, queueSlot: queueSlot),
             ],
             phase: .walkingIn
         )
