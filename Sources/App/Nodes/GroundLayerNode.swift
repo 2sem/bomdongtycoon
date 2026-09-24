@@ -206,6 +206,21 @@ final class GroundLayer: SKNode {
         (mapOrigin.col + colIndex, mapOrigin.row + rowIndex)
     }
 
+    /// `IsoGrid` `(col, row)` of `map`'s one `.road` tile — the customer
+    /// spawn/exit point. Found by scanning `map` rather than a second
+    /// literal `(2, 10)` map-index constant, so it can't drift from
+    /// wherever `map` actually puts the road.
+    static var roadGridCoordinate: (col: Int, row: Int) {
+        for rowIndex in map.indices {
+            for colIndex in map[rowIndex].indices {
+                guard case .road = map[rowIndex][colIndex] else { continue }
+                return gridCoordinate(rowIndex: rowIndex, colIndex: colIndex)
+            }
+        }
+        assertionFailure("GroundLayer.map has no .road tile")
+        return gridCoordinate(rowIndex: 0, colIndex: 0)
+    }
+
     /// `map`'s tile at `(col, row)`, or `.grass` if that cell falls
     /// outside `map`'s own bounds — the open lawn ringing the farm/shop
     /// plot out to `worldColumns`/`worldRows`'s edge. Checks

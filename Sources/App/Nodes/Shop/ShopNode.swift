@@ -811,6 +811,63 @@ final class ShopNode: SKNode {
         ]))
     }
 
+    // MARK: - Customer service point
+
+    /// Spacing (in `IsoGrid` row units) between queued customers standing
+    /// outside the counter, along `customerServicePoint`'s own approach
+    /// line — far enough that neighbouring queue slots' sprites (~40pt
+    /// wide) don't overlap at this grid's usual scale, without crossing a
+    /// whole tile and looking like a separate line.
+    private static let customerQueueRowSpacing: CGFloat = 0.65
+
+    /// Where a customer stands to be served, `queueSlot` steps back from
+    /// the counter itself (`0` is the customer actually being served).
+    /// One cell east of `defaultPlacement`'s own east corner (the same
+    /// column the front wall's opening — and the counter filling it —
+    /// sit against), centred on the two rows `defaultOpenings` removes
+    /// the front wall from, then stepped further out per slot along that
+    /// same column so a queue forms outside the shop rather than stacking
+    /// on one point. Derived from `defaultPlacement` rather than a
+    /// hardcoded point so it can't drift from where the counter itself is
+    /// actually drawn.
+    static func customerServicePoint(on grid: IsoGrid, queueSlot: Int = 0) -> CGPoint {
+        let start = GroundLayer.gridCoordinate(rowIndex: defaultPlacement.originY, colIndex: defaultPlacement.originX)
+        let end = GroundLayer.gridCoordinate(
+            rowIndex: defaultPlacement.originY + defaultPlacement.height - 1,
+            colIndex: defaultPlacement.originX + defaultPlacement.width - 1
+        )
+        let row = CGFloat(start.row) + 0.5 + CGFloat(queueSlot) * customerQueueRowSpacing
+        return grid.point(col: CGFloat(end.col + 1), row: row)
+    }
+
+    /// A transit waypoint one cell outside the shop's own south-east
+    /// corner — south of the front (counter) wall's column and east of
+    /// the left wall's row, so it never sits over shop ground. A walk
+    /// from `GroundLayer.roadGridCoordinate` (south of the shop) to
+    /// `customerServicePoint` (east of it) via this point stays on two
+    /// straight, row-only-then-column-only legs that never cross the
+    /// building, instead of one diagonal line cutting across it.
+    static func customerApproachWaypoint(on grid: IsoGrid) -> CGPoint {
+        let end = GroundLayer.gridCoordinate(
+            rowIndex: defaultPlacement.originY + defaultPlacement.height - 1,
+            colIndex: defaultPlacement.originX + defaultPlacement.width - 1
+        )
+        return grid.point(col: CGFloat(end.col + 1), row: CGFloat(end.row + 1))
+    }
+
+    /// Z-order for an actor (a customer) standing at world-space `y` on
+    /// `grid`, on the same `col + row` scale every ground tile, wall and
+    /// prop in this file compares against — recovered from `y` alone via
+    /// `IsoGrid`'s own inverse (`col + row == -2y / tileHeight`) rather
+    /// than tracking the actor's grid coordinate separately as it walks.
+    /// One step above the shop's own highest in-cell slot (`.onProp`) so
+    /// an actor in front of the shop always draws over its walls, counter
+    /// and register at the same or a lower cellSum.
+    static func actorZPosition(atWorldY y: CGFloat, on grid: IsoGrid) -> CGFloat {
+        let cellSum = Int((-2 * y / grid.tileHeight).rounded(.down))
+        return zPosition(cellSum: cellSum, slot: .onProp) + slotSpacing
+    }
+
     private func westVertex(col: Int, row: Int, on grid: IsoGrid) -> CGPoint {
         let center = grid.point(col: col, row: row)
         return CGPoint(x: center.x - grid.tileWidth / 2, y: center.y)
