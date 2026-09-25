@@ -254,6 +254,52 @@ PRESETS = {
             "seed": 7,
         },
     },
+    "shop_bomdong_kimchi_bowl": {
+        # The large bowl's second, "filled" frame — the shop's menu 1, 봄동김치
+        # (seasoned spring-cabbage kimchi). Same vessel as shop_large_empty_bowl
+        # (rim/foot/height/palette identical, copied from that preset rather than
+        # re-typed) because it is the same physical bowl with food added, not a
+        # new prop — only `contents` differs. Following the same precedent as
+        # shop_geotjeori_bowl on shop_empty_bowl.
+        "rim": 0.38,
+        "foot": 0.24,
+        "height": 0.16,
+        "palette": {
+            "mid": (140, 88, 50),
+            "highlight": (172, 116, 68),
+            "shadow": (98, 58, 34),
+        },
+        # 봄동김치 is fully coated in red gochugaru seasoning, unlike geotjeori's
+        # lightly-seasoned pale cabbage — so the balance is inverted on purpose:
+        # here the *base* carries the red-orange gochugaru tone and the *flecks*
+        # are the minority color, showing green cabbage leaf peeking through the
+        # coating. base/highlight/shadow are a red-orange-brown ramp, still lit
+        # by the same upper-right diffuse gradient as the vessel (see
+        # `_apply_contents`); shadow (108,34,20) is noticeably darker+cooler than
+        # base (168,58,34) so the lower-left corner of the patch reads as a
+        # break in the coating rather than a flat-lit disc, matching every other
+        # preset's gradient. flecks carries two green leaf tones — a lighter
+        # (86,120,54) and a darker (54,86,38), so the cabbage itself isn't flat
+        # either — deliberately the opposite arrangement of shop_geotjeori_bowl
+        # (green base / red flecks), which is exactly what makes the two dishes
+        # read as different at a glance rather than as re-colors of one texture.
+        # fleck_count bumped from the file default (10) to 16: this bowl's rim
+        # (0.38) is ~1.6x geotjeori's (0.24), so the fill patch covers roughly
+        # 2.5x the area at ship size — 10 flecks read sparse on a patch that
+        # much bigger, 16 keeps the leaf-through-coating texture visible without
+        # the flecks smearing together under the Lanczos downsample. seed 11
+        # fixed so this preset reproduces byte-identical; picked only to differ
+        # from geotjeori's 7 so the scatter pattern itself doesn't coincidentally
+        # match, no other significance.
+        "contents": {
+            "base": (168, 58, 34),
+            "highlight": (200, 88, 52),
+            "shadow": (108, 34, 20),
+            "flecks": [(86, 120, 54), (54, 86, 38)],
+            "seed": 11,
+            "fleck_count": 16,
+        },
+    },
 }
 
 
