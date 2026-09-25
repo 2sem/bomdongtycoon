@@ -37,15 +37,14 @@ import isogrid  # noqa: E402  (needs the sys.path line above)
 
 
 def _view_direction():
-    """Unit vector pointing from the camera toward what it looks at."""
-    elevation, yaw = isogrid.ELEVATION, isogrid.YAW
-    return Vector(
-        (
-            -math.sin(yaw) * math.cos(elevation),
-            math.cos(yaw) * math.cos(elevation),
-            -math.sin(elevation),
-        )
-    )
+    """Unit vector pointing from the camera toward what it looks at.
+
+    The math lives in `isogrid.view_direction()` — plain floats, no `bpy` —
+    so `isobuild.py`'s shape vocabulary can use the identical formula to
+    tell which side of a face the camera sees. This wraps it as a `Vector`
+    for the camera/light placement code below.
+    """
+    return Vector(isogrid.view_direction())
 
 
 def _screen_right():
