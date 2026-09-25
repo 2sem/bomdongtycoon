@@ -811,6 +811,59 @@ final class ShopNode: SKNode {
         ]))
     }
 
+    // MARK: - Customer service point
+
+    /// Spacing (in `IsoGrid` column units) between queued customers
+    /// standing outside the counter, stepping further east per slot —
+    /// far enough that neighbouring queue slots' sprites (~40pt wide)
+    /// don't overlap at this grid's usual scale, without crossing a
+    /// whole tile and looking like a separate line.
+    private static let customerQueueColSpacing: CGFloat = 0.65
+
+    /// The `IsoGrid` row every customer queue slot (and, in
+    /// `ShopCustomerSpawner`, the spawn point far to the east on the same
+    /// row) shares: centred on the two rows `defaultOpenings` removes the
+    /// front wall from. A `static var`, not folded into
+    /// `customerServicePoint` alone, so the spawner can put its own point
+    /// on this row without faking an oversized queue slot to reach it.
+    static var customerServiceRow: CGFloat {
+        let start = GroundLayer.gridCoordinate(rowIndex: defaultPlacement.originY, colIndex: defaultPlacement.originX)
+        return CGFloat(start.row) + 0.5
+    }
+
+    /// Where a customer stands to be served, `queueSlot` steps east of
+    /// the counter itself (`0` is the customer actually being served).
+    /// One cell east of `defaultPlacement`'s own east corner (the same
+    /// column the front wall's opening — and the counter filling it —
+    /// sit against) on `customerServiceRow`, then stepped further east
+    /// per slot so a queue forms outside the shop rather than stacking on
+    /// one point. Every slot's column is `> colRange.upperBound`, so the
+    /// whole queue — like the counter it lines up in front of — stays
+    /// clear of the shop rectangle regardless of `queueSlot`. Derived
+    /// from `defaultPlacement` rather than a hardcoded point so it can't
+    /// drift from where the counter itself is actually drawn.
+    static func customerServicePoint(on grid: IsoGrid, queueSlot: Int = 0) -> CGPoint {
+        let end = GroundLayer.gridCoordinate(
+            rowIndex: defaultPlacement.originY + defaultPlacement.height - 1,
+            colIndex: defaultPlacement.originX + defaultPlacement.width - 1
+        )
+        let col = CGFloat(end.col + 1) + CGFloat(queueSlot) * customerQueueColSpacing
+        return grid.point(col: col, row: customerServiceRow)
+    }
+
+    /// Z-order for an actor (a customer) standing at world-space `y` on
+    /// `grid`, on the same `col + row` scale every ground tile, wall and
+    /// prop in this file compares against — recovered from `y` alone via
+    /// `IsoGrid`'s own inverse (`col + row == -2y / tileHeight`) rather
+    /// than tracking the actor's grid coordinate separately as it walks.
+    /// One step above the shop's own highest in-cell slot (`.onProp`) so
+    /// an actor in front of the shop always draws over its walls, counter
+    /// and register at the same or a lower cellSum.
+    static func actorZPosition(atWorldY y: CGFloat, on grid: IsoGrid) -> CGFloat {
+        let cellSum = Int((-2 * y / grid.tileHeight).rounded(.down))
+        return zPosition(cellSum: cellSum, slot: .onProp) + slotSpacing
+    }
+
     private func westVertex(col: Int, row: Int, on grid: IsoGrid) -> CGPoint {
         let center = grid.point(col: col, row: row)
         return CGPoint(x: center.x - grid.tileWidth / 2, y: center.y)

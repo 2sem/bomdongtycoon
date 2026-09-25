@@ -206,6 +206,14 @@ final class GroundLayer: SKNode {
         (mapOrigin.col + colIndex, mapOrigin.row + rowIndex)
     }
 
+    /// `IsoGrid` column just past `map`'s own east edge (`mapOrigin.col`
+    /// plus `map`'s column count) — tracks `map`'s actual width rather
+    /// than a hardcoded literal. `ShopCustomerSpawner` spawns customers a
+    /// few more columns out from here, on the shop's service row.
+    static var eastMapEdgeColumn: Int {
+        mapOrigin.col + (map.first?.count ?? 0)
+    }
+
     /// `map`'s tile at `(col, row)`, or `.grass` if that cell falls
     /// outside `map`'s own bounds — the open lawn ringing the farm/shop
     /// plot out to `worldColumns`/`worldRows`'s edge. Checks
