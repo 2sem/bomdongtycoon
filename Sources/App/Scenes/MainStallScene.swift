@@ -48,14 +48,15 @@ final class MainStallScene: SKScene {
     /// tier 2.
     private var lastAppliedMenuTier: Int?
 
-    /// Last fill state `shop.applyCookFill` ran with. `nil` can't match a
-    /// real `Bool`, so the first `updateShopCookGauge()` call always
-    /// applies — same reasoning as `lastAppliedMenuTier`. Unlike the
-    /// gauge's own `progress`, which changes continuously and pushes every
-    /// frame, this flips rarely (crossing the 0.5 threshold), so it's
-    /// worth guarding rather than assigning `isHidden` on two nodes every
-    /// frame for no visible change.
-    private var lastAppliedCookFill: Bool?
+    /// Last fill state `shop.applyCookFill` ran with, per menu index. `nil`
+    /// can't match a real `Bool`, so each menu's first
+    /// `updateShopCookGauge()` call always applies — same reasoning as
+    /// `lastAppliedMenuTier`. Unlike a gauge's own `progress`, which
+    /// changes continuously and pushes every frame, this flips rarely
+    /// (crossing the 0.5 threshold), so it's worth guarding per menu
+    /// rather than assigning `isHidden` on two nodes every frame for no
+    /// visible change.
+    private var lastAppliedCookFillByMenuIndex: [Int: Bool] = [:]
 
     /// Pans the world; `GroundLayer.worldBounds` clamps how far (see
     /// `clampCameraPosition()`) — "the map data" (`GroundLayer.map` plus
@@ -146,23 +147,24 @@ final class MainStallScene: SKScene {
     /// neither; see `ShopNode.tappedBowlMenuIndex`.
     private static let tappableMenuIndices = [0, 1]
 
-    /// The small bowl reads as "filled" once a cook is more than half
+    /// A tappable bowl reads as "filled" once its cook is more than half
     /// done, and empty again the moment the portion completes and stock
     /// is credited (`cookProgress` resets toward 0 on completion) — a
     /// cooking vessel, not storage, so it does not stay full while stock
     /// exists. Both a hired cook and the manual (tap) cook drive
-    /// `cookProgress`, so both fill the bowl. Menu-0 only — there's no
-    /// filled art for the large bowl yet.
+    /// `cookProgress`, so both fill the bowl. Applies to every menu in
+    /// `tappableMenuIndices` — both the small and large bowls have filled
+    /// art.
     private static let cookFillThreshold: Double = 0.5
 
-    /// Pushes each tappable bowl's cook progress into its own gauge every
-    /// frame, and menu 0's derived fill state into the small bowl's frame
-    /// toggle — unlike a gauge's own `progress`, which changes
-    /// continuously, the fill boolean flips rarely, so `lastAppliedCookFill`
-    /// guards it the same way `updateShopMenuTier` guards the tier.
+    /// Pushes each tappable bowl's cook progress into its own gauge, and
+    /// its derived fill state into its own frame toggle, every frame —
+    /// unlike a gauge's own `progress`, which changes continuously, the
+    /// fill boolean flips rarely, so `lastAppliedCookFillByMenuIndex`
+    /// guards it per menu the same way `updateShopMenuTier` guards the
+    /// tier.
     private func updateShopCookGauge() {
         guard let store else { return }
-        var smallBowlProgress = 0.0
         for menuIndex in Self.tappableMenuIndices {
             // Gauge shows only while this menu is actually cooking — a
             // manual tap session in flight, or a hired cook whose
@@ -171,13 +173,12 @@ final class MainStallScene: SKScene {
             // stock happens to be sitting there.
             let progress = store.cookProgress(menuIndex: menuIndex)
             shop.updateCookGauge(menuIndex: menuIndex, progress: progress, isVisible: store.isCooking(menuIndex: menuIndex))
-            if menuIndex == 0 { smallBowlProgress = progress }
-        }
 
-        let isFilled = smallBowlProgress > Self.cookFillThreshold
-        if isFilled != lastAppliedCookFill {
-            shop.applyCookFill(isFilled)
-            lastAppliedCookFill = isFilled
+            let isFilled = progress > Self.cookFillThreshold
+            if isFilled != lastAppliedCookFillByMenuIndex[menuIndex] {
+                shop.applyCookFill(isFilled, menuIndex: menuIndex)
+                lastAppliedCookFillByMenuIndex[menuIndex] = isFilled
+            }
         }
     }
 
