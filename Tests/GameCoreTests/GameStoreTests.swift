@@ -148,6 +148,27 @@ final class GameStoreTests: XCTestCase {
         XCTAssertFalse(store.isCooking(menuIndex: 1))
     }
 
+    func test_startManualCook_menuIndex2_thenTick_landsOnePortionInMenuStock2() {
+        store.farm.plots[0].workerType = .none   // isolate from farm auto-harvest — see first test
+        store.stall.menuTier = 2                  // unlocks the daejeop bowl (menu index 2)
+        let stockBefore = store.stall.menuStock[2]
+        let warehouseBefore = store.stall.warehouse
+
+        XCTAssertTrue(store.startManualCook(menuIndex: 2))
+        XCTAssertTrue(store.isCooking(menuIndex: 2))
+
+        store.tick(deltaTime: 10.0)
+        XCTAssertEqual(store.stall.menuStock[2], stockBefore + 1)
+        XCTAssertEqual(store.stall.warehouse, warehouseBefore - 1)
+        XCTAssertFalse(store.isManualCookRunning(menuIndex: 2))
+    }
+
+    func test_startManualCook_menuIndex2_tierLocked_refuses() {
+        store.stall.menuTier = 1   // daejeop bowl not yet unlocked
+        XCTAssertFalse(store.startManualCook(menuIndex: 2))
+        XCTAssertFalse(store.isCooking(menuIndex: 2))
+    }
+
     // MARK: - isCooking
 
     func test_isCooking_noCookNoManual_isFalse() {

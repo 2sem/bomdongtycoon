@@ -143,9 +143,9 @@ final class MainStallScene: SKScene {
     }
 
     /// Menu indices with their own tap-to-cook bowl and gauge — the small
-    /// bowl (0) and the large bowl (1). The daejeop bowl (slot 2) has
-    /// neither; see `ShopNode.tappedBowlMenuIndex`.
-    private static let tappableMenuIndices = [0, 1]
+    /// bowl (0), the large bowl (1) and the daejeop bowl (2); see
+    /// `ShopNode.tappedBowlMenuIndex`.
+    private static let tappableMenuIndices = [0, 1, 2]
 
     /// A tappable bowl reads as "filled" once its cook is more than half
     /// done, and empty again the moment the portion completes and stock
@@ -153,8 +153,8 @@ final class MainStallScene: SKScene {
     /// cooking vessel, not storage, so it does not stay full while stock
     /// exists. Both a hired cook and the manual (tap) cook drive
     /// `cookProgress`, so both fill the bowl. Applies to every menu in
-    /// `tappableMenuIndices` — both the small and large bowls have filled
-    /// art.
+    /// `tappableMenuIndices` — the small, large and daejeop bowls all have
+    /// filled art.
     private static let cookFillThreshold: Double = 0.5
 
     /// Pushes each tappable bowl's cook progress into its own gauge, and

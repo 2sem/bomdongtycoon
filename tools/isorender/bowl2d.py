@@ -300,6 +300,55 @@ PRESETS = {
             "fleck_count": 16,
         },
     },
+    "shop_bomdong_bibimbap_bowl": {
+        # The daejeop (mixing) bowl's second, "filled" frame — the shop's menu 2,
+        # 봄동비빔밥 (spring-cabbage bibimbap). Same vessel as shop_daejeop_bowl
+        # (rim/foot/height/palette identical, copied from that preset rather than
+        # re-typed) because it is the same physical bowl with food added, not a
+        # new prop — only `contents` differs. Following the same precedent as
+        # shop_geotjeori_bowl on shop_empty_bowl and shop_bomdong_kimchi_bowl on
+        # shop_large_empty_bowl.
+        "rim": 0.45,
+        "foot": 0.32,
+        "height": 0.24,
+        "palette": {
+            "mid": (122, 76, 42),
+            "highlight": (162, 108, 58),
+            "shadow": (76, 46, 24),
+        },
+        # Both existing filled bowls are single-color coatings (a red kimchi
+        # coating, a pale cabbage) told apart mainly by base hue. Bibimbap is a
+        # genuinely mixed dish — rice base with several toppings stirred through
+        # — so it needs a third hue family, not another red-or-green base, to
+        # read as a different dish at a glance rather than a recolor: warm
+        # cooked-rice base/highlight/shadow ramp (still the same upper-right
+        # diffuse gradient every vessel/content fill uses, see
+        # `_apply_contents`), carrying three minority fleck colors instead of
+        # the usual one or two — green bomdong leaf, red gochujang, and a
+        # yellow egg-yolk accent — so the scatter itself reads as "mixed toppings"
+        # rather than a single seasoning. Fleck hues were chosen to stay clear
+        # of the other two bowls' own fleck/base colors at a glance: this
+        # green (80,116,50) sits between geotjeori's base green and kimchi's
+        # fleck greens without matching either; this red (196,68,40) is a
+        # brighter, more orange gochujang red than kimchi's darker coating
+        # red/gochugaru base, so it doesn't get mistaken for a kimchi smear.
+        # fleck_count 22: this bowl's rim (0.45) is the widest in the set —
+        # ~1.4x shop_bomdong_kimchi_bowl's 0.38, so its fill patch covers
+        # roughly 1.4x the area — scaled up from that bowl's 16 by the same
+        # area-ratio reasoning used there (16 * (0.45/0.38)^2 ~= 22.4). Radius
+        # left at the file default (2.2px) like every other preset — only
+        # count scales with patch area, not fleck size. seed 19 fixed so this
+        # preset reproduces byte-identical; picked only to differ from
+        # geotjeori's 7 and kimchi's 11, no other significance.
+        "contents": {
+            "base": (218, 190, 142),
+            "highlight": (236, 214, 168),
+            "shadow": (168, 138, 96),
+            "flecks": [(80, 116, 50), (196, 68, 40), (230, 172, 44)],
+            "seed": 19,
+            "fleck_count": 22,
+        },
+    },
 }
 
 

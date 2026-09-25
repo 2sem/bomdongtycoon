@@ -247,6 +247,21 @@ final class ShopNode: SKNode {
         slotIndex: 2
     )
 
+    /// Camera-matrix measurement table (3× render), used as printed:
+    /// trimmed 123×116, base-center pixel (61.5, 88.58) — identical to
+    /// `daejeopBowl`'s own measurements (zero drift, per the art
+    /// director's table), so its `baseAnchor` fraction matches exactly
+    /// with no manual nudge needed. Still its own `TableItemSpec`,
+    /// matching `smallBowl`/`filledSmallBowl` and `largeBowl`/
+    /// `filledLargeBowl`'s split, rather than reusing `daejeopBowl` for a
+    /// different texture.
+    private static let filledDaejeopBowl = TableItemSpec(
+        imageName: "shop_bomdong_bibimbap_bowl",
+        nativeSize: CGSize(width: 123, height: 116),
+        baseCenterPixel: CGPoint(x: 61.5, y: 88.58),
+        slotIndex: 2
+    )
+
     let placement: ShopPlacement
 
     /// One prep-table slot's fillable bowl: two frames, built once in
@@ -290,27 +305,16 @@ final class ShopNode: SKNode {
         }
     }
 
-    /// Table items built by `buildTableItem` for slots with no filled
-    /// frame — just the daejeop bowl (slot 2) — keyed by their own
-    /// `TableItemSpec.slotIndex`, what `applyMenuTier` toggles `isHidden`
-    /// on directly. Starts empty and every item starts visible (`isHidden`
-    /// defaults to `false`), so a caller that never applies a tier —
-    /// `ShopWallsPreviewScene` — shows the full set rather than an empty
-    /// table.
-    private var tableItemsBySlot: [Int: ShopPropSpriteNode] = [:]
-
-    /// The small (slot 0) and large (slot 1) bowls, each with its own
-    /// empty/filled pair — the two slots a cook can fill past the gauge's
-    /// threshold. The daejeop bowl (slot 2) has no entry: no filled art,
-    /// and it's not tappable or gaugeable either.
+    /// The small (slot 0), large (slot 1) and daejeop (slot 2) bowls, each
+    /// with its own empty/filled pair — every slot a cook can tap, gauge
+    /// and fill past the gauge's threshold.
     private var fillableBowlsBySlot: [Int: FillableBowl] = [:]
 
     /// Cook gauges keyed by menu index — slot index and menu index are the
     /// same number by construction (see `applyMenuTier`'s doc comment), so
-    /// one dictionary serves both the small bowl (0) and large bowl (1).
-    /// The daejeop bowl (slot 2) has no entry: not tappable, nothing to
-    /// gauge. Built at the end of `init`, once each bowl's own item exists
-    /// to hang a gauge off of.
+    /// one dictionary serves the small (0), large (1) and daejeop (2)
+    /// bowls alike. Built at the end of `init`, once each bowl's own item
+    /// exists to hang a gauge off of.
     private var cookGaugeNodesByMenuIndex: [Int: ShopCookGaugeNode] = [:]
 
     /// Painter's-order slot within a cell: ground, then walls back <
@@ -416,17 +420,21 @@ final class ShopNode: SKNode {
         let prepTableFootprint = prepTableFootprint
             ?? Self.defaultPrepTableFootprint(colRange: colRange, rowRange: rowRange)
         let table = buildPrepTable(footprint: prepTableFootprint, on: grid)
-        // All five items (the small and large bowls' two frames each, plus
-        // the daejeop bowl) draw at `.onProp` on the same `nearestCellSum`,
-        // so they tie on zPosition — harmless because every slot is 0.583
-        // apart, centre to centre, which is wider than any neighbouring
-        // pair's combined half-widths: small bowl 0.24 across vs. large
-        // bowl 0.38 (0.12 + 0.19 = 0.31), large bowl vs. daejeop bowl 0.45
-        // (0.19 + 0.225 = 0.415) — so no two footprints ever reach each
-        // other, and each fillable bowl's own two frames sit exactly on
-        // top of one another by design (only one is ever visible at a
-        // time).
-        for (emptySpec, filledSpec) in [(Self.smallBowl, Self.filledSmallBowl), (Self.largeBowl, Self.filledLargeBowl)] {
+        // All six items (the small, large and daejeop bowls' two frames
+        // each) draw at `.onProp` on the same `nearestCellSum`, so they tie
+        // on zPosition — harmless because every slot is 0.583 apart, centre
+        // to centre, which is wider than any neighbouring pair's combined
+        // half-widths: small bowl 0.24 across vs. large bowl 0.38 (0.12 +
+        // 0.19 = 0.31), large bowl vs. daejeop bowl 0.45 (0.19 + 0.225 =
+        // 0.415) — so no two footprints ever reach each other, and each
+        // fillable bowl's own two frames sit exactly on top of one another
+        // by design (only one is ever visible at a time).
+        let bowlSpecs = [
+            (Self.smallBowl, Self.filledSmallBowl),
+            (Self.largeBowl, Self.filledLargeBowl),
+            (Self.daejeopBowl, Self.filledDaejeopBowl),
+        ]
+        for (emptySpec, filledSpec) in bowlSpecs {
             let emptyItem = buildTableItem(emptySpec, standingOn: table, footprintCellSum: prepTableFootprint.nearestCellSum, on: grid)
             let filledItem = buildTableItem(filledSpec, standingOn: table, footprintCellSum: prepTableFootprint.nearestCellSum, on: grid)
             let bowl = FillableBowl(emptyItem: emptyItem, filledItem: filledItem)
@@ -439,12 +447,6 @@ final class ShopNode: SKNode {
                 on: grid
             )
         }
-        tableItemsBySlot[Self.daejeopBowl.slotIndex] = buildTableItem(
-            Self.daejeopBowl,
-            standingOn: table,
-            footprintCellSum: prepTableFootprint.nearestCellSum,
-            on: grid
-        )
 
         if openings.isSuperset(of: Self.requiredCashCounterOpenings(width: width)) {
             let cashCounterFootprint = cashCounterFootprint
@@ -734,13 +736,10 @@ final class ShopNode: SKNode {
     /// claim slots 0/1/2 for exactly the menus — 겉절이/봄동김치/봄동비빔밥—
     /// that unlock them), so gating each item on `slotIndex <= tier` gates
     /// it on the menu it belongs to directly, with no separate threshold
-    /// table to keep in sync. A fillable slot's gate is recorded on its
+    /// table to keep in sync. Each slot's gate is recorded on its
     /// `FillableBowl` and composed there with the fill state; see
     /// `FillableBowl.updateVisibility`.
     func applyMenuTier(_ tier: Int) {
-        for (slotIndex, item) in tableItemsBySlot {
-            item.isHidden = slotIndex > tier
-        }
         for (slotIndex, bowl) in fillableBowlsBySlot {
             bowl.isGateHidden = slotIndex > tier
             bowl.updateVisibility()
@@ -749,8 +748,7 @@ final class ShopNode: SKNode {
 
     /// Toggles which of `menuIndex`'s two bowl frames is visible: filled
     /// while its cook is more than half done, empty otherwise. A
-    /// `menuIndex` with no fillable bowl (the daejeop bowl, or anything out
-    /// of range) is a no-op.
+    /// `menuIndex` with no fillable bowl (out of range) is a no-op.
     ///
     /// This itself stays unconditional, matching `applyMenuTier`'s own
     /// pattern: `MainStallScene` derives `isFilled` from the cook-progress
@@ -764,8 +762,7 @@ final class ShopNode: SKNode {
 
     /// Feeds `menuIndex`'s cook gauge; `MainStallScene` is the store-aware
     /// caller, so this only forwards the numbers it already computed. A
-    /// `menuIndex` with no gauge (the daejeop bowl, or anything out of
-    /// range) is a no-op.
+    /// `menuIndex` with no gauge (out of range) is a no-op.
     func updateCookGauge(menuIndex: Int, progress: Double, isVisible: Bool) {
         cookGaugeNodesByMenuIndex[menuIndex]?.update(progress: progress, isVisible: isVisible)
     }
@@ -777,10 +774,9 @@ final class ShopNode: SKNode {
     private static let minimumTouchTarget: CGFloat = 44
 
     /// The bowls a tap can currently land on, each paired with the menu
-    /// index it cooks — the daejeop bowl (slot 2) is never in here, per
-    /// spec. Gated on the tier, not on which frame is hidden by fill state,
-    /// so a bowl mid-cook stays tappable. Each fillable bowl always
-    /// contributes its `emptyItem`'s frame, not whichever frame is
+    /// index it cooks. Gated on the tier, not on which frame is hidden by
+    /// fill state, so a bowl mid-cook stays tappable. Each fillable bowl
+    /// always contributes its `emptyItem`'s frame, not whichever frame is
     /// currently visible: the empty/filled specs place them within a
     /// fraction of a pixel of each other (see `filledSmallBowl`'s doc
     /// comment), so one frame's frame is a fine stand-in for both.
@@ -820,12 +816,11 @@ final class ShopNode: SKNode {
 
     /// Accept-tap feedback on `menuIndex`'s bowl: scales up and back over
     /// ~0.12s. Only ever called from an accepted tap, never per-frame, so
-    /// building a fresh `SKAction` here each time is fine. For a fillable
-    /// bowl, animates whichever frame is currently shown — animating the
-    /// hidden one would silently do nothing on screen.
+    /// building a fresh `SKAction` here each time is fine. Animates
+    /// whichever frame is currently shown — animating the hidden one would
+    /// silently do nothing on screen.
     func pulseBowl(menuIndex: Int) {
-        let bowlItem = fillableBowlsBySlot[menuIndex]?.currentItem ?? tableItemsBySlot[menuIndex]
-        bowlItem?.run(.sequence([
+        fillableBowlsBySlot[menuIndex]?.currentItem.run(.sequence([
             .scale(to: 1.08, duration: 0.06),
             .scale(to: 1.0, duration: 0.06),
         ]))
