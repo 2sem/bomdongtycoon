@@ -1,13 +1,13 @@
 import SpriteKit
 
 /// The pojangmacha stall's north-west-facing panel: same edge/slot as
-/// `ShopWallBackNode` (North->West edge, anchored at the tile's West
+/// the walled shop's back-edge wall (North->West edge, anchored at the tile's West
 /// vertex, shared with `StallWallLeftNode`) — tier 0's stand-in for that
 /// wall, shown instead of it while `ShopNode.applyStallTier` has the
 /// stall enclosure active.
 ///
 /// Rendered by the same clean `tools/isorender/` rig `ShopWallLeftNode`
-/// already uses (not hand-corrected the way `ShopWallBackNode`'s own art
+/// already uses (not hand-corrected the way the walled shop's back-edge wall's own art
 /// is), so its numbers come straight off that render's measurement
 /// table, used as printed. Trimmed 205x276; main face
 /// top-left(202.34,8.68), top-right(13.34,125.18),
@@ -22,7 +22,7 @@ final class StallWallBackNode: SKSpriteNode {
     /// Depth vector (top-left -> top-right), matching the tile's own
     /// North->West edge; only its magnitude feeds `spriteSize` — the
     /// direction is carried by `backBottomAnchor` instead, per
-    /// `ShopWallBackNode`'s own doc comment.
+    /// the walled shop's back-edge wall's own doc comment.
     private static let nativeDepthVector = CGVector(dx: -189.0, dy: 116.49)
 
     /// Bottom-left corner (202.34, 157.91) — where this wall meets
