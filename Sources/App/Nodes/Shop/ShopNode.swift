@@ -60,7 +60,7 @@ struct ShopPropFootprint {
     }
 }
 
-/// A wall segment `ShopNode.buildWalls` leaves out, addressed in the
+/// A wall segment `ShopNode.buildEnclosure` leaves out, addressed in the
 /// shop's own local offsets from its own origin — `x` toward the east
 /// corner (screen lower-right), `y` toward the south corner (screen
 /// lower-left) — the same offsets the user names a cell by ("[2, 0]"),
@@ -80,7 +80,7 @@ struct ShopWallOpening: Hashable {
 }
 
 /// A shop building: `ShopGroundTileNode` tiles ringed by the four
-/// `ShopWall{Back,Right,Left,Front}Node` segments, laid out on an
+/// wall segments, laid out on an
 /// `IsoGrid`, plus a `ShopPrepTableNode` (with a bowl standing on it)
 /// running into the room from the right wall and, when the east-side
 /// opening is present, a cash counter (with a register standing on it)
@@ -109,7 +109,7 @@ final class ShopNode: SKNode {
 
     /// The live shop's east side leaves out its two front segments
     /// nearest the east corner — shop-local `(2, 0)` and `(2, 1)` at the
-    /// default 3×3 size — so the windowed `ShopWallRightNode` segment at
+    /// default 3×3 size — so the windowed right-edge segment at
     /// the east corner stands alone with its corner post showing rather
     /// than butting into a plain front segment. `(2, 2)`, by the south
     /// corner, keeps its front wall.
@@ -383,16 +383,16 @@ final class ShopNode: SKNode {
     /// exists to hang a gauge off of.
     private var cookGaugeNodesByMenuIndex: [Int: ShopCookGaugeNode] = [:]
 
-    /// The walled shop's own perimeter segments (tier >= 1: 봄동 식당 /
-    /// 봄동 전문점) and the pojangmacha stall's own enclosure pieces
-    /// (tier 0: 포장마차, including the canopy) — both built once in
-    /// `init`, one set hidden by default, and swapped via `isHidden` in
+    /// The three enclosures — pojangmacha stall (tier 0, including the
+    /// canopy), bunsik shop (tier 1) and jeonmun shop (tier 2) — all built
+    /// once in `init`, all but one hidden, and swapped via `isHidden` in
     /// `applyStallTier`. Same two-nodes-always-built approach
     /// `FillableBowl` uses for its empty/filled frames, so there's no
-    /// runtime texture swap to keep in sync with two different
-    /// measurement tables.
-    private var walledShopEnclosureNodes: [SKNode] = []
+    /// runtime texture swap to keep in sync with different measurement
+    /// tables.
     private var stallEnclosureNodes: [SKNode] = []
+    private var bunsikEnclosureNodes: [SKNode] = []
+    private var jeonmunEnclosureNodes: [SKNode] = []
 
     /// Painter's-order slot within a cell: ground, then walls back <
     /// right < left < front, so the wall nearer the camera wins where
@@ -473,7 +473,7 @@ final class ShopNode: SKNode {
     /// since a shop's footprint never changes after placement.
     ///
     /// `prepTableFootprint` is in the same `IsoGrid` `(col, row)` space as
-    /// `buildWalls`' `colRange`/`rowRange`, not map-array indices. `nil`
+    /// `buildEnclosure`' `colRange`/`rowRange`, not map-array indices. `nil`
     /// (the default) falls back to `defaultPrepTableFootprint`.
     ///
     /// `openings` defaults to `defaultOpenings`, so any caller building a
@@ -508,18 +508,16 @@ final class ShopNode: SKNode {
         let rowRange = start.row...end.row
 
         buildGround(colRange: colRange, rowRange: rowRange, on: grid)
-        buildWalls(colRange: colRange, rowRange: rowRange, on: grid, openings: openings)
         buildStallEnclosure(colRange: colRange, rowRange: rowRange, on: grid, openings: openings)
+        buildBunsikEnclosure(colRange: colRange, rowRange: rowRange, on: grid, openings: openings)
+        buildJeonmunEnclosure(colRange: colRange, rowRange: rowRange, on: grid, openings: openings)
         let stallCanopyFootprint = Self.defaultStallCanopyFootprint(colRange: colRange, rowRange: rowRange)
         buildStallCanopy(footprint: stallCanopyFootprint, on: grid)
-        // Both enclosures exist from here on; the walled shop stays the
-        // visible default (matching the live shop's current tier >= 1
-        // look) until a caller actually knows the stall tier and calls
-        // `applyStallTier` — mirrors `FillableBowl`'s own empty-by-default
-        // state before `applyCookFill` first runs.
-        for node in stallEnclosureNodes {
-            node.isHidden = true
-        }
+        // All three enclosures exist from here on; the bunsik shop stays
+        // the visible default until a caller actually knows the stall
+        // tier and calls `applyStallTier` — mirrors `FillableBowl`'s own
+        // empty-by-default state before `applyCookFill` first runs.
+        applyStallTier(1)
 
         let prepTableFootprint = prepTableFootprint
             ?? Self.defaultPrepTableFootprint(colRange: colRange, rowRange: rowRange)
@@ -617,20 +615,26 @@ final class ShopNode: SKNode {
         }
     }
 
-    /// Rings `colRange` × `rowRange` with wall segments on all four
-    /// edges, skipping any cell named in `openings`:
+    /// Rings `colRange` × `rowRange` with `walls`' segments on all four
+    /// edges, skipping any cell named in `openings`, and appends them to
+    /// `enclosure`:
     ///
-    /// | Wall | Boundary | Anchors on | Opening `side` | shop-local fixed axis |
+    /// | Edge | Boundary | Anchors on | Opening `side` | shop-local fixed axis |
     /// |---|---|---|---|---|
-    /// | `ShopWallBackNode` | minimum column, every row | West vertex | `.back` | `x == 0` |
-    /// | `ShopWallRightNode` | minimum row, every column | North vertex | `.right` | `y == 0` |
-    /// | `ShopWallLeftNode` | maximum row, every column | West vertex | `.left` | `y == height - 1` |
-    /// | `ShopWallFrontNode` | maximum column, every row | South vertex | `.front` | `x == width - 1` |
-    private func buildWalls(
+    /// | back | minimum column, every row | West vertex | `.back` | `x == 0` |
+    /// | right | minimum row, every column | North vertex | `.right` | `y == 0` |
+    /// | left | maximum row, every column | West vertex | `.left` | `y == height - 1` |
+    /// | front | maximum column, every row | South vertex | `.front` | `x == width - 1` |
+    private func buildEnclosure(
+        into enclosure: inout [SKNode],
         colRange: ClosedRange<Int>,
         rowRange: ClosedRange<Int>,
         on grid: IsoGrid,
-        openings: Set<ShopWallOpening>
+        openings: Set<ShopWallOpening>,
+        back: () -> SKNode,
+        right: () -> SKNode,
+        left: () -> SKNode,
+        front: () -> SKNode
     ) {
         let firstCol = colRange.lowerBound
         let lastCol = colRange.upperBound
@@ -639,100 +643,90 @@ final class ShopNode: SKNode {
 
         for row in rowRange {
             guard !openings.contains(ShopWallOpening(side: .back, x: 0, y: row - firstRow)) else { continue }
-            let wall = ShopWallBackNode(fittingTo: grid)
+            let wall = back()
             wall.position = westVertex(col: firstCol, row: row, on: grid)
             wall.zPosition = Self.zPosition(col: firstCol, row: row, slot: .back)
             addChild(wall)
-            walledShopEnclosureNodes.append(wall)
+            enclosure.append(wall)
         }
 
         for col in colRange {
             guard !openings.contains(ShopWallOpening(side: .right, x: col - firstCol, y: 0)) else { continue }
-            let wall = ShopWallRightNode(fittingTo: grid)
+            let wall = right()
             wall.position = northVertex(col: col, row: firstRow, on: grid)
             wall.zPosition = Self.zPosition(col: col, row: firstRow, slot: .right)
             addChild(wall)
-            walledShopEnclosureNodes.append(wall)
+            enclosure.append(wall)
         }
 
         for col in colRange {
             guard !openings.contains(ShopWallOpening(side: .left, x: col - firstCol, y: lastRow - firstRow)) else { continue }
-            let wall = ShopWallLeftNode(fittingTo: grid)
+            let wall = left()
             wall.position = westVertex(col: col, row: lastRow, on: grid)
             wall.zPosition = Self.zPosition(col: col, row: lastRow, slot: .left)
             addChild(wall)
-            walledShopEnclosureNodes.append(wall)
+            enclosure.append(wall)
         }
 
-        // KNOWN COSMETIC ISSUE (art, not geometry — do not "fix" here):
-        // `wall_shop_front`'s source art has an entrance gap baked into
-        // it, so every one of these segments shows one. Flagged to the
-        // art team.
         for row in rowRange {
             guard !openings.contains(ShopWallOpening(side: .front, x: lastCol - firstCol, y: row - firstRow)) else { continue }
-            let wall = ShopWallFrontNode(fittingTo: grid)
+            let wall = front()
             wall.position = southVertex(col: lastCol, row: row, on: grid)
             wall.zPosition = Self.zPosition(col: lastCol, row: row, slot: .front)
             addChild(wall)
-            walledShopEnclosureNodes.append(wall)
+            enclosure.append(wall)
         }
     }
 
-    /// Same geometry as `buildWalls` (identical vertex anchors, identical
-    /// per-side loops, same `openings`) but the pojangmacha stall's own
-    /// pieces — `StallWallBackNode`/`StallCurtainRightNode`/
-    /// `StallWallLeftNode`/`StallCurtainFrontNode` — appended to
-    /// `stallEnclosureNodes` instead of `walledShopEnclosureNodes`.
-    /// Reusing `buildWalls`' own `openings` (rather than a
-    /// stall-specific set) keeps the entrance gap in the same cells on
-    /// both enclosures, since the interior layout it serves — the
-    /// counter filling that gap — doesn't change with the tier.
+    /// Tier 1 (분식집): the same `wall_shop_left` the old walled shop
+    /// used on the left edge, new `bunsik_*` art on the other three.
+    private func buildBunsikEnclosure(
+        colRange: ClosedRange<Int>,
+        rowRange: ClosedRange<Int>,
+        on grid: IsoGrid,
+        openings: Set<ShopWallOpening>
+    ) {
+        buildEnclosure(
+            into: &bunsikEnclosureNodes, colRange: colRange, rowRange: rowRange, on: grid, openings: openings,
+            back: { ShopTierWallNode(ShopTierWallNode.bunsikBack, fittingTo: grid) },
+            right: { ShopTierWallNode(ShopTierWallNode.bunsikRight, fittingTo: grid) },
+            left: { ShopWallLeftNode(fittingTo: grid) },
+            front: { ShopTierWallNode(ShopTierWallNode.bunsikFront, fittingTo: grid) }
+        )
+    }
+
+    /// Tier 2 (전문점): all four edges are `jeonmun_*` art.
+    private func buildJeonmunEnclosure(
+        colRange: ClosedRange<Int>,
+        rowRange: ClosedRange<Int>,
+        on grid: IsoGrid,
+        openings: Set<ShopWallOpening>
+    ) {
+        buildEnclosure(
+            into: &jeonmunEnclosureNodes, colRange: colRange, rowRange: rowRange, on: grid, openings: openings,
+            back: { ShopTierWallNode(ShopTierWallNode.jeonmunBack, fittingTo: grid) },
+            right: { ShopTierWallNode(ShopTierWallNode.jeonmunRight, fittingTo: grid) },
+            left: { ShopTierWallNode(ShopTierWallNode.jeonmunLeft, fittingTo: grid) },
+            front: { ShopTierWallNode(ShopTierWallNode.jeonmunFront, fittingTo: grid) }
+        )
+    }
+
+    /// Tier 0: the pojangmacha stall's own pieces. Shares `openings` with
+    /// the other enclosures, so the entrance gap stays in the same cells
+    /// at every tier — the counter filling that gap doesn't change.
     private func buildStallEnclosure(
         colRange: ClosedRange<Int>,
         rowRange: ClosedRange<Int>,
         on grid: IsoGrid,
         openings: Set<ShopWallOpening>
     ) {
-        let firstCol = colRange.lowerBound
-        let lastCol = colRange.upperBound
-        let firstRow = rowRange.lowerBound
-        let lastRow = rowRange.upperBound
-
-        for row in rowRange {
-            guard !openings.contains(ShopWallOpening(side: .back, x: 0, y: row - firstRow)) else { continue }
-            let wall = StallWallBackNode(fittingTo: grid)
-            wall.position = westVertex(col: firstCol, row: row, on: grid)
-            wall.zPosition = Self.zPosition(col: firstCol, row: row, slot: .back)
-            addChild(wall)
-            stallEnclosureNodes.append(wall)
-        }
-
-        for col in colRange {
-            guard !openings.contains(ShopWallOpening(side: .right, x: col - firstCol, y: 0)) else { continue }
-            let wall = StallCurtainRightNode(fittingTo: grid)
-            wall.position = northVertex(col: col, row: firstRow, on: grid)
-            wall.zPosition = Self.zPosition(col: col, row: firstRow, slot: .right)
-            addChild(wall)
-            stallEnclosureNodes.append(wall)
-        }
-
-        for col in colRange {
-            guard !openings.contains(ShopWallOpening(side: .left, x: col - firstCol, y: lastRow - firstRow)) else { continue }
-            let wall = StallWallLeftNode(fittingTo: grid)
-            wall.position = westVertex(col: col, row: lastRow, on: grid)
-            wall.zPosition = Self.zPosition(col: col, row: lastRow, slot: .left)
-            addChild(wall)
-            stallEnclosureNodes.append(wall)
-        }
-
-        for row in rowRange {
-            guard !openings.contains(ShopWallOpening(side: .front, x: lastCol - firstCol, y: row - firstRow)) else { continue }
-            let wall = StallCurtainFrontNode(fittingTo: grid)
-            wall.position = southVertex(col: lastCol, row: row, on: grid)
-            wall.zPosition = Self.zPosition(col: lastCol, row: row, slot: .front)
-            addChild(wall)
-            stallEnclosureNodes.append(wall)
-        }
+        buildEnclosure(
+            into: &stallEnclosureNodes, colRange: colRange, rowRange: rowRange, on: grid, openings: openings,
+            back: { StallWallBackNode(fittingTo: grid) },
+            right: { StallCurtainRightNode(fittingTo: grid) },
+            left: { StallWallLeftNode(fittingTo: grid) },
+            front: { StallCurtainFrontNode(fittingTo: grid) }
+        )
     }
 
     /// Places the free-standing canopy at `footprint.center` and
@@ -760,7 +754,7 @@ final class ShopNode: SKNode {
 
     /// A requested opening that isn't on the perimeter it names (wrong
     /// fixed axis, or out of range on the other one) is a caller
-    /// mistake: it never matches a cell in `buildWalls`' loops, so it's
+    /// mistake: it never matches a cell in `buildEnclosure`'s loops, so it's
     /// silently a no-op — every wall stays. `assert` catches that mistake
     /// during development without taking down a release build.
     private static func validate(_ openings: Set<ShopWallOpening>, width: Int, height: Int) {
@@ -934,18 +928,21 @@ final class ShopNode: SKNode {
         }
     }
 
-    /// Shows the pojangmacha stall's own enclosure at tier 0 (포장마차)
-    /// and the walled shop's at tier >= 1 (봄동 식당 / 봄동 전문점) — see
-    /// `UpgradeDefinitions.stall`. Interior props (prep table, bowls,
-    /// gauges, cash counter/register) and customers don't gate on this;
-    /// only the enclosure swaps.
+    /// Shows exactly one enclosure: the pojangmacha stall at tier 0
+    /// (포장마차), the bunsik shop at tier 1 (봄동 식당) and the jeonmun
+    /// shop at tier >= 2 (봄동 전문점) — see `UpgradeDefinitions.stall`.
+    /// Interior props (prep table, bowls, gauges, cash counter/register)
+    /// and customers don't gate on this; only the enclosure swaps.
     func applyStallTier(_ tier: Int) {
-        let showStall = tier <= 0
+        let shown = max(0, min(tier, 2))
         for node in stallEnclosureNodes {
-            node.isHidden = !showStall
+            node.isHidden = shown != 0
         }
-        for node in walledShopEnclosureNodes {
-            node.isHidden = showStall
+        for node in bunsikEnclosureNodes {
+            node.isHidden = shown != 1
+        }
+        for node in jeonmunEnclosureNodes {
+            node.isHidden = shown != 2
         }
     }
 
