@@ -1,9 +1,11 @@
 import SwiftUI
+import UIKit
 import GameCore
 
 public struct UpgradeSheet: View {
     @EnvironmentObject var store: GameStore
     @Binding public var isPresented: Bool
+    @State private var pendingLocationTier: Int?
 
     public init(isPresented: Binding<Bool>) {
         self._isPresented = isPresented
@@ -24,9 +26,22 @@ public struct UpgradeSheet: View {
                     definitions: UpgradeDefinitions.stall,
                     currentTier: store.stall.stallTier + 1
                 )
+                locationSection
             }
             .navigationTitle(String(localized: "업그레이드"))
             .navigationBarTitleDisplayMode(.inline)
+            .alert(
+                alertTitle,
+                isPresented: Binding(
+                    get: { pendingLocationTier != nil },
+                    set: { if !$0 { pendingLocationTier = nil } }
+                )
+            ) {
+                Button(String(localized: "이전하기")) { confirmLocationMove() }
+                Button(String(localized: "취소"), role: .cancel) {}
+            } message: {
+                Text(alertMessage)
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(String(localized: "닫기")) { isPresented = false }
@@ -54,6 +69,74 @@ public struct UpgradeSheet: View {
                 )
             }
         }
+    }
+
+    // MARK: Location
+
+    private var locationSection: some View {
+        let current = store.stall.locationTier
+        let stallTier = store.stall.stallTier
+        let coins = store.stall.coins
+        return Section {
+            ForEach(UpgradeDefinitions.location.indices, id: \.self) { index in
+                let def = UpgradeDefinitions.location[index]
+                LocationRowView(
+                    definition: def,
+                    state: Self.locationState(
+                        index: index, current: current,
+                        stallTier: stallTier, coins: coins, definition: def),
+                    onPurchase: { pendingLocationTier = index }
+                )
+            }
+        } header: {
+            Text("위치")
+        } footer: {
+            Text("이전해도 가게와 직원은 그대로 따라와요.")
+        }
+    }
+
+    static func locationState(
+        index: Int, current: Int, stallTier: Int, coins: Double, definition: LocationDefinition
+    ) -> LocationRowState {
+        if index == current { return .current }
+        if index < current { return .past }
+        if index > current + 1 { return .lockedQueue(previous: UpgradeDefinitions.location[index - 1].name) }
+        if stallTier < definition.requiredStallTier { return .lockedPrerequisite }
+        return coins >= definition.coinCost ? .affordable : .short
+    }
+
+    private var pendingLocation: LocationDefinition? {
+        guard let tier = pendingLocationTier,
+              UpgradeDefinitions.location.indices.contains(tier) else { return nil }
+        return UpgradeDefinitions.location[tier]
+    }
+
+    private var alertTitle: String {
+        guard let def = pendingLocation else { return "" }
+        return "\(def.destination) 이전할까요?"
+    }
+
+    private var alertMessage: String {
+        guard let def = pendingLocation else { return "" }
+        return "💰 \(Self.formatted(def.coinCost))을 내고 이전하면 판매 수익이 \(Int(def.saleMultiplier))배가 돼요."
+    }
+
+    private func confirmLocationMove() {
+        guard let tier = pendingLocationTier else { return }
+        pendingLocationTier = nil
+        // Re-check so a double-fire or stale alert cannot buy twice.
+        guard tier == store.stall.locationTier + 1 else { return }
+        store.purchaseUpgrade(.location)
+        guard store.stall.locationTier == tier else { return }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        isPresented = false
+    }
+
+    static func formatted(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = Locale(identifier: "ko_KR")
+        return formatter.string(from: NSNumber(value: Int(value))) ?? "\(Int(value))"
     }
 
     private var farmWorkerSection: some View {
@@ -129,6 +212,113 @@ private struct UpgradeRowView: View {
             .tint(canAfford ? .orange : .gray)
             .disabled(!canAfford)
         } else {
+            Image(systemName: "lock.fill").foregroundStyle(.tertiary)
+        }
+    }
+}
+
+// MARK: - LocationRowView
+
+enum LocationRowState: Equatable {
+    case current
+    case past
+    case affordable
+    case short
+    case lockedPrerequisite
+    case lockedQueue(previous: String)
+}
+
+private struct LocationRowView: View {
+    let definition: LocationDefinition
+    let state: LocationRowState
+    let onPurchase: () -> Void
+
+    private var opacity: Double {
+        switch state {
+        case .past: 0.6
+        case .lockedPrerequisite, .lockedQueue: 0.5
+        default: 1
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(definition.name).font(.headline)
+                    if state == .current {
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                        Text("현재 위치")
+                            .font(.caption2.bold())
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(.green.opacity(0.2), in: Capsule())
+                            .foregroundStyle(.green)
+                    }
+                }
+                Text(definition.description)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text(definition.displayEffect)
+                    .font(.caption2)
+                    .foregroundStyle(.green)
+                if let unlocks = definition.unlocks {
+                    Text("🔓 \(unlocks)").font(.caption2).foregroundStyle(.blue)
+                }
+                if let lock = lockText {
+                    Text("🔒 \(lock)").font(.caption2).foregroundStyle(.orange)
+                }
+            }
+            .opacity(opacity)
+            Spacer()
+            trailingView
+        }
+        .padding(.vertical, 2)
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(definition.name), \(definition.description)")
+        .accessibilityValue(accessibilityValue)
+    }
+
+    private var lockText: String? {
+        switch state {
+        case .lockedPrerequisite: definition.lockedReason
+        case .lockedQueue(let previous): "\(previous)에 먼저 이전하세요"
+        default: nil
+        }
+    }
+
+    private var accessibilityValue: String {
+        switch state {
+        case .current: "현재 위치"
+        case .past: "이전 위치"
+        case .affordable, .short:
+            "\(UpgradeSheet.formatted(definition.coinCost)) 코인" + (state == .affordable ? ", 이전 가능" : "")
+        case .lockedPrerequisite: "잠금, \(definition.lockedReason ?? "")"
+        case .lockedQueue(let previous): "잠금, \(previous)에 먼저 이전하세요"
+        }
+    }
+
+    @ViewBuilder
+    private var trailingView: some View {
+        switch state {
+        case .current:
+            EmptyView()
+        case .past:
+            Image(systemName: "checkmark").foregroundStyle(.secondary).opacity(opacity)
+        case .affordable:
+            Button(action: onPurchase) {
+                Text("💰 \(UpgradeSheet.formatted(definition.coinCost))").font(.subheadline.bold())
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.blue)
+            .frame(minWidth: 44, minHeight: 44)
+        case .short:
+            Text("💰 \(UpgradeSheet.formatted(definition.coinCost))")
+                .font(.subheadline.bold())
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(.gray.opacity(0.2), in: Capsule())
+        case .lockedPrerequisite, .lockedQueue:
             Image(systemName: "lock.fill").foregroundStyle(.tertiary)
         }
     }
