@@ -1,4 +1,5 @@
 import SpriteKit
+import GameCore
 
 /// The shop's footprint: origin plus size in map-array-index coordinates
 /// (`GroundLayer.map`'s own row/col indices — `x` is a column, `y` is a
@@ -317,6 +318,23 @@ final class ShopNode: SKNode {
     /// exists to hang a gauge off of.
     private var cookGaugeNodesByMenuIndex: [Int: ShopCookGaugeNode] = [:]
 
+    /// Staff figures, built once and shown/hidden by `applyStaff`. The
+    /// cashier exists only when the cash counter does (see `init`).
+    private var cashierFigure: ShopStaffFigureNode?
+    private var cookFigure: ShopStaffFigureNode?
+
+    /// Where a figure stands, as an offset in grid units from the centre of
+    /// the prop it serves. The art director suggested absolute cells
+    /// (0.8, 0.475) and (0.5, 0.3); both are kept relative to their prop so
+    /// they follow a moved shop, and the cook was moved along the table to
+    /// row 1.0: at row 0.3 its sprite sat within ~8pt of the cashier's on
+    /// screen. The cashier is on the room side of the counter (counter
+    /// column 1.2, inner edge 1.0), clear of `customerServicePoint`
+    /// (column 2.0 and beyond); the cook is on the aisle side of the table
+    /// (table edge column 0.25), well inside the walls.
+    private static let cashierOffsetFromCounter: (col: CGFloat, row: CGFloat) = (-0.4, 0)
+    private static let cookOffsetFromTable: (col: CGFloat, row: CGFloat) = (0.55, 0.525)
+
     /// The three enclosures — pojangmacha stall (tier 0), bunsik shop (tier 1) and jeonmun shop (tier 2) — all built
     /// once in `init`, all but one hidden, and swapped via `isHidden` in
     /// `applyStallTier`. Same two-nodes-always-built approach
@@ -472,7 +490,15 @@ final class ShopNode: SKNode {
                 ?? Self.defaultCashCounterFootprint(colRange: colRange, rowRange: rowRange)
             let counter = buildCashCounter(footprint: cashCounterFootprint, on: grid)
             buildCashRegister(standingOn: counter, footprintCellSum: cashCounterFootprint.nearestCellSum, on: grid)
+            cashierFigure = buildStaffFigure(
+                .cashier, near: cashCounterFootprint, offset: Self.cashierOffsetFromCounter,
+                zCellSum: prepTableFootprint.nearestCellSum, on: grid
+            )
         }
+        cookFigure = buildStaffFigure(
+            .cook, near: prepTableFootprint, offset: Self.cookOffsetFromTable,
+            zCellSum: prepTableFootprint.nearestCellSum, on: grid
+        )
     }
 
     /// The table's spec placement absent an explicit override: its
@@ -805,6 +831,35 @@ final class ShopNode: SKNode {
         gauge.zPosition = Self.zPosition(cellSum: footprintCellSum, slot: .onProp) + Self.slotSpacing / 2
         addChild(gauge)
         return gauge
+    }
+
+    /// Stands a staff figure beside a prop. Both figures z-order at
+    /// `.onProp` + one `slotSpacing` on the *prep table's* nearest-cell sum
+    /// (the same step `actorZPosition` uses): above the table, its bowls and
+    /// gauges, which the cook stands in front of, yet below the cash counter
+    /// (`.prop` on a sum one higher), which the cashier stands behind. A
+    /// plain `actorZPosition` from the figure's own y would floor the cook
+    /// to a cell sum below the table's nearest cell and draw it behind the
+    /// table it stands in front of.
+    private func buildStaffFigure(
+        _ role: ShopStaffFigureNode.Role,
+        near footprint: ShopPropFootprint,
+        offset: (col: CGFloat, row: CGFloat),
+        zCellSum: Int,
+        on grid: IsoGrid
+    ) -> ShopStaffFigureNode {
+        let figure = ShopStaffFigureNode(role: role, fittingTo: grid)
+        figure.position = grid.point(col: footprint.center.col + offset.col, row: footprint.center.row + offset.row)
+        figure.zPosition = Self.zPosition(cellSum: zCellSum, slot: .onProp) + Self.slotSpacing
+        addChild(figure)
+        return figure
+    }
+
+    /// Shows the hired staff; each figure diffs internally, so a frame with
+    /// no change touches no node.
+    func applyStaff(_ presence: ShopStaffPresence) {
+        cashierFigure?.apply(presence.cashier)
+        cookFigure?.apply(presence.cook)
     }
 
     /// Shows/hides table items by menu tier: slot index and menu index are
