@@ -67,6 +67,11 @@ public enum EarningsSystem {
         nextGoal(for: stall)?.definition
     }
 
+    /// Which kind of purchase `nextGoalUpgrade` refers to; `.location` for a relocation goal.
+    public static func nextGoalType(for stall: StallState) -> UpgradeType? {
+        nextGoal(for: stall)?.type
+    }
+
     // MARK: Location goal
 
     /// The location after the current one, if any.

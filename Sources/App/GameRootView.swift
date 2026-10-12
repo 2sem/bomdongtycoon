@@ -7,6 +7,7 @@ struct GameRootView: View {
     @EnvironmentObject var adManager: SwiftUIAdManager
     @State private var showUpgrades = false
     @State private var showStaff = false
+    @State private var staffTab: StaffTab = .assign
     @State private var showJob = false
     @State private var locationToast: String?
     @State private var toastTask: Task<Void, Never>?
@@ -29,12 +30,15 @@ struct GameRootView: View {
             }
         }
         .safeAreaInset(edge: .top) {
-            HStack(alignment: .center) {
-                CoinBadge()
-                Spacer()
-                GoalProgressBar(showUpgrades: $showUpgrades)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .center) {
+                    CoinBadge()
+                    Spacer()
+                    GoalProgressBar(showUpgrades: $showUpgrades, showStaff: $showStaff, staffTab: $staffTab)
+                }
+                .overlay { RatingBadge() }
+                ShopStatusStrip()
             }
-            .overlay { RatingBadge() }
             .padding(.horizontal, 12)
             .padding(.top, 4)
         }
@@ -43,7 +47,7 @@ struct GameRootView: View {
                 .environmentObject(store)
         }
         .sheet(isPresented: $showStaff) {
-            StaffSheet(isPresented: $showStaff)
+            StaffSheet(isPresented: $showStaff, tab: $staffTab)
                 .environmentObject(store)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
@@ -63,6 +67,7 @@ struct GameRootView: View {
             if !isFirstLaunch { NotificationManager.requestPermissionIfUndetermined() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openStaffSheet)) { _ in
+            staffTab = .assign
             showStaff = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .openJobSheet)) { _ in
@@ -89,7 +94,10 @@ struct GameRootView: View {
             Spacer()
             HStack {
                 Spacer()
-                Button { showStaff = true } label: {
+                Button {
+                    staffTab = .assign
+                    showStaff = true
+                } label: {
                     Image(systemName: "person.2.fill")
                         .font(.title3)
                         .frame(width: 44, height: 44)

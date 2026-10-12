@@ -332,6 +332,166 @@
           }
         }
       }
+    },
+    "고용하기" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hire"
+          }
+        }
+      }
+    },
+    "탭하면 고용 화면을 엽니다" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the hiring screen"
+          }
+        }
+      }
+    },
+    "탭하면 업그레이드 화면을 엽니다" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the upgrade screen"
+          }
+        }
+      }
+    },
+    "다음 목표, %@, %d 코인" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next goal, %@, %d coins"
+          }
+        }
+      }
+    },
+    "%d 코인 부족" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d coins short"
+          }
+        }
+      }
+    },
+    "창고" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warehouse"
+          }
+        }
+      }
+    },
+    "재고" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stock"
+          }
+        }
+      }
+    },
+    "재고 없음" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Out of stock"
+          }
+        }
+      }
+    },
+    "계산대 직원 있음" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cashier present"
+          }
+        }
+      }
+    },
+    "계산대 직원 없음" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No cashier"
+          }
+        }
+      }
+    },
+    "요리사 있음" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cook present"
+          }
+        }
+      }
+    },
+    "요리사 없음" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No cook"
+          }
+        }
+      }
+    },
+    "지침" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tired"
+          }
+        }
+      }
+    },
+    "에너지 높음" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "energy high"
+          }
+        }
+      }
+    },
+    "에너지 보통" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "energy medium"
+          }
+        }
+      }
+    },
+    "창고 %d 중 %d" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warehouse %2$d of %1$d"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
