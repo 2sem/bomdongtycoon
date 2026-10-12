@@ -62,6 +62,7 @@ struct GameRootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openJobSheet)) { _ in
             showJob = true
         }
+        .modifier(AddFarmPlotConfirmation())
         .overlay(alignment: .top) {
             if let toast = locationToast {
                 LocationToast(text: toast)

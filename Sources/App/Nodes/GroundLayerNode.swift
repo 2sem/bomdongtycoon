@@ -4,7 +4,7 @@ import SwiftUI
 /// Legacy sheared-parallelogram tile geometry. This described the *old*
 /// ground art (a flat, seamless repeat texture stretched into a sheared
 /// parallelogram and clipped) and is kept only because `ShopWallNode`,
-/// `FarmerNode`, `FieldLayerNode`, `KitchenNode`, and `KitchenTableNode`
+/// `FieldLayerNode`, `KitchenNode`, and `KitchenTableNode`
 /// still position themselves with this formula. `GroundLayer` itself no
 /// longer uses it — see `IsoGrid` below for the new true-isometric grid.
 /// Do not change these values without checking every one of those call
@@ -77,7 +77,7 @@ struct IsoGrid {
 /// Lays out ground tiles on `IsoGrid` from a literal map (see `map` below):
 /// a `ShopGroundTileNode` marking the shop plot, ringed by
 /// `FieldGroundTileNode`s and a `GrassGroundTileNode` border (with a
-/// `RoadGroundTileNode` entry path) for `FieldLayer`/`FarmerLayer` to
+/// `RoadGroundTileNode` entry path) for `FieldLayer` to
 /// place their own content on — with plain grass filling every other cell
 /// the current viewport can show, so the ground never runs out into bare
 /// background beyond `map`'s own small footprint (see `kind(atCol:row:)`).
@@ -123,7 +123,7 @@ final class GroundLayer: SKNode {
     /// opaque art, provided that neighbor is drawn after it (see
     /// zPosition below). Every other tile type (`FieldGroundTileNode`)
     /// fits itself to this same `grid` rather than defining its own. Not
-    /// private: `FieldLayer`/`FarmerLayer` position their own content
+    /// private: `FieldLayer` positions its own content
     /// (crops, farmers) directly against this same grid — same world
     /// space, no separate centering step — so it lines up with the
     /// ground tiles beneath it.
@@ -156,7 +156,7 @@ final class GroundLayer: SKNode {
     /// shop, edit `ShopNode.defaultPlacement` instead.
     ///
     /// Shape: a 1-row grass border, six field rows (unchanged from before
-    /// the shop grew — `FieldLayer`/`FarmerLayer` sit at fixed rows
+    /// the shop grew — `FieldLayer` sits at fixed rows
     /// relative to this block and must not move), three shop rows, then a
     /// 1-row grass border whose middle tile is `.road` instead: a stone
     /// path continuing straight out from the shop plot toward the viewer,
@@ -187,7 +187,7 @@ final class GroundLayer: SKNode {
     /// colIndex:)`). Keeps the shop plot's own first cell (row 7, col 2 in
     /// `map` — the single cell it used to occupy before growing to a 3×3
     /// block) at `IsoGrid` row/col 0, matching where earlier iterations of
-    /// this grid anchored it, so `FieldLayer`/`FarmerLayer`'s own fixed row
+    /// this grid anchored it, so `FieldLayer`'s own fixed row
     /// constants (tuned against that anchor) don't need to change just
     /// because `map` grew rows to fit the shop's new size.
     ///
@@ -441,7 +441,7 @@ final class GroundLayer: SKNode {
                 // south tile's own art fully buries the skirt the north
                 // tile behind it left hanging into its territory (see
                 // `grid`'s doc comment). Matches the row-based zPosition
-                // convention already used by FarmerNode/ShopWallNode.
+                // convention already used by ShopWallNode.
                 tile.zPosition = CGFloat(col + row)
                 addChild(tile)
             }
