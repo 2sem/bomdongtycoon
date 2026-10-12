@@ -29,13 +29,13 @@ jobs:
           restore-keys: spm-${{ runner.os }}-
 
       - name: Install Tuist dependencies
-        run: mise x -- tuist install
+        run: tuist install
 
       - name: Generate Xcode workspace
-        run: mise x -- tuist generate --no-open
+        run: tuist generate --no-open
 
       - name: Run GameCore tests
-        run: mise x -- tuist test GameCoreTests
+        run: tuist test GameCoreTests
 
       - name: Build app
-        run: mise x -- tuist build BomDongTycoon
+        run: tuist build BomDongTycoon
