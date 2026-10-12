@@ -55,6 +55,8 @@ final class GameStoreTests: XCTestCase {
 
     func test_applyOfflineEarnings_updatesCoins() {
         // Offline earnings come from the recorded rolling earningRate, which is 0 on a fresh save
+        store.progress.isFirstLaunch = false
+        store.progress.isShopNameSet = true
         store.progress.earningRate = 10
         store.progress.lastActiveDate = Date().addingTimeInterval(-3600)
         store.calculateOfflineEarnings()
