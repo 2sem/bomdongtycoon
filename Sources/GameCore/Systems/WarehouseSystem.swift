@@ -11,4 +11,21 @@ public enum WarehouseSystem {
         guard step >= 0, step < expansionCosts.count else { return nil }
         return expansionCosts[step]
     }
+
+    /// Fill ratio (inclusive) at which the warehouse counts as the throttle. Below it,
+    /// an expansion is never offered as the goal, so it cannot displace staff/menu/stall
+    /// goals while the warehouse still has room.
+    public static let throttleFillRatio: Double = 0.8
+
+    /// The next expansion's resulting capacity and cost; nil at the max.
+    public static func nextExpansion(current capacity: Int) -> (capacity: Int, cost: Double)? {
+        guard let cost = costForNextExpansion(current: capacity) else { return nil }
+        return (capacity + expansionStep, cost)
+    }
+
+    /// Integer form of `count / capacity >= throttleFillRatio` (80% -> count * 5 >= capacity * 4)
+    /// so 8/10 is in and 7/10 out with no floating-point edge.
+    public static func isThrottling(count: Int, capacity: Int) -> Bool {
+        capacity > 0 && count * 5 >= capacity * 4
+    }
 }

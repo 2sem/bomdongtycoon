@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 public enum UpgradeType {
-    case staff, menu, stall, farm, farmWorker, location
+    case staff, menu, stall, farm, farmWorker, location, warehouse
 }
 
 extension Notification.Name {
@@ -828,6 +828,10 @@ public final class GameStore: ObservableObject {
             save()
             NotificationCenter.default.post(
                 name: .locationTierDidChange, object: self, userInfo: ["tier": nextTier])
+            return
+
+        case .warehouse:
+            expandWarehouse()   // saves itself
             return
         }
         save()

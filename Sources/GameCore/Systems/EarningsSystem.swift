@@ -147,6 +147,14 @@ public enum EarningsSystem {
             result.append(Goal(type: .location, definition: UpgradeDefinition(
                 name: next.name, coinCost: next.coinCost, description: next.description)))
         }
+        // Warehouse: only a goal once it is the real throttle (>= 80% full), so cheapest-first
+        // cannot let a 300-coin expansion displace a hire/menu/stall while there is still room.
+        if WarehouseSystem.isThrottling(count: stall.warehouse, capacity: stall.warehouseCapacity),
+           let next = WarehouseSystem.nextExpansion(current: stall.warehouseCapacity) {
+            result.append(Goal(type: .warehouse, definition: UpgradeDefinition(
+                name: "창고 확장", coinCost: next.cost,
+                description: "창고 \(stall.warehouseCapacity)칸 → \(next.capacity)칸")))
+        }
         return result
     }
 }
