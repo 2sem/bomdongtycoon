@@ -1,11 +1,11 @@
 import SpriteKit
 
 /// The pojangmacha stall's north-east-facing panel: same edge/slot as
-/// `ShopWallRightNode` (North->East edge, anchored at the tile's North
+/// the walled shop's right-edge wall (North->East edge, anchored at the tile's North
 /// vertex, shared with `StallWallBackNode`) — tier 0's stand-in for that
 /// wall, shown instead of it while `ShopNode.applyStallTier` has the
 /// stall enclosure active. Plain curtain — no window, unlike
-/// `ShopWallRightNode`'s own art.
+/// the walled shop's right-edge wall's own art.
 ///
 /// Rendered by the same clean rig `StallWallBackNode`/`StallWallLeftNode`
 /// use, so its numbers come straight off that render's measurement

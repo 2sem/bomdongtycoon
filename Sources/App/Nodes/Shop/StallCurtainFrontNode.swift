@@ -1,12 +1,12 @@
 import SpriteKit
 
 /// The pojangmacha stall's south-east-facing panel: same edge/slot as
-/// `ShopWallFrontNode` (South->East edge, anchored at the tile's South
+/// the walled shop's front-edge wall (South->East edge, anchored at the tile's South
 /// vertex, shared with `StallWallLeftNode`) — tier 0's stand-in for that
 /// wall, shown instead of it while `ShopNode.applyStallTier` has the
 /// stall enclosure active.
 ///
-/// No entrance gap baked into this art (unlike `ShopWallFrontNode`'s own
+/// No entrance gap baked into this art (unlike the walled shop's front-edge wall's own
 /// source, see that node's doc comment) — the entrance stays a
 /// Swift-level omission via `ShopNode.defaultOpenings`, same as every
 /// other side.
