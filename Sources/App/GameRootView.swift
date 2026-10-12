@@ -30,12 +30,15 @@ struct GameRootView: View {
             }
         }
         .safeAreaInset(edge: .top) {
-            HStack(alignment: .center) {
-                CoinBadge()
-                Spacer()
-                GoalProgressBar(showUpgrades: $showUpgrades, showStaff: $showStaff, staffTab: $staffTab)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .center) {
+                    CoinBadge()
+                    Spacer()
+                    GoalProgressBar(showUpgrades: $showUpgrades, showStaff: $showStaff, staffTab: $staffTab)
+                }
+                .overlay { RatingBadge() }
+                ShopStatusStrip()
             }
-            .overlay { RatingBadge() }
             .padding(.horizontal, 12)
             .padding(.top, 4)
         }
