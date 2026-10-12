@@ -79,6 +79,7 @@ let project = Project(
     schemes: [
         .scheme(
             name: "GameCoreTests",
+            buildAction: .buildAction(targets: ["GameCore", "GameUI", "BomDongTycoon", "GameCoreTests"]),
             testAction: .targets(["GameCoreTests"])
         )
     ]

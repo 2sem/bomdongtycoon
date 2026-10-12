@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build and Test
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Install mise
+        uses: jdx/mise-action@v2
+
+      - name: Cache SPM checkouts
+        uses: actions/cache@v4
+        with:
+          path: Tuist/.build
+          key: spm-${{ runner.os }}-${{ hashFiles('Tuist/Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Install Tuist dependencies
+        run: tuist install
+
+      - name: Build app and run GameCore tests
+        run: tuist test GameCoreTests
