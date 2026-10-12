@@ -8,6 +8,9 @@ struct GameRootView: View {
     @State private var showUpgrades = false
     @State private var showStaff = false
     @State private var showJob = false
+    @State private var locationToast: String?
+    @State private var toastTask: Task<Void, Never>?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -58,5 +61,57 @@ struct GameRootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openJobSheet)) { _ in
             showJob = true
         }
+        .overlay(alignment: .top) {
+            if let toast = locationToast {
+                LocationToast(text: toast)
+                    .padding(.top, 56)
+                    .padding(.horizontal, 16)
+                    .transition(reduceMotion
+                        ? .opacity
+                        : .move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .locationTransitionDidFinish)) { note in
+            guard let tier = note.userInfo?["tier"] as? Int else { return }
+            showLocationToast(forTier: tier)
+        }
+    }
+
+    /// Shown once the scene has faded back in (see
+    /// `.locationTransitionDidFinish`), held 2.5 s, then dismissed. The
+    /// spec's VoiceOver line is announced with it.
+    private func showLocationToast(forTier tier: Int) {
+        guard UpgradeDefinitions.location.indices.contains(tier) else { return }
+        let location = UpgradeDefinitions.location[tier]
+        let multiplier = Int(location.saleMultiplier)
+        let emoji = tier == 1 ? "🏪" : "🌆"
+        let text = "\(emoji) \(location.destination) 이전했어요! 판매 수익 x\(multiplier)"
+
+        AccessibilityNotification.Announcement(
+            "\(location.destination) 이전했습니다. 판매 수익 \(multiplier)배."
+        ).post()
+
+        toastTask?.cancel()
+        let animation: Animation = reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4)
+        withAnimation(animation) { locationToast = text }
+        toastTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.5))
+            guard !Task.isCancelled else { return }
+            withAnimation(animation) { locationToast = nil }
+        }
+    }
+}
+
+private struct LocationToast: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.subheadline.bold())
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(.regularMaterial, in: Capsule())
+            .accessibilityHidden(true) // announced separately on appearance
     }
 }

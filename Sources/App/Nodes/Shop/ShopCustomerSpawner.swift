@@ -86,6 +86,20 @@ final class ShopCustomerSpawner {
 
     nonisolated init() {}
 
+    /// Set during a location transition: existing customers keep walking,
+    /// but no new one spawns and the spawn timer does not run down.
+    var isSpawningPaused = false
+
+    /// Drops every in-flight customer. They are only visuals — coins were
+    /// credited when the sale happened — so this is safe mid-walk.
+    func removeAllCustomers() {
+        for session in sessions {
+            session.node.removeAllActions()
+            session.node.removeFromParent()
+        }
+        sessions.removeAll()
+    }
+
     /// Advances every active customer by `delta` and, once due, spawns a
     /// new one — called once a frame from `MainStallScene.update`. No-op
     /// until `store.progress.isShopNameSet`: there's no other shop-open
@@ -95,8 +109,10 @@ final class ShopCustomerSpawner {
     func update(delta: TimeInterval, store: GameStore, grid: IsoGrid, parent: SKNode) {
         guard store.progress.isShopNameSet else { return }
 
-        spawnTimer -= delta
-        if spawnTimer <= 0 {
+        if !isSpawningPaused {
+            spawnTimer -= delta
+        }
+        if spawnTimer <= 0, !isSpawningPaused {
             trySpawnCustomer(store: store, grid: grid, parent: parent)
         }
 
