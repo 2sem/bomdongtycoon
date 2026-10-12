@@ -85,23 +85,6 @@
         }
       }
     },
-    "upgrade_button_label" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Upgrade"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "업그레이드"
-          }
-        }
-      }
-    },
     "가게 이름을 정해주세요!" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -251,7 +234,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Upgrades"
+            "value" : "Upgrade"
           }
         }
       }
@@ -458,7 +441,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tired"
+            "value" : "tired"
           }
         }
       }
