@@ -8,7 +8,7 @@ public struct TutorialOverlay: View {
     private static let steps: [(emoji: String, title: String, subtitle: String)] = [
         ("🥬", String(localized: "tutorial.cook.title"), String(localized: "tutorial.cook.subtitle")),
         ("🌱", String(localized: "tutorial.farm.title"), String(localized: "tutorial.farm.subtitle")),
-        ("🧑‍🍳", String(localized: "tutorial.staff.title"), String(localized: "tutorial.staff.subtitle")),
+        ("🧑‍🍳", String(localized: "tutorial.staff.title"), String(format: String(localized: "tutorial.staff.subtitle"), CoinFormat.string(UpgradeDefinitions.staff[0].coinCost))),
         ("⬆️", String(localized: "tutorial.goal.title"), String(localized: "tutorial.goal.subtitle"))
     ]
 

@@ -104,6 +104,19 @@ public enum EarningsSystem {
         return "다음 목표까지 💰 \(CoinFormat.string(stall.coins)) / \(CoinFormat.string(next.coinCost)) · \(next.name) 이전"
     }
 
+    /// Short variant of `locationGoalText` for narrow pills (375pt phones truncate the full phrase,
+    /// and the amount and destination are the parts that matter). Nil when there is no shorter form.
+    public static func locationGoalCompactText(for stall: StallState) -> String? {
+        guard let next = nextLocation(for: stall) else { return nil }
+        let goal = nextGoal(for: stall)
+        guard nextLocationUnlocked(for: stall) else {
+            guard goal == nil else { return nil }
+            return "\(UpgradeDefinitions.stall[next.requiredStallTier].name) 필요 · \(next.name) 이전"
+        }
+        guard goal?.type == .location, stall.coins < next.coinCost else { return nil }
+        return "💰 \(CoinFormat.string(stall.coins)) / \(CoinFormat.string(next.coinCost)) · \(next.name)"
+    }
+
     // MARK: Goal selection
 
     private struct Goal {

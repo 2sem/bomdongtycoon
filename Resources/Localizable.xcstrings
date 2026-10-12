@@ -561,13 +561,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Use the staff button at the bottom right\nto hire a part-timer for 500 coins."
+            "value" : "Use the staff button at the bottom right\nto hire a part-timer for %@ coins."
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "오른쪽 아래 직원 관리 버튼에서\n알바생을 500코인에 고용할 수 있어요"
+            "value" : "오른쪽 아래 직원 관리 버튼에서\n알바생을 %@코인에 고용할 수 있어요"
           }
         }
       }

@@ -18,9 +18,11 @@ public struct GoalProgressBar: View {
             let ready = EarningsSystem.nextLocationUnlocked(for: store.stall)
                 && store.stall.coins >= (EarningsSystem.nextLocation(for: store.stall)?.coinCost ?? .infinity)
             Button { showUpgrades = true } label: {
-                capsule(icon: ready ? "checkmark.circle.fill" : "arrow.up.circle", ready: ready, text: text)
+                capsule(icon: ready ? "checkmark.circle.fill" : "arrow.up.circle", ready: ready, text: text,
+                        compactText: EarningsSystem.locationGoalCompactText(for: store.stall))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(text)
         } else if let next = EarningsSystem.nextGoalUpgrade(for: store.stall) {
             let isStaff = EarningsSystem.nextGoalType(for: store.stall) == .staff
             let ready = store.stall.coins >= next.coinCost
@@ -47,15 +49,15 @@ public struct GoalProgressBar: View {
         }
     }
 
-    private func capsule(icon: String, ready: Bool, text: String) -> some View {
+    private func capsule(icon: String, ready: Bool, text: String, compactText: String? = nil) -> some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
                 .foregroundStyle(ready ? .green : .primary)
                 .font(.caption)
-            Text(text)
-                .font(.caption.bold())
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+            ViewThatFits(in: .horizontal) {
+                label(text).fixedSize(horizontal: true, vertical: false)
+                label(compactText ?? text).minimumScaleFactor(0.75)
+            }
             Image(systemName: "chevron.up")
                 .font(.caption2.bold())
                 .foregroundStyle(.secondary)
@@ -65,5 +67,9 @@ public struct GoalProgressBar: View {
         .frame(minHeight: 44)
         .background(.ultraThinMaterial, in: Capsule())
         .contentShape(Capsule())
+    }
+
+    private func label(_ string: String) -> some View {
+        Text(string).font(.caption.bold()).lineLimit(1)
     }
 }
