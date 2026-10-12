@@ -332,6 +332,56 @@
           }
         }
       }
+    },
+    "고용하기" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hire"
+          }
+        }
+      }
+    },
+    "탭하면 고용 화면을 엽니다" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the hiring screen"
+          }
+        }
+      }
+    },
+    "탭하면 업그레이드 화면을 엽니다" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the upgrade screen"
+          }
+        }
+      }
+    },
+    "다음 목표, %@, %d 코인" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next goal, %@, %d coins"
+          }
+        }
+      }
+    },
+    "%d 코인 부족" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d coins short"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

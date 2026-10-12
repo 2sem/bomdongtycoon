@@ -24,15 +24,23 @@ private struct WorkerItem: Identifiable {
     }
 }
 
+// MARK: - StaffTab
+
+/// Tab selection is owned by the presenter so the goal bar can open the sheet on 고용.
+public enum StaffTab: Hashable {
+    case assign, hire
+}
+
 // MARK: - StaffSheet
 
 public struct StaffSheet: View {
     @EnvironmentObject var store: GameStore
     @Binding public var isPresented: Bool
-    @State private var tab = 0
+    @Binding public var tab: StaffTab
 
-    public init(isPresented: Binding<Bool>) {
+    public init(isPresented: Binding<Bool>, tab: Binding<StaffTab>) {
         self._isPresented = isPresented
+        self._tab = tab
     }
 
     public var body: some View {
@@ -40,8 +48,8 @@ public struct StaffSheet: View {
             VStack(spacing: 0) {
                 tabBar
                 TabView(selection: $tab) {
-                    workerList.tag(0)
-                    hireList.tag(1)
+                    workerList.tag(StaffTab.assign)
+                    hireList.tag(StaffTab.hire)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut(duration: 0.25), value: tab)
@@ -60,8 +68,8 @@ public struct StaffSheet: View {
 
     private var tabBar: some View {
         HStack(spacing: 0) {
-            tabButton(String(localized: "직원"), tag: 0)
-            tabButton(String(localized: "고용"), tag: 1)
+            tabButton(String(localized: "직원"), tag: .assign)
+            tabButton(String(localized: "고용"), tag: .hire)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -129,7 +137,7 @@ public struct StaffSheet: View {
         List {
             Section {
                 ForEach(1...3, id: \.self) { tier in
-                    HireTierRow(tier: tier, onHired: { withAnimation { tab = 0 } })
+                    HireTierRow(tier: tier, onHired: { withAnimation { tab = .assign } })
                         .environmentObject(store)
                 }
                 HireFarmWorkerRow(
@@ -141,7 +149,7 @@ public struct StaffSheet: View {
                     cashierHint: "💰 계산대 배치 시 ×1.4 수입",
                     onHire: {
                         store.hireVeteranAlba()
-                        withAnimation { tab = 0 }
+                        withAnimation { tab = .assign }
                     }
                 )
                 HireFarmWorkerRow(
@@ -152,7 +160,7 @@ public struct StaffSheet: View {
                     unlockHint: "봄동 식당 업그레이드 필요",
                     onHire: {
                         store.hireFarmer()
-                        withAnimation { tab = 0 }
+                        withAnimation { tab = .assign }
                     }
                 )
             } header: {
@@ -164,7 +172,7 @@ public struct StaffSheet: View {
 
     // MARK: - Tab button
 
-    private func tabButton(_ title: String, tag: Int) -> some View {
+    private func tabButton(_ title: String, tag: StaffTab) -> some View {
         Button { tab = tag } label: {
             Text(title)
                 .font(.subheadline.bold())
@@ -639,7 +647,7 @@ private struct HireTierRow: View {
                         store.hireWorker(tier: tier)
                         onHired()
                     } label: {
-                        Text("₩\(Int(def.coinCost))").font(.caption.bold())
+                        HireCostLabel(cost: def.coinCost, coins: store.stall.coins)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(store.stall.coins >= def.coinCost ? Color.staffAmber : .gray)
@@ -701,7 +709,7 @@ private struct HireFarmWorkerRow: View {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     onHire()
                 } label: {
-                    Text("₩\(Int(def.coinCost))").font(.caption.bold())
+                    HireCostLabel(cost: def.coinCost, coins: store.stall.coins)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(store.stall.coins >= def.coinCost ? Color.staffAmber : .gray)
@@ -712,6 +720,23 @@ private struct HireFarmWorkerRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - HireCostLabel
+
+/// Price on a hire button; when unaffordable it shows the shortfall instead.
+private struct HireCostLabel: View {
+    let cost: Double
+    let coins: Double
+
+    var body: some View {
+        if coins >= cost {
+            Text("₩\(Int(cost))").font(.caption.bold())
+        } else {
+            Text(String(format: String(localized: "%d 코인 부족"), Int(ceil(cost - coins))))
+                .font(.caption.bold())
+        }
     }
 }
 
