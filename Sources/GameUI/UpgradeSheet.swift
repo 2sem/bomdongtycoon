@@ -6,6 +6,7 @@ public struct UpgradeSheet: View {
     @EnvironmentObject var store: GameStore
     @Binding public var isPresented: Bool
     @State private var pendingLocationTier: Int?
+    @State private var pendingWarehouseCapacity: Int?
 
     public init(isPresented: Binding<Bool>) {
         self._isPresented = isPresented
@@ -27,6 +28,19 @@ public struct UpgradeSheet: View {
                     currentTier: store.stall.stallTier + 1
                 )
                 locationSection
+                warehouseSection
+            }
+            .alert(
+                String(localized: "창고를 넓힐까요?"),
+                isPresented: Binding(
+                    get: { pendingWarehouseCapacity != nil },
+                    set: { if !$0 { pendingWarehouseCapacity = nil } }
+                )
+            ) {
+                Button(String(localized: "넓히기")) { confirmWarehouseExpansion() }
+                Button(String(localized: "취소"), role: .cancel) {}
+            } message: {
+                Text(warehouseAlertMessage)
             }
             .navigationTitle(String(localized: "업그레이드"))
             .navigationBarTitleDisplayMode(.inline)
@@ -130,6 +144,58 @@ public struct UpgradeSheet: View {
         guard store.stall.locationTier == tier else { return }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         isPresented = false
+    }
+
+    // MARK: Warehouse
+
+    private var warehouseSection: some View {
+        let capacity = store.stall.warehouseCapacity
+        let shortfall: Double
+        if let next = WarehouseSystem.nextExpansion(current: capacity) {
+            shortfall = max(0, next.cost - store.stall.coins)
+        } else {
+            shortfall = 0
+        }
+        return Section("창고") {
+            if let next = WarehouseSystem.nextExpansion(current: capacity) {
+                UpgradeRowView(
+                    upgrade: UpgradeDefinition(
+                        name: "창고 확장", coinCost: next.cost,
+                        description: "\(capacity)칸 → \(next.capacity)칸"),
+                    displayEffect: shortfall > 0
+                        ? "💰 \(Self.formatted(shortfall)) 더 필요해요"
+                        : "농장 수확과 오프라인 보관량이 늘어나요",
+                    isOwned: false,
+                    isNext: true,
+                    canAfford: shortfall == 0,
+                    onPurchase: { pendingWarehouseCapacity = capacity }
+                )
+            } else {
+                UpgradeRowView(
+                    upgrade: UpgradeDefinition(
+                        name: "창고 최대", coinCost: 0, description: "\(capacity)칸 · 최대"),
+                    isOwned: true, isNext: false, canAfford: false, onPurchase: {})
+            }
+        }
+    }
+
+    private var warehouseAlertMessage: String {
+        guard let capacity = pendingWarehouseCapacity,
+              let next = WarehouseSystem.nextExpansion(current: capacity) else { return "" }
+        return "💰 \(Self.formatted(next.cost))을 내면 창고가 \(capacity)칸에서 \(next.capacity)칸으로 늘어나요."
+    }
+
+    private func confirmWarehouseExpansion() {
+        guard let capacity = pendingWarehouseCapacity else { return }
+        pendingWarehouseCapacity = nil
+        // Re-check so a double-fire or stale alert cannot buy twice.
+        guard store.stall.warehouseCapacity == capacity else { return }
+        store.purchaseUpgrade(.warehouse)
+        guard store.stall.warehouseCapacity > capacity else { return }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        AccessibilityNotification.Announcement(
+            String(localized: "창고가 \(store.stall.warehouseCapacity)칸으로 늘어났습니다.")
+        ).post()
     }
 
     static func formatted(_ value: Double) -> String {
