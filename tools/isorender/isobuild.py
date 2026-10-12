@@ -6,10 +6,12 @@ never touch the camera, the lights, or the pixel scale; `rig.py` owns those so
 that every asset in the set is rendered under identical conditions.
 """
 
+import math
 import os
 
 import bmesh
 import bpy
+from mathutils import Matrix, Vector
 
 from isogrid import view_direction, world_point
 
@@ -512,6 +514,111 @@ def box(
             for i, (col, row) in enumerate(corners)
         },
     }
+    return obj
+
+
+def sphere_profile(radius, rings=6):
+    """Lathe profile of a sphere centred on the origin, pole to pole."""
+    return [(radius * math.sin(math.pi * i / rings), -radius * math.cos(math.pi * i / rings))
+            for i in range(rings + 1)]
+
+
+def capsule_profile(radius, length, rings=3):
+    """Lathe profile of a capsule whose base is z=0 and whose tip is z=length
+    (both hemispherical caps included, so `length` is the full end-to-end span)."""
+    half = math.pi / 2.0
+    lower = [(radius * math.sin(half * i / rings), radius - radius * math.cos(half * i / rings))
+             for i in range(rings + 1)]
+    upper = [(radius * math.sin(half + half * i / rings),
+              length - radius - radius * math.cos(half + half * i / rings))
+             for i in range(rings + 1)]
+    return lower + upper[1:]
+
+
+def dome_profile(radius, polar_degrees=90.0, rings=4):
+    """A cap of a sphere centred on the origin: the top pole down to
+    `polar_degrees` from it (90 = a hemisphere), left open at the bottom."""
+    end = math.radians(polar_degrees)
+    pts = [(radius * math.sin(end * i / rings), radius * math.cos(end * i / rings))
+           for i in range(rings + 1)]
+    return list(reversed(pts))
+
+
+NO_INK_COLLECTION = "NoInk"
+
+
+def lathe(name, origin, profile, material, segments=10, scale=(1.0, 1.0),
+          yaw_degrees=0.0, aim=None, smooth=False, no_ink=False):
+    """A surface of revolution about the vertical axis — the one primitive
+    behind spheres, capsules, domes, brims and tapered torsos.
+
+    `profile` is `[(radius, z), ...]` bottom to top in the shape's own frame,
+    z relative to `origin` (a grid `(col, row, z)` point). `scale` stretches
+    the cross-section `(x, y)` into an ellipse before `yaw_degrees` turns it
+    about the vertical; `aim` then swings the shape's +z axis to that grid
+    vector about `origin` (limbs, leaning hair). A profile that ends at
+    radius 0 is closed by a pole; one that ends at radius > 0 gets a flat cap.
+    `smooth` picks smooth over faceted shading. `no_ink` keeps Freestyle from
+    outlining it (blush, nose: tiny things where the ink would swallow the
+    colour) — it still occludes and is occluded like anything else.
+    """
+    rot = Matrix.Rotation(math.radians(yaw_degrees), 3, "Z")
+    if aim is not None:
+        rot = Vector(aim).normalized().rotation_difference(Vector((0, 0, 1))).inverted().to_matrix() @ rot
+    verts, rings = [], []
+    for radius, z in profile:
+        if radius <= 1e-9:
+            rings.append([len(verts)])
+            verts.append(rot @ Vector((0.0, 0.0, z)))
+            continue
+        ring = []
+        for k in range(segments):
+            a = 2.0 * math.pi * k / segments
+            ring.append(len(verts))
+            verts.append(rot @ Vector((radius * scale[0] * math.cos(a),
+                                       radius * scale[1] * math.sin(a), z)))
+        rings.append(ring)
+
+    faces = []
+    for lo, hi in zip(rings, rings[1:]):
+        for k in range(segments):
+            k2 = (k + 1) % segments
+            if len(lo) == 1 and len(hi) == 1:
+                continue
+            if len(lo) == 1:
+                faces.append((lo[0], hi[k2], hi[k]))
+            elif len(hi) == 1:
+                faces.append((lo[k], lo[k2], hi[0]))
+            else:
+                faces.append((lo[k], lo[k2], hi[k2], hi[k]))
+    if len(rings[0]) > 1:
+        faces.append(tuple(reversed(rings[0])))
+    if len(rings[-1]) > 1:
+        faces.append(tuple(rings[-1]))
+
+    ocol, orow, oz = origin
+    world = [world_point(ocol + v.x, orow + v.y, oz + v.z) for v in verts]
+    uvs = [[(0.0, 0.0)] * len(face) for face in faces]
+    obj = _mesh_object(name, world, faces, uvs, [material], [0] * len(faces))
+
+    mesh = obj.data
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(mesh)
+    bm.free()
+    if smooth:
+        for polygon in mesh.polygons:
+            polygon.use_smooth = True
+
+    if no_ink:
+        group = bpy.data.collections.get(NO_INK_COLLECTION)
+        if group is None:
+            group = bpy.data.collections.new(NO_INK_COLLECTION)
+            bpy.context.scene.collection.children.link(group)
+        for owner in list(obj.users_collection):
+            owner.objects.unlink(obj)
+        group.objects.link(obj)
     return obj
 
 
