@@ -61,10 +61,10 @@ struct GameRootView: View {
                 .presentationCornerRadius(24)
         }
         .onAppear {
-            if !store.progress.isFirstLaunch { NotificationManager.requestPermissionIfUndetermined() }
+            if store.progress.isShopNameSet { NotificationManager.requestPermissionIfUndetermined() }
         }
-        .onChange(of: store.progress.isFirstLaunch) { _, isFirstLaunch in
-            if !isFirstLaunch { NotificationManager.requestPermissionIfUndetermined() }
+        .onChange(of: store.progress.isShopNameSet) { _, isSet in
+            if isSet { NotificationManager.requestPermissionIfUndetermined() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openStaffSheet)) { _ in
             staffTab = .assign

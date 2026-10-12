@@ -475,6 +475,150 @@
           }
         }
       }
+    },
+    "tutorial.cook.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome to Bomdong Shop!"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "봄동 가게에 오신 걸 환영해요!"
+          }
+        }
+      }
+    },
+    "tutorial.cook.subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap a bowl to cook and customers will buy it.\nCoins arrive automatically."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "그릇을 탭해 요리하면 손님이 사 가요\n코인은 자동으로 들어와요"
+          }
+        }
+      }
+    },
+    "tutorial.farm.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the field to plant and harvest"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "밭을 탭해 심고 수확해요"
+          }
+        }
+      }
+    },
+    "tutorial.farm.subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Harvests are stored in the warehouse.\nThe status bar at the top shows warehouse and stock."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "수확한 봄동은 창고에 쌓여요\n위쪽 상태 바에서 창고와 재고를 볼 수 있어요"
+          }
+        }
+      }
+    },
+    "tutorial.staff.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hire a part-timer"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "알바생을 고용해 보세요"
+          }
+        }
+      }
+    },
+    "tutorial.staff.subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use the staff button at the bottom right\nto hire a part-timer for 500 coins."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오른쪽 아래 직원 관리 버튼에서\n알바생을 500코인에 고용할 수 있어요"
+          }
+        }
+      }
+    },
+    "tutorial.goal.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the goal to grow your shop"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "목표를 탭해 가게를 키워요"
+          }
+        }
+      }
+    },
+    "tutorial.goal.subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The goal capsule at the top shows your next purchase.\nTap it to open it."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "위쪽 목표 캡슐에 다음 구매가 나와요\n탭하면 바로 열려요"
+          }
+        }
+      }
+    },
+    "tutorial.next" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next →"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다음 →"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
