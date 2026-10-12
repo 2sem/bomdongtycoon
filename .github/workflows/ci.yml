@@ -16,13 +16,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install mise
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@v5
 
       - name: Cache SPM checkouts
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: Tuist/.build
           key: spm-${{ runner.os }}-${{ hashFiles('Tuist/Package.resolved') }}
