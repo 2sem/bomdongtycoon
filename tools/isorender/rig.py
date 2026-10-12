@@ -188,6 +188,14 @@ def add_outline(scene, view_layer, thickness_px):
     #: so every seam comes out drawn twice and reads as a heavy black band at
     #: sprite size. The step between planks is a crease, which is enough.
     lineset.select_border = False
+    #: Objects an asset parks in the "NoInk" collection (isobuild.lathe's
+    #: `no_ink`) are left out of the outline. No asset that does not use the
+    #: collection is affected.
+    no_ink = bpy.data.collections.get("NoInk")
+    if no_ink is not None:
+        lineset.select_by_collection = True
+        lineset.collection = no_ink
+        lineset.collection_negation = "EXCLUSIVE"
     linestyle = lineset.linestyle
     #: Linear, not sRGB: 0.08 linear is sRGB ~77, i.e. mid grey. Ink wants to
     #: land near sRGB 25, which is this.
