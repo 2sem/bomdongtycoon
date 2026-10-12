@@ -128,13 +128,16 @@ jobs:
           EOF
 
       - name: Archive app
+        # Packages declare iOS 12.0; the Xcode 27 device SDK rejects anything below 15.0.
+        # Package.swift baseSettings can't override per-target manifest values, so force it here.
         run: |
           xcodebuild archive \
             -workspace "$APP_WORKSPACE_PATH" \
             -scheme "$APP_SCHEME" \
             -configuration Release \
             -archivePath "$ARCHIVE_PATH" \
-            -destination 'generic/platform=iOS'
+            -destination 'generic/platform=iOS' \
+            IPHONEOS_DEPLOYMENT_TARGET=17.0
 
       - name: Export IPA
         run: |
