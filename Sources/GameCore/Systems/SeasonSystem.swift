@@ -4,8 +4,8 @@ public enum SeasonSystem {
 
     static let springDurationDays: Double = 30
 
-    public static func currentState(seasonStart: Date) -> SeasonState {
-        let elapsed = Date().timeIntervalSince(seasonStart)
+    public static func currentState(seasonStart: Date, now: Date = Date()) -> SeasonState {
+        let elapsed = now.timeIntervalSince(seasonStart)
         let daysPassed = elapsed / 86400
         var state = SeasonState()
         state.seasonStartDate = seasonStart
