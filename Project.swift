@@ -71,8 +71,8 @@ let project = Project(
             ],
             settings: .settings(base: [
                 "OTHER_LDFLAGS": "$(inherited) -ObjC",
-                "MARKETING_VERSION": "1.0.1",
-                "CURRENT_PROJECT_VERSION": "1"
+                "MARKETING_VERSION": "1.1.0",
+                "CURRENT_PROJECT_VERSION": "2"
             ])
         )
     ],
