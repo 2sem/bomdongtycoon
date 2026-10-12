@@ -145,6 +145,20 @@ extension EarningsSystemTests {
         XCTAssertTrue(text?.contains("39,530 / 40,000") == true, text ?? "nil")
     }
 
+    func test_locationGoalCompactText_dropsPrefixKeepsAmountAndDestination() {
+        var stall = StallState()
+        stall.stallTier = 2
+        stall.staffTier = 3
+        stall.menuTier = 2
+        stall.coins = 39_530
+        let full = EarningsSystem.locationGoalText(for: stall) ?? ""
+        let compact = EarningsSystem.locationGoalCompactText(for: stall)
+        XCTAssertEqual(compact, "💰 39,530 / 40,000 · 시장")
+        XCTAssertLessThan(compact?.count ?? .max, full.count)
+        stall.coins = 40_000
+        XCTAssertNil(EarningsSystem.locationGoalCompactText(for: stall))  // "이전할 수 있어요" is already short
+    }
+
     func test_coinFormat_groupsAndTruncates() {
         XCTAssertEqual(CoinFormat.string(0), "0")
         XCTAssertEqual(CoinFormat.string(999.9), "999")

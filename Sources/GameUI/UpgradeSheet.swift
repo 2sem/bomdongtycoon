@@ -203,7 +203,7 @@ private struct UpgradeRowView: View {
             Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
         } else if isNext {
             Button { onPurchase() } label: {
-                Text("₩\(Int(upgrade.coinCost))").font(.subheadline.bold())
+                Text("₩\(CoinFormat.string(upgrade.coinCost))").font(.subheadline.bold())
             }
             .buttonStyle(.borderedProminent)
             .tint(canAfford ? .orange : .gray)
