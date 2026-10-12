@@ -26,7 +26,6 @@ struct SplashView: View {
     }
 
     private func setup() {
-        NotificationManager.requestPermission()
         GADMobileAds.sharedInstance().start { [self] status in
             print("[AdMob] SDK started — adapters: \(status.adapterStatusesByClassName.count)")
             adManager.preload()
