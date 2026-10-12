@@ -33,5 +33,18 @@ jobs:
       - name: Install Tuist dependencies
         run: tuist install
 
-      - name: Build app and run GameCore tests
+      - name: Run GameCore tests
         run: tuist test GameCoreTests
+
+      # `tuist test` generates a workspace trimmed to GameCore + GameCoreTests, so the app
+      # and GameUI are never compiled by it. Regenerate the full workspace and build them.
+      - name: Build app
+        run: |
+          tuist generate --no-open
+          xcodebuild build \
+            -workspace BomDongTycoon.xcworkspace \
+            -scheme BomDongTycoon \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            IPHONEOS_DEPLOYMENT_TARGET=18.0
