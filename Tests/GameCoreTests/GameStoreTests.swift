@@ -45,6 +45,7 @@ final class GameStoreTests: XCTestCase {
     }
 
     func test_collectCoins_movesToBalance() {
+        store.stall.coins = 0   // default save starts with 50 coins; isolate the transfer
         store.stall.pendingCoins = 100
         store.collectCoins()
         XCTAssertEqual(store.stall.coins, 100, accuracy: 0.001)
@@ -53,10 +54,12 @@ final class GameStoreTests: XCTestCase {
     }
 
     func test_applyOfflineEarnings_updatesCoins() {
-        // Set lastActiveDate to 1 hour ago so OfflineProgressSystem produces earnings
+        // Offline earnings come from the recorded rolling earningRate, which is 0 on a fresh save
+        store.progress.earningRate = 10
         store.progress.lastActiveDate = Date().addingTimeInterval(-3600)
         store.calculateOfflineEarnings()
-        XCTAssertGreaterThan(store.offlineEarnings, 0)
+        // 10 coins/s x 3600 s x offlineEfficiency
+        XCTAssertEqual(store.offlineEarnings, 10 * 3600 * OfflineProgressSystem.offlineEfficiency, accuracy: 1)
     }
 
     func test_purchaseUpgrade_staff_deductsCoins() {
