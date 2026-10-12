@@ -5,6 +5,8 @@ public struct StallState: Codable {
     public var menuTier: Int = 0
     public var staffTier: Int = 0       // highest tier purchased
     public var stallTier: Int = 0
+    /// Index into `UpgradeDefinitions.location` (0...2). Sale-price multiplier only.
+    public var locationTier: Int = 0
     public var pendingCoins: Double = 0
 
     // Per-tier headcounts (only tier1 can farm)
@@ -53,7 +55,7 @@ public struct StallState: Codable {
     public var veteranAlbaIdleEnergies: [Double] = []
 
     private enum CodingKeys: String, CodingKey {
-        case coins, menuTier, staffTier, stallTier, pendingCoins
+        case coins, menuTier, staffTier, stallTier, locationTier, pendingCoins
         case tier1Count, tier2Count, tier3Count
         case cashierCount, menuCooks
         case menuCookEnergy, cashierEnergy, cashierTier
@@ -62,6 +64,39 @@ public struct StallState: Codable {
         case farmWorkers, farmWorkerTier
         case farmerCount, farmerIdleEnergies
         case veteranAlbaCount, veteranAlbaIdleEnergies
+    }
+
+    /// Every key is optional so older saves (which predate `locationTier`) keep loading.
+    public init(from decoder: Decoder) throws {
+        let d = StallState()
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        coins = try c.decodeIfPresent(Double.self, forKey: .coins) ?? d.coins
+        menuTier = try c.decodeIfPresent(Int.self, forKey: .menuTier) ?? d.menuTier
+        staffTier = try c.decodeIfPresent(Int.self, forKey: .staffTier) ?? d.staffTier
+        stallTier = try c.decodeIfPresent(Int.self, forKey: .stallTier) ?? d.stallTier
+        let rawLocation = try c.decodeIfPresent(Int.self, forKey: .locationTier) ?? 0
+        locationTier = min(max(rawLocation, 0), UpgradeDefinitions.location.count - 1)
+        pendingCoins = try c.decodeIfPresent(Double.self, forKey: .pendingCoins) ?? d.pendingCoins
+        tier1Count = try c.decodeIfPresent(Int.self, forKey: .tier1Count) ?? d.tier1Count
+        tier2Count = try c.decodeIfPresent(Int.self, forKey: .tier2Count) ?? d.tier2Count
+        tier3Count = try c.decodeIfPresent(Int.self, forKey: .tier3Count) ?? d.tier3Count
+        cashierCount = try c.decodeIfPresent(Int.self, forKey: .cashierCount) ?? d.cashierCount
+        menuCooks = try c.decodeIfPresent([Int].self, forKey: .menuCooks) ?? d.menuCooks
+        menuCookEnergy = try c.decodeIfPresent([Double].self, forKey: .menuCookEnergy) ?? d.menuCookEnergy
+        cashierEnergy = try c.decodeIfPresent(Double.self, forKey: .cashierEnergy) ?? d.cashierEnergy
+        cashierTier = try c.decodeIfPresent(Int.self, forKey: .cashierTier) ?? d.cashierTier
+        tier1IdleEnergies = try c.decodeIfPresent([Double].self, forKey: .tier1IdleEnergies) ?? d.tier1IdleEnergies
+        tier2IdleEnergies = try c.decodeIfPresent([Double].self, forKey: .tier2IdleEnergies) ?? d.tier2IdleEnergies
+        tier3IdleEnergies = try c.decodeIfPresent([Double].self, forKey: .tier3IdleEnergies) ?? d.tier3IdleEnergies
+        warehouse = try c.decodeIfPresent(Int.self, forKey: .warehouse) ?? d.warehouse
+        warehouseCapacity = try c.decodeIfPresent(Int.self, forKey: .warehouseCapacity) ?? d.warehouseCapacity
+        menuStock = try c.decodeIfPresent([Int].self, forKey: .menuStock) ?? d.menuStock
+        farmWorkers = try c.decodeIfPresent(Int.self, forKey: .farmWorkers) ?? d.farmWorkers
+        farmWorkerTier = try c.decodeIfPresent(Int.self, forKey: .farmWorkerTier) ?? d.farmWorkerTier
+        farmerCount = try c.decodeIfPresent(Int.self, forKey: .farmerCount) ?? d.farmerCount
+        farmerIdleEnergies = try c.decodeIfPresent([Double].self, forKey: .farmerIdleEnergies) ?? d.farmerIdleEnergies
+        veteranAlbaCount = try c.decodeIfPresent(Int.self, forKey: .veteranAlbaCount) ?? d.veteranAlbaCount
+        veteranAlbaIdleEnergies = try c.decodeIfPresent([Double].self, forKey: .veteranAlbaIdleEnergies) ?? d.veteranAlbaIdleEnergies
     }
 
     public init() {

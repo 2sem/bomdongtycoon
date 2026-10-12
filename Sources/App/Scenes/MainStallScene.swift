@@ -5,6 +5,10 @@ import UIKit
 extension Notification.Name {
     static let openStaffSheet = Notification.Name("openStaffSheet")
     static let openJobSheet = Notification.Name("openJobSheet")
+    /// Posted by `MainStallScene` once a location purchase's transition has
+    /// faded back in; `userInfo["tier"]` is the new `Int` tier. The toast
+    /// and VoiceOver announcement key off this, not the purchase itself.
+    static let locationTransitionDidFinish = Notification.Name("locationTransitionDidFinish")
 }
 
 final class MainStallScene: SKScene {
@@ -18,6 +22,7 @@ final class MainStallScene: SKScene {
     private let farmerLayer = FarmerLayer()
     private let shopWallLayer = ShopWallLayer()
     private let kitchenLayer = KitchenLayer()
+    private let locationBackdrop = LocationBackdropNode(fittingTo: GroundLayer.grid)
 
     /// Spawns, walks and serves customers at `shop`'s counter — added
     /// directly to the scene (see `update`) rather than under `shop` or
@@ -53,6 +58,12 @@ final class MainStallScene: SKScene {
     /// even for a save already past tier 0.
     private var lastAppliedStallTier: Int?
 
+    /// Last location tier the scene art was swapped to — same
+    /// `nil`-sentinel as the tiers above: the first apply (a save already
+    /// at tier 2, or tier 0 on a new game) is instant, only a later change
+    /// is a transition.
+    private var lastAppliedLocationTier: Int?
+
     /// Last fill state `shop.applyCookFill` ran with, per menu index. `nil`
     /// can't match a real `Bool`, so each menu's first
     /// `updateShopCookGauge()` call always applies — same reasoning as
@@ -68,6 +79,16 @@ final class MainStallScene: SKScene {
     /// its margin) is what actually limits the scrollable area, not the
     /// device screen.
     private let cameraNode = SKCameraNode()
+
+    /// Full-screen cover in the background colour, parented to the camera
+    /// so it follows any pan; the location transition fades it in and out.
+    /// Oversized so no device or camera position shows its edge.
+    private let transitionVeil: SKSpriteNode = {
+        let veil = SKSpriteNode(color: GroundTile.fillColor, size: CGSize(width: 4000, height: 4000))
+        veil.alpha = 0
+        veil.zPosition = 100_000
+        return veil
+    }()
 
     /// Set on `touchesBegan`, cleared on `touchesEnded`/`touchesCancelled`
     /// — `nil` means no active drag, so `touchesMoved` has nothing to
@@ -91,6 +112,7 @@ final class MainStallScene: SKScene {
 
         camera = cameraNode
         addChild(cameraNode)
+        cameraNode.addChild(transitionVeil)
         // Start framed on the shop itself — the whole point of this
         // change — rather than `GroundLayer.mapCentroid`: that averages
         // every cell in `GroundLayer.map`, including the six field rows
@@ -108,6 +130,10 @@ final class MainStallScene: SKScene {
         // handled in didChangeSize below).
         addChild(groundLayer)
         groundLayer.layout()
+
+        // Sits behind everything by its own col + row z-rule (see
+        // `LocationBackdropNode`), so add order does not matter.
+        addChild(locationBackdrop)
 
         // FieldLayer/FarmerLayer are ported onto GroundLayer's IsoGrid (see
         // FieldLayerNode.swift/FarmerNode.swift) and restored here.
@@ -135,6 +161,7 @@ final class MainStallScene: SKScene {
         addChild(shop)
         updateShopMenuTier()
         updateShopStallTier()
+        updateLocationTier()
         updateShopCookGauge()
 
         clampCameraPosition()
@@ -155,6 +182,84 @@ final class MainStallScene: SKScene {
         guard let tier = store?.stall.stallTier, tier != lastAppliedStallTier else { return }
         shop.applyStallTier(tier)
         lastAppliedStallTier = tier
+    }
+
+    /// Shows the backdrop set (and road tile) for `store.stall.locationTier`,
+    /// only when it actually changed.
+    private func updateLocationTier() {
+        guard let tier = store?.stall.locationTier, tier != lastAppliedLocationTier else { return }
+        let isFirstApply = lastAppliedLocationTier == nil
+        lastAppliedLocationTier = tier
+        if isFirstApply {
+            applyLocationArt(tier)
+        } else {
+            runLocationTransition(to: tier)
+        }
+    }
+
+    private func applyLocationArt(_ tier: Int) {
+        locationBackdrop.apply(tier: tier)
+        groundLayer.applyLocationTier(tier)
+    }
+
+    /// Purchase transition, ~0.8 s of the spec's 1.2 s budget plus the
+    /// toast that follows: fade to the background colour (0.35 s,
+    /// ease-in), swap art / reset camera / clear customers under the
+    /// veil, fade back in (0.45 s, ease-out) with the shop settling from
+    /// 0.95 to 1.0. Spawning resumes when the fade-in ends, which is also
+    /// when `.locationTransitionDidFinish` fires for the toast.
+    ///
+    /// Reduce Motion: no scale settle and a 0.1 s + 0.1 s dissolve (0.2 s
+    /// total); the camera still resets, since it is part of the swap.
+    private func runLocationTransition(to tier: Int) {
+        let reduceMotion = UIAccessibility.isReduceMotionEnabled
+        let fadeOutDuration: TimeInterval = reduceMotion ? 0.1 : 0.35
+        let fadeInDuration: TimeInterval = reduceMotion ? 0.1 : 0.45
+
+        customerSpawner.isSpawningPaused = true
+
+        let fadeOut = SKAction.fadeAlpha(to: 1, duration: fadeOutDuration)
+        fadeOut.timingMode = .easeIn
+        let swap = SKAction.run { [weak self] in
+            guard let self else { return }
+            self.applyLocationArt(tier)
+            self.customerSpawner.removeAllCustomers()
+            self.resetCameraToShop()
+            if !reduceMotion { self.settleShop(duration: fadeInDuration) }
+        }
+        let fadeIn = SKAction.fadeAlpha(to: 0, duration: fadeInDuration)
+        fadeIn.timingMode = .easeOut
+        let finish = SKAction.run { [weak self] in
+            self?.customerSpawner.isSpawningPaused = false
+            NotificationCenter.default.post(
+                name: .locationTransitionDidFinish, object: nil, userInfo: ["tier": tier])
+        }
+
+        // Same key on a repeat purchase replaces the running sequence.
+        transitionVeil.run(.sequence([fadeOut, swap, fadeIn, finish]), withKey: "locationTransition")
+    }
+
+    /// Back to the launch framing (the default camera), clamped like any pan.
+    private func resetCameraToShop() {
+        lastPanLocation = nil
+        touchStartLocation = nil
+        cameraNode.position = ShopNode.defaultPlacement.centroid(on: GroundLayer.grid)
+        clampCameraPosition()
+    }
+
+    /// 0.95 -> 1.0 ease-out scale about the shop's own centroid (the shop
+    /// node's origin is the grid origin, so scaling it directly would
+    /// slide it instead).
+    private func settleShop(duration: TimeInterval) {
+        let center = ShopNode.defaultPlacement.centroid(on: GroundLayer.grid)
+        let from: CGFloat = 0.95
+        shop.run(.customAction(withDuration: duration) { node, elapsed in
+            let progress = min(1, CGFloat(elapsed) / CGFloat(duration))
+            let eased = 1 - (1 - progress) * (1 - progress)
+            let scale = from + (1 - from) * eased
+            node.setScale(scale)
+            node.position = CGPoint(x: center.x * (1 - scale), y: center.y * (1 - scale))
+        }, withKey: "locationSettle")
     }
 
     /// Menu indices with their own tap-to-cook bowl and gauge — the small
@@ -271,6 +376,7 @@ final class MainStallScene: SKScene {
 
         updateShopMenuTier()
         updateShopStallTier()
+        updateLocationTier()
         updateShopCookGauge()
 
         Task { @MainActor [weak self] in

@@ -206,6 +206,13 @@ final class GroundLayer: SKNode {
         (mapOrigin.col + colIndex, mapOrigin.row + rowIndex)
     }
 
+    /// `IsoGrid` rows/columns `map` itself covers (without the world
+    /// margin) — what `LocationBackdropNode` lines its walls up against.
+    static var mapRows: ClosedRange<Int> { mapOrigin.row...(mapOrigin.row + map.count - 1) }
+    static var mapColumns: ClosedRange<Int> {
+        mapOrigin.col...(mapOrigin.col + (map.first?.count ?? 1) - 1)
+    }
+
     /// `IsoGrid` column just past `map`'s own east edge (`mapOrigin.col`
     /// plus `map`'s column count) — tracks `map`'s actual width rather
     /// than a hardcoded literal. `ShopCustomerSpawner` spawns customers a
@@ -328,12 +335,56 @@ final class GroundLayer: SKNode {
         return CGPoint(x: sum.x / CGFloat(count), y: sum.y / CGFloat(count))
     }
 
+    /// The doorstep road tile's variant per `locationTier`, built once by
+    /// `layout()` and toggled by `applyLocationTier`.
+    private var roadTilesByLocation: [Int: RoadGroundTileNode] = [:]
+    private var grassTiles: [GrassGroundTileNode] = []
+    private var appliedLocationTier = 0
+
+    /// Per-location grass tint, indexed by tier. Applied as a partial
+    /// colour blend so the baked grass texture stays visible; the factor
+    /// is kept low enough that tier 0 reads close to the untinted art
+    /// existing saves were seen with. `GroundTile.fillColor` (scene
+    /// background, transition veil) is deliberately not tinted: it is
+    /// shared, and the veil must match the background it fades to.
+    private static let grassTints: [(color: SKColor, blend: CGFloat)] = [
+        (SKColor(red: 0.45, green: 0.68, blue: 0.50, alpha: 1), 0.15),  // alley: muted, cooler
+        (SKColor(red: 0.80, green: 0.70, blue: 0.30, alpha: 1), 0.28),  // market: dry yellow-olive
+        (SKColor(red: 0.38, green: 0.58, blue: 0.60, alpha: 1), 0.30),  // Gangnam: grey blue-green
+    ]
+
+    /// Tier clamped into `grassTints`' (and the road variants') range.
+    private static func clampedTier(_ tier: Int) -> Int {
+        max(0, min(tier, min(RoadGroundTileNode.variantCount, grassTints.count) - 1))
+    }
+
+    private static func tintGrass(_ tile: GrassGroundTileNode, tier: Int) {
+        let tint = grassTints[tier]
+        tile.color = tint.color
+        tile.colorBlendFactor = tint.blend
+    }
+
+    /// Shows the road tile and grass tint for `tier` (clamped) and hides
+    /// the other road variants.
+    func applyLocationTier(_ tier: Int) {
+        let shown = Self.clampedTier(tier)
+        appliedLocationTier = shown
+        for (index, node) in roadTilesByLocation {
+            node.isHidden = index != shown
+        }
+        for tile in grassTiles {
+            Self.tintGrass(tile, tier: shown)
+        }
+    }
+
     /// Draws every tile in `worldColumns` × `worldRows` exactly once, at
     /// its raw `IsoGrid` world position — no per-call centering offset.
     /// `MainStallScene`'s camera (not this layout pass) is what frames
     /// this on screen; call this once, not on every size change.
     func layout() {
         removeAllChildren()
+        roadTilesByLocation = [:]
+        grassTiles = []
         precondition(
             Set(Self.map.map(\.count)).count <= 1,
             "GroundLayer.map rows must all be the same length"
@@ -347,9 +398,24 @@ final class GroundLayer: SKNode {
                 // so this loop only needs to place it.
                 let tile: SKSpriteNode
                 switch kind {
-                case .grass: tile = GrassGroundTileNode()
+                case .grass:
+                    let grass = GrassGroundTileNode()
+                    Self.tintGrass(grass, tier: appliedLocationTier)
+                    grassTiles.append(grass)
+                    tile = grass
                 case .field: tile = FieldGroundTileNode(fittingTo: Self.grid)
-                case .road: tile = RoadGroundTileNode(fittingTo: Self.grid)
+                case .road:
+                    // One variant per location, all in the same cell and
+                    // z slot; `applyLocationTier` shows exactly one.
+                    for tier in 0..<RoadGroundTileNode.variantCount {
+                        let road = RoadGroundTileNode(location: tier, fittingTo: Self.grid)
+                        road.position = Self.grid.point(col: col, row: row)
+                        road.zPosition = CGFloat(col + row)
+                        road.isHidden = tier != appliedLocationTier
+                        addChild(road)
+                        roadTilesByLocation[tier] = road
+                    }
+                    continue
                 case .shop:
                     // ShopNode — added separately by whoever assembles the
                     // scene (MainStallScene, GroundPreviewScene below) —

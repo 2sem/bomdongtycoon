@@ -16,13 +16,23 @@ public enum EarningsSystem {
 
     /// Coins earned per item sold based on menu and location upgrades
     public static func pricePerItem(for stall: StallState) -> Double {
-        basePricePerItem * UpgradeDefinitions.menu[stall.menuTier].priceMultiplier
+        pricePerItem(for: stall, menuIndex: stall.menuTier)
     }
 
-    /// Price for a specific menu slot (겉절이=30, 봄동김치=75, 봄동비빔밥=180)
+    /// Sale-price multiplier of the stall's location (x1 / x2 / x4). Applied only in
+    /// `pricePerItem(for:menuIndex:)`; live sales, `coinsPerSecond` and offline
+    /// earnings all price through it, so it must not be applied again downstream.
+    public static func locationMultiplier(for stall: StallState) -> Double {
+        let tier = min(max(stall.locationTier, 0), UpgradeDefinitions.location.count - 1)
+        return UpgradeDefinitions.location[tier].saleMultiplier
+    }
+
+    /// Price for a specific menu slot (겉절이=30, 봄동김치=75, 봄동비빔밥=180) times the location multiplier
     public static func pricePerItem(for stall: StallState, menuIndex: Int) -> Double {
-        guard menuIndex < UpgradeDefinitions.menu.count else { return basePricePerItem }
-        return basePricePerItem * UpgradeDefinitions.menu[menuIndex].priceMultiplier
+        let menuMultiplier = menuIndex < UpgradeDefinitions.menu.count
+            ? UpgradeDefinitions.menu[menuIndex].priceMultiplier
+            : 1.0
+        return basePricePerItem * menuMultiplier * locationMultiplier(for: stall)
     }
 
     /// Maximum stock the stall can hold at once
@@ -47,25 +57,74 @@ public enum EarningsSystem {
     /// Returns the cheapest upgrade the player can currently afford
     public static func nextAffordableUpgrade(for stall: StallState) -> UpgradeDefinition? {
         candidates(for: stall)
-            .filter { $0.coinCost <= stall.coins }
-            .min(by: { $0.coinCost < $1.coinCost })
+            .filter { $0.definition.coinCost <= stall.coins }
+            .min(by: { $0.definition.coinCost < $1.definition.coinCost })?
+            .definition
     }
 
     /// Returns the next upgrade the player is saving toward (cheapest overall)
     public static func nextGoalUpgrade(for stall: StallState) -> UpgradeDefinition? {
-        candidates(for: stall).min(by: { $0.coinCost < $1.coinCost })
+        nextGoal(for: stall)?.definition
     }
 
-    private static func candidates(for stall: StallState) -> [UpgradeDefinition] {
-        var result: [UpgradeDefinition] = []
+    // MARK: Location goal
+
+    /// The location after the current one, if any.
+    public static func nextLocation(for stall: StallState) -> LocationDefinition? {
+        let next = stall.locationTier + 1
+        return next < UpgradeDefinitions.location.count ? UpgradeDefinitions.location[next] : nil
+    }
+
+    /// True when the next location's stall prerequisite is met.
+    public static func nextLocationUnlocked(for stall: StallState) -> Bool {
+        guard let next = nextLocation(for: stall) else { return false }
+        return stall.stallTier >= next.requiredStallTier
+    }
+
+    /// Goal-bar copy for the location goal; nil means "use the generic upgrade label".
+    public static func locationGoalText(for stall: StallState) -> String? {
+        let goal = nextGoal(for: stall)
+        guard let next = nextLocation(for: stall) else {
+            return goal == nil ? "🎉 강남에서 봄동 제국을 완성했어요!" : nil
+        }
+        guard nextLocationUnlocked(for: stall) else {
+            guard goal == nil else { return nil }
+            let stallName = UpgradeDefinitions.stall[next.requiredStallTier].name
+            return "다음 목표: \(stallName)으로 \(next.name) 이전을 준비하세요"
+        }
+        guard goal?.type == .location else { return nil }
+        if stall.coins >= next.coinCost {
+            return "\(next.destination) 이전할 수 있어요! 탭해서 확인"
+        }
+        return "다음 목표까지 💰 \(Int(stall.coins)) / \(Int(next.coinCost)) · \(next.name) 이전"
+    }
+
+    // MARK: Goal selection
+
+    private struct Goal {
+        let type: UpgradeType
+        let definition: UpgradeDefinition
+    }
+
+    private static func nextGoal(for stall: StallState) -> Goal? {
+        candidates(for: stall).min(by: { $0.definition.coinCost < $1.definition.coinCost })
+    }
+
+    private static func candidates(for stall: StallState) -> [Goal] {
+        var result: [Goal] = []
         if stall.staffTier < UpgradeDefinitions.staff.count {
-            result.append(UpgradeDefinitions.staff[stall.staffTier])
+            result.append(Goal(type: .staff, definition: UpgradeDefinitions.staff[stall.staffTier]))
         }
         if stall.menuTier + 1 < UpgradeDefinitions.menu.count {
-            result.append(UpgradeDefinitions.menu[stall.menuTier + 1])
+            result.append(Goal(type: .menu, definition: UpgradeDefinitions.menu[stall.menuTier + 1]))
         }
         if stall.stallTier + 1 < UpgradeDefinitions.stall.count {
-            result.append(UpgradeDefinitions.stall[stall.stallTier + 1])
+            result.append(Goal(type: .stall, definition: UpgradeDefinitions.stall[stall.stallTier + 1]))
+        }
+        // A location only becomes a goal once its stall prerequisite is met.
+        if let next = nextLocation(for: stall), nextLocationUnlocked(for: stall) {
+            result.append(Goal(type: .location, definition: UpgradeDefinition(
+                name: next.name, coinCost: next.coinCost, description: next.description)))
         }
         return result
     }

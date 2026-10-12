@@ -1,50 +1,40 @@
 import SpriteKit
 import SwiftUI
 
-/// A single stone-path ground tile: a 5×5 mosaic of small paving stones,
-/// used as a walkway rather than open ground.
+/// The stone-path ground tile at the shop's doorstep, one variant per
+/// location (`ground_road_<alley|market|gangnam>`).
 ///
-/// Unlike `GrassGroundTileNode` (which *defines* the shared grid's spacing
-/// unit), this tile has no say in the grid — it fits itself to whatever
-/// `IsoGrid` is handed to it at init, exactly like `FieldGroundTileNode`.
+/// Like `FieldGroundTileNode`, this has no say in the grid — it fits itself
+/// to whatever `IsoGrid` it is handed. All three variants come from the
+/// `tools/isorender/` rig at 3x with identical geometry (381x255 trimmed,
+/// top-face centre at 0.535 from the bottom), so they swap in place with
+/// no per-location offsets.
 final class RoadGroundTileNode: SKSpriteNode {
 
-    private static let texture = SKTexture(imageNamed: "ground_tile_road")
+    private static let imageNames = ["ground_road_alley", "ground_road_market", "ground_road_gangnam"]
 
-    /// Same measurement as `GrassGroundTileNode.topFaceHeightFraction`, but
-    /// for this asset. Measured the same way: source was a flat-white-bg
-    /// JPEG (no alpha), so it was first background-keyed (connected-
-    /// component threshold, same technique used for the original grass/
-    /// field art before they got clean pre-transparent replacements), then
-    /// alpha-trimmed to 1107×696. Top vertex y≈0, front vertex y≈642 ⇒
-    /// rhombus height ≈642 of the sprite's 695 vertex-to-vertex span,
-    /// ≈0.924. Left/right corners sat at y≈304/303 — already close to
-    /// symmetric (this is a regular geometric mosaic pattern, not
-    /// hand-painted, so less natural wobble than the grass/field art had)
-    /// but still off from the true midpoint the top/front vertices imply,
-    /// so it went through the same one-off 4-point homography warp before
-    /// being saved, correcting the left/right corners onto the exact
-    /// symmetric diamond.
-    static let topFaceHeightFraction: CGFloat = 0.924
+    static var variantCount: Int { imageNames.count }
 
-    /// Same role as `GrassGroundTileNode.topFaceCenterAnchorY`, for this
-    /// tile: `1 - (0 + 642/2) / 696 ≈ 0.539`.
-    static let topFaceCenterAnchorY: CGFloat = 0.539
+    private static let nativeSize = CGSize(width: 381, height: 255)
 
-    /// Same non-uniform grid-fitting approach as `FieldGroundTileNode` —
-    /// see that type's doc comment for why a single uniform scale can't
-    /// work here either (native footprint aspect 1107/642 ≈ 1.72, close
-    /// to grass's ≈1.51 but not identical).
-    private static func spriteSize(fittingTo grid: IsoGrid) -> CGSize {
-        let native = texture.size()
-        let nativeHeight = native.height > 0 ? native.height : 696.0
-        let nativeTopFaceHeight = nativeHeight * topFaceHeightFraction
-        let yScale = nativeTopFaceHeight > 0 ? grid.tileHeight / nativeTopFaceHeight : 1
-        return CGSize(width: grid.tileWidth, height: nativeHeight * yScale)
-    }
+    /// One grid cell is 378 px wide in the 3x render (126pt on
+    /// `GroundLayer.grid`); the tile is fitted by width with one uniform
+    /// scale so the art is not stretched. The 3 px of overhang is the
+    /// render's own ink outline.
+    private static let nativeCellWidth: CGFloat = 378
 
-    init(fittingTo grid: IsoGrid) {
-        super.init(texture: Self.texture, color: .clear, size: Self.spriteSize(fittingTo: grid))
+    /// Top-face centre as a bottom-up fraction of the trimmed height.
+    static let topFaceCenterAnchorY: CGFloat = 0.535
+
+    /// `location` is a `locationTier`, clamped to the available variants.
+    init(location: Int, fittingTo grid: IsoGrid) {
+        let name = Self.imageNames[max(0, min(location, Self.imageNames.count - 1))]
+        let scale = grid.tileWidth / Self.nativeCellWidth
+        super.init(
+            texture: SKTexture(imageNamed: name),
+            color: .clear,
+            size: CGSize(width: Self.nativeSize.width * scale, height: Self.nativeSize.height * scale)
+        )
         anchorPoint = CGPoint(x: 0.5, y: Self.topFaceCenterAnchorY)
     }
 
@@ -55,42 +45,20 @@ final class RoadGroundTileNode: SKSpriteNode {
 }
 
 #Preview("Road Ground Tile") {
-    // A 2×2 patch of this tile alone — see FieldGroundTileNode's preview
-    // for why (isolates this asset's own measured geometry from
-    // GroundLayer's spacing tuning and every other tile type).
-    let footprintWidth: CGFloat = 128
-    let nativeAspect: CGFloat = {
-        let native = SKTexture(imageNamed: "ground_tile_road").size()
-        return native.height > 0 ? native.width / native.height : 1107.0 / 696.0
-    }()
-    let grid = IsoGrid(
-        tileWidth: footprintWidth,
-        tileHeight: (footprintWidth / nativeAspect) * RoadGroundTileNode.topFaceHeightFraction
-    )
+    // A 2×2 patch of the alley variant alone, isolating this asset's own
+    // geometry from GroundLayer's spacing and every other tile type.
+    let grid = IsoGrid(tileWidth: 126, tileHeight: 126 * 0.6)
     let range = 0..<2
 
     let scene = SKScene(size: CGSize(width: 300, height: 300))
     scene.scaleMode = .resizeFill
     scene.backgroundColor = GroundTile.fillColor
 
-    var sum = CGPoint.zero
-    var count = 0
     for row in range {
         for col in range {
+            let tile = RoadGroundTileNode(location: 0, fittingTo: grid)
             let point = grid.point(col: col, row: row)
-            sum.x += point.x
-            sum.y += point.y
-            count += 1
-        }
-    }
-    let centroid = CGPoint(x: sum.x / CGFloat(count), y: sum.y / CGFloat(count))
-    let origin = CGPoint(x: scene.size.width / 2 - centroid.x, y: scene.size.height / 2 - centroid.y)
-
-    for row in range {
-        for col in range {
-            let tile = RoadGroundTileNode(fittingTo: grid)
-            let point = grid.point(col: col, row: row)
-            tile.position = CGPoint(x: point.x + origin.x, y: point.y + origin.y)
+            tile.position = CGPoint(x: point.x + 150, y: point.y + 200)
             tile.zPosition = CGFloat(col + row)
             scene.addChild(tile)
         }

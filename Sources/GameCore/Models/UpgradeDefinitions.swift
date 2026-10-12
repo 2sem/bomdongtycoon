@@ -64,7 +64,39 @@ public struct UpgradeDefinition {
     }
 }
 
+// MARK: - LocationDefinition
+
+public struct LocationDefinition {
+    public let name: String
+    public let coinCost: Double
+    public let description: String
+    /// Stall tier the player must already own before moving here.
+    public let requiredStallTier: Int
+    /// Multiplier on every sale price (live, offline and ads inherit it).
+    public let saleMultiplier: Double
+    public let unlocks: String?
+    /// Shown while `requiredStallTier` is unmet.
+    public let lockedReason: String?
+    /// Particle-correct destination form for the alert and goal bar ("시장으로").
+    public let destination: String
+
+    public var displayEffect: String { "판매 수익 x\(Int(saleMultiplier))" }
+}
+
 public enum UpgradeDefinitions {
+
+    /// Locations — one forward-only tier that multiplies sale price. Append a row for a new one.
+    public static let location: [LocationDefinition] = [
+        .init(name: "골목", coinCost: 0, description: "한적한 골목 어귀, 봄동 장사의 시작",
+              requiredStallTier: 0, saleMultiplier: 1.0, unlocks: nil, lockedReason: nil,
+              destination: "골목으로"),
+        .init(name: "시장", coinCost: 40_000, description: "사람 북적이는 전통시장 한복판",
+              requiredStallTier: 1, saleMultiplier: 2.0, unlocks: "시장 풍경과 새 손님",
+              lockedReason: "봄동 식당이 필요해요", destination: "시장으로"),
+        .init(name: "강남", coinCost: 200_000, description: "유동 인구 가득한 강남 대로변",
+              requiredStallTier: 2, saleMultiplier: 4.0, unlocks: "강남 풍경과 새 손님",
+              lockedReason: "봄동 전문점이 필요해요", destination: "강남으로")
+    ]
 
     /// Menu upgrades — increase price per item sold
     public static let menu: [UpgradeDefinition] = [

@@ -2,7 +2,13 @@ import Foundation
 import Combine
 
 public enum UpgradeType {
-    case staff, menu, stall, farm, farmWorker
+    case staff, menu, stall, farm, farmWorker, location
+}
+
+extension Notification.Name {
+    /// Posted after a location purchase. `userInfo["tier"]` is the new `Int` tier.
+    /// Scene hook only; `store.stall.locationTier` is also published.
+    public static let locationTierDidChange = Notification.Name("GameStore.locationTierDidChange")
 }
 
 @MainActor
@@ -779,6 +785,19 @@ public final class GameStore: ObservableObject {
             guard stall.coins >= cost else { return }
             stall.coins -= cost
             stall.farmWorkerTier += 1
+
+        case .location:
+            let nextTier = stall.locationTier + 1
+            guard nextTier < UpgradeDefinitions.location.count else { return }
+            let next = UpgradeDefinitions.location[nextTier]
+            guard stall.stallTier >= next.requiredStallTier,
+                  stall.coins >= next.coinCost else { return }
+            stall.coins -= next.coinCost
+            stall.locationTier = nextTier
+            save()
+            NotificationCenter.default.post(
+                name: .locationTierDidChange, object: self, userInfo: ["tier": nextTier])
+            return
         }
         save()
     }
