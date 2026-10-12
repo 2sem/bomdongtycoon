@@ -65,12 +65,13 @@ final class FieldLayer: SKNode {
         }
     }
 
+    // Chibi farmer, art PR #120 table (same convention as plotSpec).
     private static func workerSpec(_ pose: WorkerPose) -> SpriteSpec {
         switch pose {
         case .idle:
-            return SpriteSpec(imageName: "farmer_idle", nativeSize: CGSize(width: 97, height: 170), anchor: CGPoint(x: 0.5, y: 0.07024))
+            return SpriteSpec(imageName: "farmer_idle", nativeSize: CGSize(width: 105, height: 160), anchor: CGPoint(x: 0.5, y: 0.07462))
         case .working:
-            return SpriteSpec(imageName: "farmer_working", nativeSize: CGSize(width: 122, height: 193), anchor: CGPoint(x: 0.60246, y: 0.18104))
+            return SpriteSpec(imageName: "farmer_working", nativeSize: CGSize(width: 117, height: 183), anchor: CGPoint(x: 0.55128, y: 0.19093))
         }
     }
 

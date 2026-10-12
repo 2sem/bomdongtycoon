@@ -13,7 +13,8 @@ final class ShopStaffFigureNode: SKSpriteNode {
 
     /// One pose's isorender measurement-table entry (3x render, trimmed):
     /// native px and the feet anchor as a fraction from the *bottom*, the
-    /// same convention `ShopCustomerNode` uses.
+    /// same convention `ShopCustomerNode` uses. Numbers are the chibi cast's
+    /// table from art PR #120.
     private struct PoseSpec {
         let imageName: String
         let nativeSize: CGSize
@@ -23,13 +24,13 @@ final class ShopStaffFigureNode: SKSpriteNode {
     private static func spec(_ role: Role, working: Bool) -> PoseSpec {
         switch (role, working) {
         case (.cashier, false):
-            return PoseSpec(imageName: "cashier_idle", nativeSize: CGSize(width: 83, height: 161), anchorPoint: CGPoint(x: 0.5, y: 0.07416))
+            return PoseSpec(imageName: "cashier_idle", nativeSize: CGSize(width: 83, height: 151), anchorPoint: CGPoint(x: 0.5, y: 0.07907))
         case (.cashier, true):
-            return PoseSpec(imageName: "cashier_working", nativeSize: CGSize(width: 109, height: 161), anchorPoint: CGPoint(x: 0.67431, y: 0.07416))
+            return PoseSpec(imageName: "cashier_working", nativeSize: CGSize(width: 105, height: 151), anchorPoint: CGPoint(x: 0.64286, y: 0.07907))
         case (.cook, false):
-            return PoseSpec(imageName: "cook_idle", nativeSize: CGSize(width: 83, height: 179), anchorPoint: CGPoint(x: 0.5, y: 0.06670))
+            return PoseSpec(imageName: "cook_idle", nativeSize: CGSize(width: 83, height: 185), anchorPoint: CGPoint(x: 0.5, y: 0.06454))
         case (.cook, true):
-            return PoseSpec(imageName: "cook_working", nativeSize: CGSize(width: 117, height: 179), anchorPoint: CGPoint(x: 0.69658, y: 0.06670))
+            return PoseSpec(imageName: "cook_working", nativeSize: CGSize(width: 123, height: 185), anchorPoint: CGPoint(x: 0.66260, y: 0.06454))
         }
     }
 
