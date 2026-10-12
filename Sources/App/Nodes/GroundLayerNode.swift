@@ -335,12 +335,27 @@ final class GroundLayer: SKNode {
         return CGPoint(x: sum.x / CGFloat(count), y: sum.y / CGFloat(count))
     }
 
+    /// The doorstep road tile's variant per `locationTier`, built once by
+    /// `layout()` and toggled by `applyLocationTier`.
+    private var roadTilesByLocation: [Int: RoadGroundTileNode] = [:]
+    private var appliedLocationTier = 0
+
+    /// Shows the road tile for `tier` (clamped) and hides the rest.
+    func applyLocationTier(_ tier: Int) {
+        let shown = max(0, min(tier, RoadGroundTileNode.variantCount - 1))
+        appliedLocationTier = shown
+        for (index, node) in roadTilesByLocation {
+            node.isHidden = index != shown
+        }
+    }
+
     /// Draws every tile in `worldColumns` × `worldRows` exactly once, at
     /// its raw `IsoGrid` world position — no per-call centering offset.
     /// `MainStallScene`'s camera (not this layout pass) is what frames
     /// this on screen; call this once, not on every size change.
     func layout() {
         removeAllChildren()
+        roadTilesByLocation = [:]
         precondition(
             Set(Self.map.map(\.count)).count <= 1,
             "GroundLayer.map rows must all be the same length"
@@ -356,7 +371,18 @@ final class GroundLayer: SKNode {
                 switch kind {
                 case .grass: tile = GrassGroundTileNode()
                 case .field: tile = FieldGroundTileNode(fittingTo: Self.grid)
-                case .road: tile = RoadGroundTileNode(fittingTo: Self.grid)
+                case .road:
+                    // One variant per location, all in the same cell and
+                    // z slot; `applyLocationTier` shows exactly one.
+                    for tier in 0..<RoadGroundTileNode.variantCount {
+                        let road = RoadGroundTileNode(location: tier, fittingTo: Self.grid)
+                        road.position = Self.grid.point(col: col, row: row)
+                        road.zPosition = CGFloat(col + row)
+                        road.isHidden = tier != appliedLocationTier
+                        addChild(road)
+                        roadTilesByLocation[tier] = road
+                    }
+                    continue
                 case .shop:
                     // ShopNode — added separately by whoever assembles the
                     // scene (MainStallScene, GroundPreviewScene below) —

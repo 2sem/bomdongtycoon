@@ -179,6 +179,7 @@ final class MainStallScene: SKScene {
 
     private func applyLocationArt(_ tier: Int) {
         locationBackdrop.apply(tier: tier)
+        groundLayer.applyLocationTier(tier)
     }
 
     /// Menu indices with their own tap-to-cook bowl and gauge — the small
