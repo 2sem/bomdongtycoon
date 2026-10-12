@@ -16,6 +16,7 @@ struct GameRootView: View {
         ZStack {
             GameSceneView()
                 .ignoresSafeArea()
+            staffButton
             if store.progress.isFirstLaunch {
                 TutorialOverlay()
             } else if !store.progress.isShopNameSet {
@@ -74,6 +75,24 @@ struct GameRootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .locationTransitionDidFinish)) { note in
             guard let tier = note.userInfo?["tier"] as? Int else { return }
             showLocationToast(forTier: tier)
+        }
+    }
+
+    private var staffButton: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                Button { showStaff = true } label: {
+                    Image(systemName: "person.2.fill")
+                        .font(.title3)
+                        .frame(width: 44, height: 44)
+                        .background(.regularMaterial, in: Circle())
+                }
+                .accessibilityLabel(String(localized: "직원 관리"))
+            }
+            .padding(.trailing, 16)
+            .padding(.bottom, 12)
         }
     }
 
