@@ -32,10 +32,12 @@ public final class GameStore: ObservableObject {
         }
     }
 
-    private enum DefaultsKey {
-        static let stall    = "gameStore.stall"
-        static let farm     = "gameStore.farm"
-        static let progress = "gameStore.progress"
+    /// The three persisted blobs. `corruptKey` keeps the raw bytes of the latest blob that failed
+    /// to decode, so the next `save()` cannot destroy the only copy.
+    enum SaveBlob: String {
+        case stall, farm, progress
+        var key: String { "gameStore.\(rawValue)" }
+        var corruptKey: String { "gameStore.\(rawValue).corrupt" }
     }
 
     private let defaults: UserDefaults
@@ -59,29 +61,30 @@ public final class GameStore: ObservableObject {
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
-        if let data = defaults.data(forKey: DefaultsKey.stall),
-           let saved = try? JSONDecoder().decode(StallState.self, from: data) {
-            self.stall = saved
-        } else {
-            self.stall = StallState()
-        }
-
-        if let data = defaults.data(forKey: DefaultsKey.farm),
-           let saved = try? JSONDecoder().decode(FarmState.self, from: data) {
-            self.farm = saved
-        } else {
-            self.farm = FarmState()
-        }
-
-        var loadedProgress: PlayerProgress
-        if let data = defaults.data(forKey: DefaultsKey.progress),
-           let saved = try? JSONDecoder().decode(PlayerProgress.self, from: data) {
-            loadedProgress = saved
-        } else {
-            loadedProgress = PlayerProgress()
-        }
-        self.progress = loadedProgress
+        self.stall    = Self.load(StallState.self, blob: .stall, from: defaults) ?? StallState()
+        self.farm     = Self.load(FarmState.self, blob: .farm, from: defaults) ?? FarmState()
+        self.progress = Self.load(PlayerProgress.self, blob: .progress, from: defaults) ?? PlayerProgress()
         normalizeIdlePools()
+    }
+
+    /// nil when the blob is absent. When it exists but cannot be decoded, its bytes are copied to
+    /// `corruptKey` (replacing any older copy) before the caller falls back to fresh state.
+    private static func load<T: Decodable>(_ type: T.Type, blob: SaveBlob, from defaults: UserDefaults) -> T? {
+        guard let data = defaults.data(forKey: blob.key) else { return nil }
+        do {
+            return try JSONDecoder().decode(type, from: data)
+        } catch {
+            if defaults.data(forKey: blob.corruptKey) != data {
+                defaults.set(data, forKey: blob.corruptKey)
+            }
+            SaveDiagnostics.corruptBlob(blob.rawValue, bytes: data.count)
+            return nil
+        }
+    }
+
+    /// Raw bytes of the latest undecodable copy of `blob`, if any.
+    func corruptBackup(of blob: SaveBlob) -> Data? {
+        defaults.data(forKey: blob.corruptKey)
     }
 
     // MARK: - Energy
@@ -850,8 +853,8 @@ public final class GameStore: ObservableObject {
     }
 
     private func save() {
-        if let d = try? JSONEncoder().encode(stall)    { defaults.set(d, forKey: DefaultsKey.stall) }
-        if let d = try? JSONEncoder().encode(farm)     { defaults.set(d, forKey: DefaultsKey.farm) }
-        if let d = try? JSONEncoder().encode(progress) { defaults.set(d, forKey: DefaultsKey.progress) }
+        if let d = try? JSONEncoder().encode(stall)    { defaults.set(d, forKey: SaveBlob.stall.key) }
+        if let d = try? JSONEncoder().encode(farm)     { defaults.set(d, forKey: SaveBlob.farm.key) }
+        if let d = try? JSONEncoder().encode(progress) { defaults.set(d, forKey: SaveBlob.progress.key) }
     }
 }
