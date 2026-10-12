@@ -25,8 +25,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: Tuist/.build
-          key: spm-${{ runner.os }}-${{ hashFiles('Tuist/Package.resolved') }}
-          restore-keys: spm-${{ runner.os }}-
+          key: spm-${{ runner.os }}-${{ hashFiles('Tuist/Package.swift') }}
 
       - name: Install Tuist dependencies
         run: tuist install
