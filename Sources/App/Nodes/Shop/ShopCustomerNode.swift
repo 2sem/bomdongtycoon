@@ -1,9 +1,11 @@
 import SpriteKit
 
-/// One pose's isorender measurement table entry (px, trimmed, 3× render):
+/// One pose's isorender measurement table entry (px, trimmed, 3x render):
 /// native size and the feet anchor as a fraction from the *bottom* — the
 /// same convention `ShopPropSpriteNode` already takes its `baseAnchor` in,
 /// so no top/bottom flip is needed here unlike `ShopNode.TableItemSpec`.
+/// Numbers are the chibi cast's table from art PR #120; kid (0.70) and
+/// elder (0.933) scale is baked into the PNGs, so nothing scales them here.
 private struct CustomerPoseSpec {
     let imageName: String
     let nativeSize: CGSize
@@ -15,21 +17,16 @@ private struct CustomerArchetypeSpec {
     let idle: CustomerPoseSpec
     let walk: CustomerPoseSpec
 
-    /// Native px from the feet anchor to the top of the head. Derived
-    /// once from `idle` as `idleHeight × (1 − idleAnchorY) − topY` — the
-    /// measurement table's "top y" is the head's distance from the *top*
-    /// edge, the same for both poses, while height and anchor both shift
-    /// with the pose; the two poses' own numbers agree on this derived
-    /// value to within 0.01px, confirming a customer's head sits at one
-    /// fixed height above the ground however they're posed. Used to seat
-    /// the thought bubble/reaction just above the head without it hopping
-    /// as idle/walk textures swap mid-stride.
+    /// Native px from the feet anchor to the top of the head. The chibi
+    /// sprites are trimmed to the head's top edge, so this is simply
+    /// `height x (1 - anchorY)`; idle and walk agree to within 0.1px
+    /// (adult 138.6), so the bubble does not hop as the textures swap.
     let headHeightAboveFeet: CGFloat
 
-    init(idle: CustomerPoseSpec, walk: CustomerPoseSpec, topY: CGFloat) {
+    init(idle: CustomerPoseSpec, walk: CustomerPoseSpec) {
         self.idle = idle
         self.walk = walk
-        headHeightAboveFeet = idle.nativeSize.height * (1 - idle.anchorPoint.y) - topY
+        headHeightAboveFeet = idle.nativeSize.height * (1 - idle.anchorPoint.y)
     }
 }
 
@@ -42,21 +39,18 @@ enum CustomerArchetype: CaseIterable {
         switch self {
         case .adult:
             return CustomerArchetypeSpec(
-                idle: CustomerPoseSpec(imageName: "customer_adult_idle", nativeSize: CGSize(width: 83, height: 159), anchorPoint: CGPoint(x: 0.5, y: 0.07774)),
-                walk: CustomerPoseSpec(imageName: "customer_adult_walk", nativeSize: CGSize(width: 83, height: 162), anchorPoint: CGPoint(x: 0.5, y: 0.09481)),
-                topY: 18.25
+                idle: CustomerPoseSpec(imageName: "customer_adult_idle", nativeSize: CGSize(width: 83, height: 150), anchorPoint: CGPoint(x: 0.5, y: 0.07573)),
+                walk: CustomerPoseSpec(imageName: "customer_adult_walk", nativeSize: CGSize(width: 83, height: 159), anchorPoint: CGPoint(x: 0.5, y: 0.12805)),
             )
         case .kid:
             return CustomerArchetypeSpec(
-                idle: CustomerPoseSpec(imageName: "customer_kid_idle", nativeSize: CGSize(width: 59, height: 112), anchorPoint: CGPoint(x: 0.5, y: 0.08304)),
-                walk: CustomerPoseSpec(imageName: "customer_kid_walk", nativeSize: CGSize(width: 59, height: 114), anchorPoint: CGPoint(x: 0.5, y: 0.09912)),
-                topY: 12.83
+                idle: CustomerPoseSpec(imageName: "customer_kid_idle", nativeSize: CGSize(width: 63, height: 110), anchorPoint: CGPoint(x: 0.5, y: 0.07545)),
+                walk: CustomerPoseSpec(imageName: "customer_kid_walk", nativeSize: CGSize(width: 63, height: 116), anchorPoint: CGPoint(x: 0.5, y: 0.12328))
             )
         case .elder:
             return CustomerArchetypeSpec(
-                idle: CustomerPoseSpec(imageName: "customer_elder_idle", nativeSize: CGSize(width: 77, height: 148), anchorPoint: CGPoint(x: 0.5, y: 0.07831)),
-                walk: CustomerPoseSpec(imageName: "customer_elder_walk", nativeSize: CGSize(width: 77, height: 151), anchorPoint: CGPoint(x: 0.5, y: 0.09662)),
-                topY: 16.62
+                idle: CustomerPoseSpec(imageName: "customer_elder_idle", nativeSize: CGSize(width: 83, height: 143), anchorPoint: CGPoint(x: 0.5, y: 0.07406)),
+                walk: CustomerPoseSpec(imageName: "customer_elder_walk", nativeSize: CGSize(width: 83, height: 151), anchorPoint: CGPoint(x: 0.5, y: 0.12311))
             )
         }
     }
