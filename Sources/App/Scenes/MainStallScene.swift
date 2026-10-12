@@ -76,6 +76,10 @@ final class MainStallScene: SKScene {
     /// visible change.
     private var lastAppliedCookFillByMenuIndex: [Int: Bool] = [:]
 
+    /// Last staff presence pushed to the shop; `nil` so the first frame
+    /// always applies (a save that loads with staff already hired).
+    private var lastAppliedStaff: ShopStaffPresence?
+
     /// Pans the world; `GroundLayer.worldBounds` clamps how far (see
     /// `clampCameraPosition()`) — "the map data" (`GroundLayer.map` plus
     /// its margin) is what actually limits the scrollable area, not the
@@ -158,6 +162,7 @@ final class MainStallScene: SKScene {
         updateShopStallTier()
         updateLocationTier()
         updateShopCookGauge()
+        updateShopStaff()
 
         clampCameraPosition()
     }
@@ -176,6 +181,16 @@ final class MainStallScene: SKScene {
         guard let tier = store?.stall.menuTier, tier != lastAppliedMenuTier else { return }
         shop.applyMenuTier(tier)
         lastAppliedMenuTier = tier
+    }
+
+    /// Shows the hired cashier/cook figures, only when their derived
+    /// presence changed.
+    private func updateShopStaff() {
+        guard let stall = store?.stall else { return }
+        let presence = ShopStaffPresence(stall: stall)
+        guard presence != lastAppliedStaff else { return }
+        shop.applyStaff(presence)
+        lastAppliedStaff = presence
     }
 
     /// Swaps the shop's enclosure (walled shop vs. pojangmacha stall) for
@@ -408,6 +423,7 @@ final class MainStallScene: SKScene {
         updateShopStallTier()
         updateLocationTier()
         updateShopCookGauge()
+        updateShopStaff()
         updateFarm()
 
         Task { @MainActor [weak self] in
