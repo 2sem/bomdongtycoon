@@ -239,7 +239,14 @@ public final class GameStore: ObservableObject {
             save()
         }
 
-        // Cashier auto-collect pendingCoins
+        // Without a cashier, pendingCoins pays out immediately: the tap-a-bubble
+        // collect was removed, so a sale must never wait on a hire that a
+        // fresh tier-0 save does not have (coins would never rise).
+        if stall.cashierCount == 0, stall.pendingCoins > 0 {
+            collectCoins()
+        }
+
+        // A cashier keeps its 1 s collect cadence and energy cost
         if stall.cashierCount > 0, stall.pendingCoins > 0 {
             cashierAccumulator += deltaTime
             if cashierAccumulator >= 1.0 {

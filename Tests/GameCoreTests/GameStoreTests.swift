@@ -172,6 +172,48 @@ final class GameStoreTests: XCTestCase {
         XCTAssertFalse(store.isCooking(menuIndex: 2))
     }
 
+    // MARK: - Tier-0 economy
+
+    func test_tick_noCashier_autoCollectsPendingCoins() {
+        XCTAssertEqual(store.stall.cashierCount, 0)
+        store.farm.plots[0].workerType = .none
+        store.stall.coins = 0
+        store.stall.menuStock[0] = 1
+        let price = store.sellItem(menuIndex: 0)
+        XCTAssertNotNil(price)
+        store.tick(deltaTime: 0.1)
+        XCTAssertEqual(store.stall.coins, price ?? -1, accuracy: 0.001)
+        XCTAssertEqual(store.stall.pendingCoins, 0, accuracy: 0.001)
+    }
+
+    func test_tick_replant_neverGoesBelowZeroCoins() {
+        store.farm.plots[0].workerType = .alba
+        store.farm.plots[0].isPlanted = false
+        store.stall.coins = FarmSystem.seedCost - 1
+        store.tick(deltaTime: 1.0)
+        XCTAssertEqual(store.stall.coins, FarmSystem.seedCost - 1, accuracy: 0.001)
+        XCTAssertFalse(store.farm.plots[0].isPlanted)
+
+        store.stall.coins = 0
+        for _ in 0..<100 { store.tick(deltaTime: 1.0) }
+        XCTAssertGreaterThanOrEqual(store.stall.coins, 0)
+    }
+
+    func test_idle90s_withCustomersBuying_coinsStayAtOrAboveStart() {
+        let start = store.stall.coins
+        for second in 0..<90 {
+            // One customer every 10 s buys a bowl if one is in stock; the
+            // player taps a cook right after, as in the play-test.
+            if second % 10 == 0 {
+                _ = store.sellItem(menuIndex: 0)
+                _ = store.startManualCook(menuIndex: 0)
+            }
+            store.tick(deltaTime: 1.0)
+        }
+        XCTAssertGreaterThanOrEqual(store.stall.coins, start)
+        XCTAssertEqual(store.stall.pendingCoins, 0, accuracy: 0.001)
+    }
+
     // MARK: - isCooking
 
     func test_isCooking_noCookNoManual_isFalse() {
