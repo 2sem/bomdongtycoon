@@ -213,6 +213,7 @@ final class ShopCustomerSpawner {
     /// `waitingForStock` poll loop.
     private func beginServing(_ session: CustomerSession, store: GameStore, grid: IsoGrid) {
         session.node.stopWalking()
+        session.node.stage = .waiting
         if let price = store.sellItem(menuIndex: session.node.wantedMenuIndex) {
             store.recordServed(waitTime: 0)
             session.node.showReaction(happy: true)
@@ -246,6 +247,7 @@ final class ShopCustomerSpawner {
 
     private func beginWalkingOut(_ session: CustomerSession, grid: IsoGrid) {
         session.phase = .walkingOut
+        session.node.stage = .leaving
         session.path = [spawnPoint(on: grid)]
     }
 

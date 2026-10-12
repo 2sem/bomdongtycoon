@@ -1,4 +1,5 @@
 import SpriteKit
+import GameCore
 
 /// One pose's isorender measurement table entry (px, trimmed, 3x render):
 /// native size and the feet anchor as a fraction from the *bottom* — the
@@ -12,26 +13,29 @@ private struct CustomerPoseSpec {
     let anchorPoint: CGPoint
 }
 
-/// One archetype's idle/walk pair, plus the archetype's own head height.
+/// One archetype's idle/walk pairs, front and back view.
 private struct CustomerArchetypeSpec {
     let idle: CustomerPoseSpec
     let walk: CustomerPoseSpec
+    let idleBack: CustomerPoseSpec
+    let walkBack: CustomerPoseSpec
 
-    /// Native px from the feet anchor to the top of the head. The chibi
-    /// sprites are trimmed to the head's top edge, so this is simply
-    /// `height x (1 - anchorY)`; idle and walk agree to within 0.1px
-    /// (adult 138.6), so the bubble does not hop as the textures swap.
-    let headHeightAboveFeet: CGFloat
+    func idlePose(_ facing: CustomerFacing) -> CustomerPoseSpec { facing == .back ? idleBack : idle }
+    func walkPose(_ facing: CustomerFacing) -> CustomerPoseSpec { facing == .back ? walkBack : walk }
 
-    init(idle: CustomerPoseSpec, walk: CustomerPoseSpec) {
-        self.idle = idle
-        self.walk = walk
-        headHeightAboveFeet = idle.nativeSize.height * (1 - idle.anchorPoint.y)
+    /// Native px from the feet anchor to the top of the head. Every pose is
+    /// trimmed to the head's top edge (row 0), so this is `height x (1 - anchorY)`.
+    /// Idle and walk of one facing agree to within 0.1px; the back view's head
+    /// sits 2-3px lower than the front's (adult 135.64 vs 138.64), so the
+    /// bubble is re-seated when the facing changes.
+    func headHeightAboveFeet(_ facing: CustomerFacing) -> CGFloat {
+        let pose = idlePose(facing)
+        return pose.nativeSize.height * (1 - pose.anchorPoint.y)
     }
 }
 
-/// The three sprite archetypes rendered for this cast — no face, so the
-/// same sprite serves a customer walking in and walking back out.
+/// The three sprite archetypes rendered for this cast — front poses for the
+/// walk out, back poses for the walk in and the wait at the counter.
 enum CustomerArchetype: CaseIterable {
     case adult, kid, elder
 
@@ -41,16 +45,22 @@ enum CustomerArchetype: CaseIterable {
             return CustomerArchetypeSpec(
                 idle: CustomerPoseSpec(imageName: "customer_adult_idle", nativeSize: CGSize(width: 83, height: 150), anchorPoint: CGPoint(x: 0.5, y: 0.07573)),
                 walk: CustomerPoseSpec(imageName: "customer_adult_walk", nativeSize: CGSize(width: 83, height: 159), anchorPoint: CGPoint(x: 0.5, y: 0.12805)),
+                idleBack: CustomerPoseSpec(imageName: "customer_adult_idle_back", nativeSize: CGSize(width: 83, height: 141), anchorPoint: CGPoint(x: 0.5, y: 0.03801)),
+                walkBack: CustomerPoseSpec(imageName: "customer_adult_walk_back", nativeSize: CGSize(width: 83, height: 143), anchorPoint: CGPoint(x: 0.5, y: 0.05147))
             )
         case .kid:
             return CustomerArchetypeSpec(
                 idle: CustomerPoseSpec(imageName: "customer_kid_idle", nativeSize: CGSize(width: 63, height: 110), anchorPoint: CGPoint(x: 0.5, y: 0.07545)),
-                walk: CustomerPoseSpec(imageName: "customer_kid_walk", nativeSize: CGSize(width: 63, height: 116), anchorPoint: CGPoint(x: 0.5, y: 0.12328))
+                walk: CustomerPoseSpec(imageName: "customer_kid_walk", nativeSize: CGSize(width: 63, height: 116), anchorPoint: CGPoint(x: 0.5, y: 0.12328)),
+                idleBack: CustomerPoseSpec(imageName: "customer_kid_idle_back", nativeSize: CGSize(width: 63, height: 104), anchorPoint: CGPoint(x: 0.5, y: 0.04135)),
+                walkBack: CustomerPoseSpec(imageName: "customer_kid_walk_back", nativeSize: CGSize(width: 63, height: 106), anchorPoint: CGPoint(x: 0.5, y: 0.05943))
             )
         case .elder:
             return CustomerArchetypeSpec(
                 idle: CustomerPoseSpec(imageName: "customer_elder_idle", nativeSize: CGSize(width: 83, height: 143), anchorPoint: CGPoint(x: 0.5, y: 0.07406)),
-                walk: CustomerPoseSpec(imageName: "customer_elder_walk", nativeSize: CGSize(width: 83, height: 151), anchorPoint: CGPoint(x: 0.5, y: 0.12311))
+                walk: CustomerPoseSpec(imageName: "customer_elder_walk", nativeSize: CGSize(width: 83, height: 151), anchorPoint: CGPoint(x: 0.5, y: 0.12311)),
+                idleBack: CustomerPoseSpec(imageName: "customer_elder_idle_back", nativeSize: CGSize(width: 83, height: 132), anchorPoint: CGPoint(x: 0.5, y: 0.04235)),
+                walkBack: CustomerPoseSpec(imageName: "customer_elder_walk_back", nativeSize: CGSize(width: 83, height: 134), anchorPoint: CGPoint(x: 0.5, y: 0.05664))
             )
         }
     }
@@ -75,11 +85,26 @@ final class ShopCustomerNode: SKNode {
     /// without duplicating the head-height math below.
     var headTopWorldOffset: CGFloat { thoughtBubble.position.y }
 
+    /// Drives which side of the sprite shows; set by `ShopCustomerSpawner`
+    /// as the visit progresses. Re-seats the pose and the bubble so the
+    /// feet stay on the same ground point across the turn.
+    var stage: CustomerStage = .approaching {
+        didSet {
+            guard CustomerFacing(stage: stage) != CustomerFacing(stage: oldValue) else { return }
+            applyPose(isStriding ? archetype.walkPose(facing) : archetype.idlePose(facing))
+            seatBubble()
+        }
+    }
+
+    private var facing: CustomerFacing { CustomerFacing(stage: stage) }
+    private var isStriding: Bool { action(forKey: "stride") != nil }
+
     private let archetype: CustomerArchetypeSpec
     private let grid: IsoGrid
     private let figure = SKSpriteNode()
 
     private let thoughtBubble = SKNode()
+    private var lastBubbleRestY: CGFloat = 0
     private let bubbleCircle: SKShapeNode
     private let reactionSprite = SKSpriteNode()
 
@@ -96,7 +121,7 @@ final class ShopCustomerNode: SKNode {
         super.init()
 
         addChild(figure)
-        applyPose(self.archetype.idle)
+        applyPose(self.archetype.idlePose(facing))
 
         buildThoughtBubble()
         reactionSprite.position = thoughtBubble.position
@@ -120,9 +145,24 @@ final class ShopCustomerNode: SKNode {
         figure.anchorPoint = pose.anchorPoint
     }
 
+    private var bubbleRestY: CGFloat {
+        let headHeight = archetype.headHeightAboveFeet(facing) * ShopPropSpriteNode.isorenderScale(fittingTo: grid)
+        return headHeight + Self.bubbleHeadClearance + Self.bubbleRadius
+    }
+
+    /// Shifts by the difference, not to an absolute y, so the bubble's
+    /// relative bob action and an in-flight reaction pop are undisturbed.
+    private func seatBubble() {
+        let target = bubbleRestY
+        let delta = target - lastBubbleRestY
+        lastBubbleRestY = target
+        thoughtBubble.position.y += delta
+        reactionSprite.position.y += delta
+    }
+
     private func buildThoughtBubble() {
-        let headHeight = archetype.headHeightAboveFeet * ShopPropSpriteNode.isorenderScale(fittingTo: grid)
-        thoughtBubble.position = CGPoint(x: 0, y: headHeight + Self.bubbleHeadClearance + Self.bubbleRadius)
+        lastBubbleRestY = bubbleRestY
+        thoughtBubble.position = CGPoint(x: 0, y: lastBubbleRestY)
 
         bubbleCircle.fillColor = SKColor.white.withAlphaComponent(0.92)
         bubbleCircle.strokeColor = SKColor(red: 0.65, green: 0.85, blue: 0.65, alpha: 1)
@@ -147,21 +187,26 @@ final class ShopCustomerNode: SKNode {
 
     /// Alternates idle/walk textures every `strideInterval` for a simple
     /// two-frame gait, since neither pose has its own walk-cycle frames.
+    /// The facing is read per frame, so a turn mid-stride picks the right side.
     func startWalking() {
         guard action(forKey: "stride") == nil else { return }
-        let walkPose = archetype.walk
-        let idlePose = archetype.idle
         run(.repeatForever(.sequence([
-            .run { [weak self] in self?.applyPose(walkPose) },
+            .run { [weak self] in
+                guard let self else { return }
+                applyPose(archetype.walkPose(facing))
+            },
             .wait(forDuration: Self.strideInterval),
-            .run { [weak self] in self?.applyPose(idlePose) },
+            .run { [weak self] in
+                guard let self else { return }
+                applyPose(archetype.idlePose(facing))
+            },
             .wait(forDuration: Self.strideInterval),
         ])), withKey: "stride")
     }
 
     func stopWalking() {
         removeAction(forKey: "stride")
-        applyPose(archetype.idle)
+        applyPose(archetype.idlePose(facing))
     }
 
     /// Small impatient shuffle while waiting for stock at the counter.
