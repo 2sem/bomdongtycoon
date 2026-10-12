@@ -18,6 +18,7 @@ final class MainStallScene: SKScene {
     private let farmerLayer = FarmerLayer()
     private let shopWallLayer = ShopWallLayer()
     private let kitchenLayer = KitchenLayer()
+    private let locationBackdrop = LocationBackdropNode(fittingTo: GroundLayer.grid)
 
     /// Spawns, walks and serves customers at `shop`'s counter — added
     /// directly to the scene (see `update`) rather than under `shop` or
@@ -52,6 +53,12 @@ final class MainStallScene: SKScene {
     /// pattern as `lastAppliedMenuTier`, so the first call always applies
     /// even for a save already past tier 0.
     private var lastAppliedStallTier: Int?
+
+    /// Last location tier the scene art was swapped to — same
+    /// `nil`-sentinel as the tiers above: the first apply (a save already
+    /// at tier 2, or tier 0 on a new game) is instant, only a later change
+    /// is a transition.
+    private var lastAppliedLocationTier: Int?
 
     /// Last fill state `shop.applyCookFill` ran with, per menu index. `nil`
     /// can't match a real `Bool`, so each menu's first
@@ -109,6 +116,10 @@ final class MainStallScene: SKScene {
         addChild(groundLayer)
         groundLayer.layout()
 
+        // Sits behind everything by its own col + row z-rule (see
+        // `LocationBackdropNode`), so add order does not matter.
+        addChild(locationBackdrop)
+
         // FieldLayer/FarmerLayer are ported onto GroundLayer's IsoGrid (see
         // FieldLayerNode.swift/FarmerNode.swift) and restored here.
         // ShopWallLayer/KitchenLayer stay disabled — their art hasn't been
@@ -135,6 +146,7 @@ final class MainStallScene: SKScene {
         addChild(shop)
         updateShopMenuTier()
         updateShopStallTier()
+        updateLocationTier()
         updateShopCookGauge()
 
         clampCameraPosition()
@@ -155,6 +167,18 @@ final class MainStallScene: SKScene {
         guard let tier = store?.stall.stallTier, tier != lastAppliedStallTier else { return }
         shop.applyStallTier(tier)
         lastAppliedStallTier = tier
+    }
+
+    /// Shows the backdrop set (and road tile) for `store.stall.locationTier`,
+    /// only when it actually changed.
+    private func updateLocationTier() {
+        guard let tier = store?.stall.locationTier, tier != lastAppliedLocationTier else { return }
+        lastAppliedLocationTier = tier
+        applyLocationArt(tier)
+    }
+
+    private func applyLocationArt(_ tier: Int) {
+        locationBackdrop.apply(tier: tier)
     }
 
     /// Menu indices with their own tap-to-cook bowl and gauge — the small
@@ -271,6 +295,7 @@ final class MainStallScene: SKScene {
 
         updateShopMenuTier()
         updateShopStallTier()
+        updateLocationTier()
         updateShopCookGauge()
 
         Task { @MainActor [weak self] in

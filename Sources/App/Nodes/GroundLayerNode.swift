@@ -206,6 +206,13 @@ final class GroundLayer: SKNode {
         (mapOrigin.col + colIndex, mapOrigin.row + rowIndex)
     }
 
+    /// `IsoGrid` rows/columns `map` itself covers (without the world
+    /// margin) — what `LocationBackdropNode` lines its walls up against.
+    static var mapRows: ClosedRange<Int> { mapOrigin.row...(mapOrigin.row + map.count - 1) }
+    static var mapColumns: ClosedRange<Int> {
+        mapOrigin.col...(mapOrigin.col + (map.first?.count ?? 1) - 1)
+    }
+
     /// `IsoGrid` column just past `map`'s own east edge (`mapOrigin.col`
     /// plus `map`'s column count) — tracks `map`'s actual width rather
     /// than a hardcoded literal. `ShopCustomerSpawner` spawns customers a

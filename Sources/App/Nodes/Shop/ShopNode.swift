@@ -421,7 +421,7 @@ final class ShopNode: SKNode {
     /// within its own farthest cell; it's a structural stand-in, like a
     /// wall, that happens to key off a cell outside the shop's own
     /// footprint).
-    private enum Slot: CGFloat {
+    enum Slot: CGFloat {
         case ground = 0
         case back = 1
         case right = 2
@@ -448,7 +448,7 @@ final class ShopNode: SKNode {
 
     /// `col + row` orders cells; `slot * slotSpacing` orders a cell's
     /// own ground/walls without disturbing that (see `slotSpacing`).
-    private static func zPosition(col: Int, row: Int, slot: Slot) -> CGFloat {
+    static func zPosition(col: Int, row: Int, slot: Slot) -> CGFloat {
         zPosition(cellSum: col + row, slot: slot)
     }
 
