@@ -9,6 +9,9 @@ extension Notification.Name {
     /// faded back in; `userInfo["tier"]` is the new `Int` tier. The toast
     /// and VoiceOver announcement key off this, not the purchase itself.
     static let locationTransitionDidFinish = Notification.Name("locationTransitionDidFinish")
+    /// Posted when the `plot_add` cell is tapped. `AddFarmPlotConfirmation`
+    /// owns the confirm alert and the purchase, like the location move.
+    static let requestAddFarmPlot = Notification.Name("requestAddFarmPlot")
 }
 
 final class MainStallScene: SKScene {
@@ -19,7 +22,6 @@ final class MainStallScene: SKScene {
     private var lastUpdateTime: TimeInterval = 0
     private let groundLayer = GroundLayer()
     private let fieldLayer = FieldLayer()
-    private let farmerLayer = FarmerLayer()
     private let shopWallLayer = ShopWallLayer()
     private let kitchenLayer = KitchenLayer()
     private let locationBackdrop = LocationBackdropNode(fittingTo: GroundLayer.grid)
@@ -124,7 +126,7 @@ final class MainStallScene: SKScene {
         // building regardless of how the surrounding map is shaped.
         cameraNode.position = ShopNode.defaultPlacement.centroid(on: GroundLayer.grid)
 
-        // GroundLayer/FieldLayer/FarmerLayer all draw once, in fixed world
+        // GroundLayer draws once, in fixed world
         // space — no `size` argument anymore, and no need to call again on
         // resize (only the camera's clamp bounds depend on screen size,
         // handled in didChangeSize below).
@@ -135,20 +137,13 @@ final class MainStallScene: SKScene {
         // `LocationBackdropNode`), so add order does not matter.
         addChild(locationBackdrop)
 
-        // FieldLayer/FarmerLayer are ported onto GroundLayer's IsoGrid (see
-        // FieldLayerNode.swift/FarmerNode.swift) and restored here.
-        // ShopWallLayer/KitchenLayer stay disabled — their art hasn't been
-        // redone for the new isometric style yet, so adding them now would
-        // sit a placeholder building next to the new watercolor ground.
+        // FieldLayer is state-driven (see `updateFarm`). ShopWallLayer/
+        // KitchenLayer stay disabled — their art hasn't been redone for
+        // the new isometric style yet, so adding them now would sit a
+        // placeholder building next to the new watercolor ground.
         fieldLayer.zPosition = 10
         addChild(fieldLayer)
-        fieldLayer.layout()
-
-        // Same base zPosition as fieldLayer so FarmerLayer's local row-based zPosition
-        // (see FarmerLayer.layout) compares directly against FieldLayer's plot zPositions.
-        farmerLayer.zPosition = 10
-        addChild(farmerLayer)
-        farmerLayer.layout()
+        updateFarm()
 
         // shopWallLayer.zPosition = 10
         // addChild(shopWallLayer)
@@ -165,6 +160,14 @@ final class MainStallScene: SKScene {
         updateShopCookGauge()
 
         clampCameraPosition()
+    }
+
+    /// Pushes `store.farm` into the field; `FieldLayer` diffs internally,
+    /// so a frame with no stage or worker change touches no node.
+    private func updateFarm() {
+        guard let farm = store?.farm else { return }
+        let canAddPlot = FarmSystem.costForNextPlot(currentCount: farm.plots.count) != nil
+        fieldLayer.apply(farm: farm, canAddPlot: canAddPlot)
     }
 
     /// Toggles the prep table's items for `store.stall.menuTier`, only
@@ -364,9 +367,36 @@ final class MainStallScene: SKScene {
     /// while a cook is already running (or on a menu-tier-hidden bowl)
     /// does nothing, visibly as well as mechanically.
     private func handleTap(at location: CGPoint) {
-        guard let menuIndex = shop.tappedBowlMenuIndex(at: location) else { return }
-        guard store?.startManualCook(menuIndex: menuIndex) == true else { return }
-        shop.pulseBowl(menuIndex: menuIndex)
+        if let menuIndex = shop.tappedBowlMenuIndex(at: location) {
+            guard store?.startManualCook(menuIndex: menuIndex) == true else { return }
+            shop.pulseBowl(menuIndex: menuIndex)
+            return
+        }
+        if let hit = fieldLayer.hit(at: fieldLayer.convert(location, from: self)) {
+            handleFieldTap(hit)
+        }
+    }
+
+    /// Empty plot plants, ready plot harvests (each a no-op the store
+    /// refuses: too few coins, full warehouse), the add cell asks for a
+    /// purchase confirmation. The pulse plays only when the store accepted.
+    private func handleFieldTap(_ hit: FieldLayer.Hit) {
+        guard let store else { return }
+        switch hit {
+        case .addPlot:
+            NotificationCenter.default.post(name: .requestAddFarmPlot, object: nil)
+        case .plot(let index):
+            guard store.farm.plots.indices.contains(index) else { return }
+            let before = store.farm.plots[index].stage
+            switch before {
+            case .empty: store.plantSeed(plotIndex: index)
+            case .ready: store.harvest(plotIndex: index)
+            case .sprout, .growing: return
+            }
+            guard store.farm.plots[index].stage != before else { return }
+            updateFarm()
+            fieldLayer.pulse(hit)
+        }
     }
 
     override func update(_ currentTime: TimeInterval) {
@@ -378,6 +408,7 @@ final class MainStallScene: SKScene {
         updateShopStallTier()
         updateLocationTier()
         updateShopCookGauge()
+        updateFarm()
 
         Task { @MainActor [weak self] in
             guard let self, let store = self.store else { return }

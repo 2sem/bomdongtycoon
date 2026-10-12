@@ -30,6 +30,43 @@ final class ModelTests: XCTestCase {
         XCTAssertNil(progress.lastActiveDate)
     }
 
+    // MARK: - FarmPlot.stage
+
+    private func plot(planted: Bool, growth: Double) -> FarmPlot {
+        var plot = FarmPlot()
+        plot.isPlanted = planted
+        plot.growth = growth
+        return plot
+    }
+
+    func test_plotStage_unplantedIsEmptyWhateverTheGrowth() {
+        XCTAssertEqual(plot(planted: false, growth: 0).stage, .empty)
+        XCTAssertEqual(plot(planted: false, growth: 0.5).stage, .empty)
+        XCTAssertEqual(plot(planted: false, growth: 1.0).stage, .empty)
+    }
+
+    func test_plotStage_sproutUpToButExcludingThreshold() {
+        XCTAssertEqual(plot(planted: true, growth: 0).stage, .sprout)
+        XCTAssertEqual(plot(planted: true, growth: 0.3499).stage, .sprout)
+    }
+
+    func test_plotStage_growingFromThresholdUpToButExcludingFull() {
+        XCTAssertEqual(plot(planted: true, growth: 0.35).stage, .growing)
+        XCTAssertEqual(plot(planted: true, growth: 0.9999).stage, .growing)
+    }
+
+    func test_plotStage_readyAtFullGrowth() {
+        XCTAssertEqual(plot(planted: true, growth: 1.0).stage, .ready)
+        XCTAssertEqual(plot(planted: true, growth: 1.2).stage, .ready)
+    }
+
+    func test_plotStage_readyAgreesWithIsReady() {
+        for growth in stride(from: 0.0, through: 1.0, by: 0.05) {
+            let sample = plot(planted: true, growth: growth)
+            XCTAssertEqual(sample.stage == .ready, sample.isReady, "growth \(growth)")
+        }
+    }
+
     func test_upgradeDefinition_staffFirstEntry() {
         let upgrade = UpgradeDefinitions.staff[0]
         XCTAssertEqual(upgrade.name, "알바생")
