@@ -13,4 +13,20 @@ public struct PlayerProgress: Codable {
     public var totalFailed: Int = 0
 
     public init() {}
+
+    /// Every key is optional: a field added in a later release must not make older saves fail to decode.
+    public init(from decoder: Decoder) throws {
+        let d = PlayerProgress()
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        isFirstLaunch   = c.decodeOrDefault(.isFirstLaunch, d.isFirstLaunch)
+        isShopNameSet   = c.decodeOrDefault(.isShopNameSet, d.isShopNameSet)
+        shopName        = c.decodeOrDefault(.shopName, d.shopName)
+        lastActiveDate  = c.decodeOrNil(Date.self, forKey: .lastActiveDate)
+        seasonStartDate = c.decodeOrNil(Date.self, forKey: .seasonStartDate)
+        totalEarned     = c.decodeOrDefault(.totalEarned, d.totalEarned)
+        earningRate     = c.decodeOrDefault(.earningRate, d.earningRate)
+        rating          = c.decodeOrDefault(.rating, d.rating)
+        totalServed     = c.decodeOrDefault(.totalServed, d.totalServed)
+        totalFailed     = c.decodeOrDefault(.totalFailed, d.totalFailed)
+    }
 }
