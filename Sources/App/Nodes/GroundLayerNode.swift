@@ -341,16 +341,23 @@ final class GroundLayer: SKNode {
     private var grassTiles: [GrassGroundTileNode] = []
     private var appliedLocationTier = 0
 
-    /// Per-location grass tint, indexed by tier. Applied as a partial
-    /// colour blend so the baked grass texture stays visible; the factor
-    /// is kept low enough that tier 0 reads close to the untinted art
-    /// existing saves were seen with. `GroundTile.fillColor` (scene
-    /// background, transition veil) is deliberately not tinted: it is
-    /// shared, and the veil must match the background it fades to.
+    /// Per-location grass tint, indexed by tier. SpriteKit lerps the
+    /// texture toward `color` by `blend`, so each result is measured
+    /// against the baked grass' mean colour (0.45, 0.71, 0.15) — a
+    /// saturated yellow-green that a 0.15-0.30 blend with a mid colour
+    /// barely moved (the first attempt looked identical across
+    /// locations). Resulting mean colour per tier:
+    ///   alley   (0.41, 0.60, 0.27)  muted, slightly cool
+    ///   market  (0.68, 0.67, 0.22)  straw / olive-yellow
+    ///   Gangnam (0.36, 0.57, 0.46)  cool grey blue-green
+    /// Blend stays at 0.45-0.60 so the painted blades keep about half
+    /// their contrast. `GroundTile.fillColor` (scene background,
+    /// transition veil) is deliberately not tinted: it is shared, and the
+    /// veil must match the background it fades to.
     private static let grassTints: [(color: SKColor, blend: CGFloat)] = [
-        (SKColor(red: 0.45, green: 0.68, blue: 0.50, alpha: 1), 0.15),  // alley: muted, cooler
-        (SKColor(red: 0.80, green: 0.70, blue: 0.30, alpha: 1), 0.28),  // market: dry yellow-olive
-        (SKColor(red: 0.38, green: 0.58, blue: 0.60, alpha: 1), 0.30),  // Gangnam: grey blue-green
+        (SKColor(red: 0.36, green: 0.46, blue: 0.42, alpha: 1), 0.45),  // alley
+        (SKColor(red: 0.90, green: 0.62, blue: 0.28, alpha: 1), 0.50),  // market
+        (SKColor(red: 0.30, green: 0.48, blue: 0.66, alpha: 1), 0.60),  // Gangnam
     ]
 
     /// Tier clamped into `grassTints`' (and the road variants') range.
