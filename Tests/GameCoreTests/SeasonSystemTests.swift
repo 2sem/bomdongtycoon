@@ -4,14 +4,16 @@ import XCTest
 final class SeasonSystemTests: XCTestCase {
 
     func test_season_springFirst30Days() {
-        let state = SeasonSystem.currentState(seasonStart: Date())
+        let now = Date()
+        let state = SeasonSystem.currentState(seasonStart: now, now: now)
         XCTAssertEqual(state.currentSeason, .spring)
         XCTAssertEqual(state.daysRemaining, 30)
     }
 
     func test_season_transitionsToSummerAfter30Days() {
-        let thirtyOneDaysAgo = Date().addingTimeInterval(-31 * 86400)
-        let state = SeasonSystem.currentState(seasonStart: thirtyOneDaysAgo)
+        let now = Date()
+        let thirtyOneDaysAgo = now.addingTimeInterval(-31 * 86400)
+        let state = SeasonSystem.currentState(seasonStart: thirtyOneDaysAgo, now: now)
         XCTAssertEqual(state.currentSeason, .summer)
     }
 
