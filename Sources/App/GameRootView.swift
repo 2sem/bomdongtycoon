@@ -56,6 +56,12 @@ struct GameRootView: View {
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(24)
         }
+        .onAppear {
+            if !store.progress.isFirstLaunch { NotificationManager.requestPermissionIfUndetermined() }
+        }
+        .onChange(of: store.progress.isFirstLaunch) { _, isFirstLaunch in
+            if !isFirstLaunch { NotificationManager.requestPermissionIfUndetermined() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .openStaffSheet)) { _ in
             showStaff = true
         }

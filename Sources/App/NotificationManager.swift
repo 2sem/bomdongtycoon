@@ -2,10 +2,15 @@ import UserNotifications
 
 enum NotificationManager {
 
-    static func requestPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(
-            options: [.alert, .sound, .badge]
-        ) { _, _ in }
+    /// Asks only while the status is `.notDetermined`, so it is safe to call
+    /// from every launch and never prompts twice. Called from `GameRootView`
+    /// once the first-run tutorial is out of the way, not from the splash.
+    static func requestPermissionIfUndetermined() {
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .notDetermined else { return }
+            center.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+        }
     }
 
     static func scheduleStallFullNotification(afterHours hours: Double = 2) {
