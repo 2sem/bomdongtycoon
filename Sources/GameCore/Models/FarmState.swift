@@ -71,11 +71,13 @@ public struct FarmState: Codable {
 
     private enum CodingKeys: String, CodingKey { case plots, farmWorkers }
 
-    /// A missing `plots` key keeps the starting plots rather than an empty farm.
+    /// Plots decode one by one so a bad entry costs only that plot. A missing key, a non-array,
+    /// or no surviving plot keeps the starting plots rather than an empty farm.
     public init(from decoder: Decoder) throws {
         let d = FarmState()
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        plots       = c.decodeOrDefault(.plots, d.plots)
+        let decoded = c.decodeLossyArray(FarmPlot.self, forKey: .plots) ?? []
+        plots       = decoded.isEmpty ? d.plots : decoded
         farmWorkers = c.decodeOrDefault(.farmWorkers, d.farmWorkers)
     }
 }

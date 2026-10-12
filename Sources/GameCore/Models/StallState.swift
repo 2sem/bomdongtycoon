@@ -97,6 +97,18 @@ public struct StallState: Codable {
         farmerIdleEnergies = c.decodeOrDefault(.farmerIdleEnergies, d.farmerIdleEnergies)
         veteranAlbaCount = c.decodeOrDefault(.veteranAlbaCount, d.veteranAlbaCount)
         veteranAlbaIdleEnergies = c.decodeOrDefault(.veteranAlbaIdleEnergies, d.veteranAlbaIdleEnergies)
+
+        // GameStore indexes these three by menu index; a wrong length would trap there.
+        let menuCount = UpgradeDefinitions.menu.count
+        menuCooks      = Self.resized(menuCooks, to: menuCount, padding: 0)
+        menuCookEnergy = Self.resized(menuCookEnergy, to: menuCount, padding: 1.0)
+        menuStock      = Self.resized(menuStock, to: menuCount, padding: 0)
+    }
+
+    private static func resized<T>(_ array: [T], to count: Int, padding: T) -> [T] {
+        array.count >= count
+            ? Array(array.prefix(count))
+            : array + Array(repeating: padding, count: count - array.count)
     }
 
     public init() {
