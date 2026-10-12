@@ -31,8 +31,17 @@ jobs:
       - name: Install Tuist dependencies
         run: tuist install
 
-      - name: Run GameCore tests
-        run: tuist test GameCoreTests
+      - name: Generate Xcode workspace
+        run: tuist generate --no-open
 
       - name: Build app
-        run: tuist build BomDongTycoon --generate
+        run: |
+          xcodebuild build \
+            -workspace BomDongTycoon.xcworkspace \
+            -scheme BomDongTycoon \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Run GameCore tests
+        run: tuist test GameCoreTests
