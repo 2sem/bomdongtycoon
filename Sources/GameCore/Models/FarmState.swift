@@ -38,14 +38,14 @@ public struct FarmPlot: Codable {
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        growth      = try c.decodeIfPresent(Double.self, forKey: .growth)      ?? 0.0
-        isPlanted   = try c.decodeIfPresent(Bool.self,   forKey: .isPlanted)   ?? false
-        workerEnergy = try c.decodeIfPresent(Double.self, forKey: .workerEnergy) ?? 1.0
-        if let wt = try c.decodeIfPresent(FarmWorkerType.self, forKey: .workerType) {
+        growth       = c.decodeOrDefault(.growth, 0.0)
+        isPlanted    = c.decodeOrDefault(.isPlanted, false)
+        workerEnergy = c.decodeOrDefault(.workerEnergy, 1.0)
+        if let wt = c.decodeOrNil(FarmWorkerType.self, forKey: .workerType) {
             workerType = wt
         } else {
             // migrate old hasWorker: Bool — reset energy so stale exhaustion doesn't carry over
-            let had = try c.decodeIfPresent(Bool.self, forKey: .hasWorker) ?? false
+            let had = c.decodeOrDefault(.hasWorker, false)
             workerType   = had ? .alba : .none
             workerEnergy = 1.0
         }
@@ -67,5 +67,15 @@ public struct FarmState: Codable {
         plot1.growth = 0.5
 
         plots = [plot0, plot1]
+    }
+
+    private enum CodingKeys: String, CodingKey { case plots, farmWorkers }
+
+    /// A missing `plots` key keeps the starting plots rather than an empty farm.
+    public init(from decoder: Decoder) throws {
+        let d = FarmState()
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        plots       = c.decodeOrDefault(.plots, d.plots)
+        farmWorkers = c.decodeOrDefault(.farmWorkers, d.farmWorkers)
     }
 }
