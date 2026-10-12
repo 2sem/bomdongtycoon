@@ -101,7 +101,7 @@ public enum EarningsSystem {
         if stall.coins >= next.coinCost {
             return "\(next.destination) 이전할 수 있어요! 탭해서 확인"
         }
-        return "다음 목표까지 💰 \(Int(stall.coins)) / \(Int(next.coinCost)) · \(next.name) 이전"
+        return "다음 목표까지 💰 \(CoinFormat.string(stall.coins)) / \(CoinFormat.string(next.coinCost)) · \(next.name) 이전"
     }
 
     // MARK: Goal selection
@@ -117,7 +117,10 @@ public enum EarningsSystem {
 
     private static func candidates(for stall: StallState) -> [Goal] {
         var result: [Goal] = []
-        if stall.staffTier < UpgradeDefinitions.staff.count {
+        // Hire tier = staffTier + 1; skipped while the stall is too low, so the
+        // stall upgrade that unlocks it becomes the goal instead.
+        if stall.staffTier < UpgradeDefinitions.staff.count,
+           UpgradeDefinitions.isStaffTierUnlocked(stall.staffTier + 1, stallTier: stall.stallTier) {
             result.append(Goal(type: .staff, definition: UpgradeDefinitions.staff[stall.staffTier]))
         }
         if stall.menuTier + 1 < UpgradeDefinitions.menu.count {
