@@ -5,7 +5,8 @@ final class ModelTests: XCTestCase {
 
     func test_stallState_defaultValues() {
         let stall = StallState()
-        XCTAssertEqual(stall.coins, 0)
+        XCTAssertEqual(stall.coins, 50)  // starting purse
+        XCTAssertEqual(stall.tier1Count, 1)  // starts with one 알바생
         XCTAssertEqual(stall.menuTier, 0)
         XCTAssertEqual(stall.staffTier, 0)
         XCTAssertEqual(stall.stallTier, 0)
