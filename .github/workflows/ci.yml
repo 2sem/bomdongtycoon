@@ -24,7 +24,10 @@ jobs:
       - name: Cache SPM checkouts
         uses: actions/cache@v6
         with:
-          path: Tuist/.build
+          path: |
+            Tuist/.build
+            ~/.cache/tuist
+            ~/.cache/swifterpm
           key: spm-${{ runner.os }}-${{ hashFiles('Tuist/Package.swift') }}
 
       - name: Install Tuist dependencies

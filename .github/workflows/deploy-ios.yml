@@ -54,6 +54,15 @@ jobs:
       - name: Prepare output directories
         run: mkdir -p ./signing "$OUTPUT_DIR" "$IPA_DIR"
 
+      - name: Cache Tuist and SPM
+        uses: actions/cache@v6
+        with:
+          path: |
+            Tuist/.build
+            ~/.cache/tuist
+            ~/.cache/swifterpm
+          key: spm-${{ runner.os }}-${{ hashFiles('Tuist/Package.swift') }}
+
       - name: Install Tuist dependencies
         run: tuist install
 
