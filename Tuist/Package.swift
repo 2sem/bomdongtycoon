@@ -18,7 +18,7 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/firebase/firebase-ios-sdk",
-            from: "11.0.0"
+            .upToNextMinor(from: "12.18.0")
         )
     ]
 )
