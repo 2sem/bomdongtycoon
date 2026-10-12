@@ -12,16 +12,11 @@ concurrency:
 jobs:
   build-test:
     name: Build and Test
-    runs-on: macos-26
+    runs-on: macos-27
     timeout-minutes: 30
-    env:
-      DESTINATION: platform=iOS Simulator,name=iPhone 17 Pro
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
-
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_26.1.1.app
 
       - name: Install mise
         uses: jdx/mise-action@v2
@@ -40,20 +35,7 @@ jobs:
         run: mise x -- tuist generate --no-open
 
       - name: Run GameCore tests
-        run: |
-          xcodebuild test \
-            -workspace BomDongTycoon.xcworkspace \
-            -scheme GameCoreTests \
-            -destination "$DESTINATION" \
-            -skipPackagePluginValidation \
-            CODE_SIGNING_ALLOWED=NO
+        run: mise x -- tuist test GameCoreTests
 
       - name: Build app
-        run: |
-          xcodebuild build \
-            -workspace BomDongTycoon.xcworkspace \
-            -scheme BomDongTycoon \
-            -configuration Debug \
-            -destination "$DESTINATION" \
-            -skipPackagePluginValidation \
-            CODE_SIGNING_ALLOWED=NO
+        run: mise x -- tuist build BomDongTycoon
