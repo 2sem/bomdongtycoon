@@ -102,16 +102,10 @@ final class MainStallScene: SKScene {
     /// the baseline rather than jumping the camera).
     private var lastPanLocation: CGPoint?
 
-    /// The touch's location when it began — unlike `lastPanLocation`,
-    /// which chases the finger on every move, this stays put so
-    /// `touchesEnded` can measure the touch's *total* travel and tell a
-    /// tap from a pan, even though the same touch drives both.
-    private var touchStartLocation: CGPoint?
-
-    /// Below this much total movement, a touch counts as a tap rather
-    /// than a pan — small enough not to swallow real drags, large enough
-    /// to absorb a finger's natural wobble while resting on the glass.
-    private static let tapSlop: CGFloat = 10
+    /// Tap-vs-pan is judged in **view** points: the camera follows the
+    /// finger, so in scene space a pan's start and end nearly coincide and
+    /// would read as a tap. The slop (10 screen points) lives in `TapClassifier`.
+    private var tapClassifier = TapClassifier()
 
     override func didMove(to view: SKView) {
         backgroundColor = GroundTile.fillColor
@@ -260,7 +254,7 @@ final class MainStallScene: SKScene {
     /// Back to the launch framing (the default camera), clamped like any pan.
     private func resetCameraToShop() {
         lastPanLocation = nil
-        touchStartLocation = nil
+        tapClassifier.cancel()
         cameraNode.position = ShopNode.defaultPlacement.centroid(on: GroundLayer.grid)
         clampCameraPosition()
     }
@@ -340,13 +334,15 @@ final class MainStallScene: SKScene {
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        let location = touches.first?.location(in: self)
-        lastPanLocation = location
-        touchStartLocation = location
+        lastPanLocation = touches.first?.location(in: self)
+        if let touch = touches.first {
+            tapClassifier.begin(at: touch.location(in: view))
+        }
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first, let last = lastPanLocation else { return }
+        tapClassifier.move(to: touch.location(in: view))
         let location = touch.location(in: self)
         // Dragging the finger right/up should reveal ground to the
         // left/below (the content follows the finger, standard map-drag
@@ -360,21 +356,19 @@ final class MainStallScene: SKScene {
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        if let touch = touches.first, let start = touchStartLocation {
-            let location = touch.location(in: self)
-            let dx = location.x - start.x
-            let dy = location.y - start.y
-            if dx * dx + dy * dy <= Self.tapSlop * Self.tapSlop {
-                handleTap(at: location)
-            }
+        if let touch = touches.first,
+           tapClassifier.end(at: touch.location(in: view)) {
+            // Within slop the camera has barely moved, so the end point
+            // is the same place the finger landed.
+            handleTap(at: touch.location(in: self))
         }
         lastPanLocation = nil
-        touchStartLocation = nil
+        tapClassifier.cancel()
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         lastPanLocation = nil
-        touchStartLocation = nil
+        tapClassifier.cancel()
     }
 
     /// Accepts a tap on a tappable bowl: starts its timed manual cook and,
