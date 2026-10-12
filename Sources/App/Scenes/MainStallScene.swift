@@ -48,6 +48,11 @@ final class MainStallScene: SKScene {
     /// tier 2.
     private var lastAppliedMenuTier: Int?
 
+    /// Last tier `shop.applyStallTier` ran with — same `nil`-sentinel
+    /// pattern as `lastAppliedMenuTier`, so the first call always applies
+    /// even for a save already past tier 0.
+    private var lastAppliedStallTier: Int?
+
     /// Last fill state `shop.applyCookFill` ran with, per menu index. `nil`
     /// can't match a real `Bool`, so each menu's first
     /// `updateShopCookGauge()` call always applies — same reasoning as
@@ -129,6 +134,7 @@ final class MainStallScene: SKScene {
 
         addChild(shop)
         updateShopMenuTier()
+        updateShopStallTier()
         updateShopCookGauge()
 
         clampCameraPosition()
@@ -140,6 +146,15 @@ final class MainStallScene: SKScene {
         guard let tier = store?.stall.menuTier, tier != lastAppliedMenuTier else { return }
         shop.applyMenuTier(tier)
         lastAppliedMenuTier = tier
+    }
+
+    /// Swaps the shop's enclosure (walled shop vs. pojangmacha stall) for
+    /// `store.stall.stallTier`, only when it actually changed — same
+    /// guard as `updateShopMenuTier`.
+    private func updateShopStallTier() {
+        guard let tier = store?.stall.stallTier, tier != lastAppliedStallTier else { return }
+        shop.applyStallTier(tier)
+        lastAppliedStallTier = tier
     }
 
     /// Menu indices with their own tap-to-cook bowl and gauge — the small
@@ -255,6 +270,7 @@ final class MainStallScene: SKScene {
         lastUpdateTime = currentTime
 
         updateShopMenuTier()
+        updateShopStallTier()
         updateShopCookGauge()
 
         Task { @MainActor [weak self] in

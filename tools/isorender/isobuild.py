@@ -11,7 +11,7 @@ import os
 import bmesh
 import bpy
 
-from isogrid import world_point
+from isogrid import view_direction, world_point
 
 TEXTURE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "textures")
 
@@ -96,10 +96,52 @@ def _perpendicular_toward(start, end, target):
     return nx, ny
 
 
+def _dot(a, b):
+    return sum(x * y for x, y in zip(a, b))
+
+
+def _outer_quad_faces_camera(nx, ny):
+    """Whether `_box`'s un-offset quad (`start`/`end`, no thickness) is the
+    one the rig's fixed orthographic camera actually renders, as opposed to
+    the thickness-offset "inner" quad — where `(nx, ny)` is the grid-space
+    direction `thickness` extrudes in (`_perpendicular_toward`'s result).
+
+    This is **not** a front-facing-normal question. The rig sets no
+    backface culling (see `flat_material`/`_set_principled` — nothing there
+    touches it), so both the un-offset and the offset quad exist as real,
+    rendered geometry; which one actually shows is decided by ordinary
+    occlusion, i.e. whichever of the two parallel quads sits physically
+    *closer* to the camera along its fixed view direction. A face-normal
+    check gives the wrong answer for one of the two edges this bug covers
+    (confirmed by rendering both before writing this): North->West and
+    North->East look symmetric on screen, but `world_point`'s
+    (col, row) -> (row, col) axis swap is a reflection, and reflections
+    don't preserve which-normal-points-where the way they preserve
+    which-quad-is-nearer, so a normal-based check flips only one of the two
+    while the correct occlusion-based one flips neither — both stay on the
+    un-offset side, matching the shipped near-side walls.
+
+    The un-offset quad sits at offset 0; the offset quad sits at
+    `zero + (nx, ny, 0)` in world space (`world_point` applied to the
+    extrude direction). Moving that way is moving *away* from the camera
+    exactly when it moves in the same sense as the camera's own view
+    direction, i.e. a positive dot product — in which case the un-offset
+    quad, which didn't move, is the nearer one and this returns `True`.
+    """
+    zero = world_point(0.0, 0.0, 0.0)
+    shifted = world_point(nx, ny, 0.0)
+    shift_vector = tuple(a - b for a, b in zip(shifted, zero))
+    return _dot(shift_vector, view_direction()) > 0.0
+
+
 def _box(start, end, inner_start, inner_end, z0, z1, uv_span, top_uv):
-    """One solid slab between two heights, as `(verts, faces, uvs)` with the
-    outer face first. `uv_span` is the `(v0, v1)` slice of the panel texture
-    this slab shows, so a stack of them reads as one continuous wall."""
+    """One solid slab between two heights, as `(verts, faces, uvs)`, un-offset
+    quad first. `uv_span` is the `(v0, v1)` slice of the panel texture this
+    slab shows, so a stack of them reads as one continuous wall.
+
+    Which of the two side faces (index 0 or 1 below) is the one the camera
+    actually sees — and so which gets `face_material` — is decided by
+    `wall()`, not here; see `_outer_quad_faces_camera`."""
     verts = [
         world_point(*start, z0),  # 0
         world_point(*end, z0),  # 1
@@ -111,8 +153,8 @@ def _box(start, end, inner_start, inner_end, z0, z1, uv_span, top_uv):
         world_point(*inner_start, z1),  # 7
     ]
     faces = [
-        (0, 1, 2, 3),  # outer face — the one the panel texture is for
-        (5, 4, 7, 6),  # inner face (never seen, kept so the slab is solid)
+        (0, 1, 2, 3),  # un-offset ("outer") quad
+        (5, 4, 7, 6),  # thickness-offset ("inner") quad
         (3, 2, 6, 7),  # top
         (1, 5, 6, 2),  # end cap at `end`
         (4, 0, 3, 7),  # end cap at `start`
@@ -147,9 +189,20 @@ def wall(
 
     `start`/`end` are grid coordinates (see `isogrid.DIAMOND_VERTICES`),
     `height` and `thickness` are in world units (1 unit = one cell edge).
-    `thickness` extrudes *away* from the camera-facing side, toward
-    `inward_toward` (the cell center by default), which is what gives the
-    piece its visible end-cap sliver and top edge.
+    `thickness` always extrudes toward `inward_toward` (the cell center by
+    default) — but which side of the resulting slab is the one the camera
+    actually renders, and so gets `face_material`, is not assumed; it is
+    derived per call from which of the two parallel quads sits nearer the
+    fixed camera (see `_outer_quad_faces_camera` — this is an occlusion
+    question, not a face-normal one: the rig culls no backfaces, so both
+    quads are real geometry and simple nearness decides). For a camera-near
+    edge (`wall_shop_left`'s
+    West->South) that is the un-offset side, same as ever, which is what
+    gives the piece its visible end-cap sliver and top edge. For a
+    camera-far edge (a stall's North->West back wall) the camera looks past
+    the near walls and sees the far wall's cell-center-facing side instead —
+    the thickness-offset one — so `face_material` lands there instead, and
+    the un-offset side becomes the hidden one.
 
     `plank_count` builds the wall as that many stacked slabs instead of one
     slab. That is not decoration: it is what puts an ink seam between planks
@@ -170,10 +223,13 @@ def wall(
     caps keep `trim_material`, where a repeat per plank is wanted: that is
     what makes the stepped end read as stacked timber.
 
-    The object's `["markers"]` are the four corners of the visible outer face
-    in grid space, ready for `rig.py` to project to pixels.
+    The object's `["markers"]` are the four corners of the visible face in
+    grid space, ready for `rig.py` to project to pixels — offset by
+    `thickness` when the visible face is the offset one, so the numbers
+    describe where the face actually renders, not the wall's nominal edge.
     """
     nx, ny = _perpendicular_toward(start, end, inward_toward)
+    outer_faces_camera = _outer_quad_faces_camera(nx, ny)
 
     def offset(point, distance):
         return (point[0] + nx * distance, point[1] + ny * distance)
@@ -219,15 +275,27 @@ def wall(
 
     trim_index = slot(trim_material)
     top_index = slot(top_material)
-    # outer, inner, top, cap at `end`, cap at `start`, bottom
-    material_indices = [0, trim_index, top_index, trim_index, trim_index, trim_index] * plank_count
+    # face_material (index 0) goes on whichever of the un-offset/offset side
+    # faces the camera actually sees; the other side gets trim_material,
+    # same as the never-seen inner face always did before this mattered.
+    face_slot, hidden_slot = (0, trim_index) if outer_faces_camera else (trim_index, 0)
+    material_indices = [face_slot, hidden_slot, top_index, trim_index, trim_index, trim_index] * plank_count
 
     obj = _mesh_object(name, verts, faces, uvs, materials, material_indices)
+    if outer_faces_camera:
+        face_start, face_end = start, end
+    else:
+        #: The visible face is the thickness-offset side. Use the base
+        #: `thickness` depth (not `plank_step`'s per-plank stagger, which
+        #: only ever nudges slab index 1, 3, ... — slab 0 always sits at
+        #: exactly `thickness`) so the marker describes the wall's nominal
+        #: face plane, the same thing it describes on the un-offset side.
+        face_start, face_end = offset(start, thickness), offset(end, thickness)
     obj["markers"] = {
-        "face_bottom_start": (start[0], start[1], 0.0),
-        "face_bottom_end": (end[0], end[1], 0.0),
-        "face_top_start": (start[0], start[1], height),
-        "face_top_end": (end[0], end[1], height),
+        "face_bottom_start": (face_start[0], face_start[1], 0.0),
+        "face_bottom_end": (face_end[0], face_end[1], 0.0),
+        "face_top_start": (face_start[0], face_start[1], height),
+        "face_top_end": (face_end[0], face_end[1], height),
     }
     return obj
 

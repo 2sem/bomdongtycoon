@@ -59,6 +59,21 @@ def pixels_per_unit(scale: float) -> float:
     return UNIT_POINTS * scale
 
 
+def view_direction():
+    """Unit vector pointing from the camera toward what it looks at.
+
+    Pure function of `YAW`/`ELEVATION`, no `bpy` — so `isobuild.py`'s shape
+    vocabulary can tell which side of a face the fixed camera actually sees
+    without touching scene state, the same reason this module carries no
+    `bpy` dependency at all.
+    """
+    return (
+        -sin(YAW) * cos(ELEVATION),
+        cos(YAW) * cos(ELEVATION),
+        -sin(ELEVATION),
+    )
+
+
 def world_point(col: float, row: float, height: float = 0.0):
     """Grid coordinates -> Blender world coordinates.
 

@@ -160,6 +160,72 @@ final class ShopNode: SKNode {
     private static let cashRegisterNativeSize = CGSize(width: 95, height: 88)
     private static let cashRegisterBaseAnchor = CGPoint(x: 0.5, y: 0.33648)
 
+    /// Camera-matrix measurement table (3× render), used as printed:
+    /// trimmed 646×575, base-center anchor at (0.50000, 0.32224 from the
+    /// bottom).
+    private static let stallCanopyImageName = "stall_canopy"
+    private static let stallCanopyNativeSize = CGSize(width: 646, height: 575)
+    private static let stallCanopyBaseAnchor = CGPoint(x: 0.5, y: 0.32224)
+
+    /// `stall_canopy.py`'s own local `(col, row)` frame — the same frame
+    /// `kitchen_prep_table.py`/`shop_cash_counter.py` already use (col 0
+    /// = the prep table's own origin column, row 0 = the right wall's
+    /// row), not the shop's own west-corner-origin `ShopWallOpening`
+    /// offsets. Center (-0.5, 0.30); footprint spans col -1.5...+0.5, row
+    /// -0.40...+1.00.
+    private static let stallCanopyLocalCenter: (col: CGFloat, row: CGFloat) = (-0.5, 0.30)
+
+    /// The footprint's back-north corner — `prop_table()`'s own
+    /// `base_corner_north`, `(col - width/2, row - depth/2)` — local
+    /// (-1.5, -0.40). This is the canopy's FARTHEST corner from the
+    /// camera, not its nearest; see `StallCanopyFootprint` and
+    /// `buildStallCanopy` for why that's the one that has to set its
+    /// z-order.
+    private static let stallCanopyLocalFarthestCorner: (col: CGFloat, row: CGFloat) = (-1.5, -0.40)
+
+    /// The canopy's placement, derived once from `colRange`/`rowRange`
+    /// like `defaultPrepTableFootprint`/`defaultCashCounterFootprint` —
+    /// not a `ShopPropFootprint`, since that type assumes a whole-cell
+    /// rectangle (`Int` origin/span) and the canopy's footprint is
+    /// neither: it starts half a column short of the prep table's own
+    /// column and reaches past the shop's own back wall.
+    private struct StallCanopyFootprint {
+        let center: (col: CGFloat, row: CGFloat)
+
+        /// `col + row` of `stallCanopyLocalFarthestCorner`, mapped into
+        /// this shop's own grid coordinates — see `Slot`'s doc comment
+        /// for why the farthest corner, not the nearest, is what a prop
+        /// meant to never occlude nearer scenery has to key off.
+        let farthestCellSum: CGFloat
+    }
+
+    /// Same origin basis `defaultPrepTableFootprint` anchors to: the
+    /// prep table's own column (`(colRange.lowerBound +
+    /// colRange.upperBound) / 2`) and the right wall's row
+    /// (`rowRange.lowerBound`) — `stall_canopy.py`'s own local frame is
+    /// defined against exactly these two numbers (see
+    /// `stallCanopyLocalCenter`'s doc comment), so reusing them here
+    /// keeps the mapping a single addition per axis instead of a second,
+    /// independently-tuned offset.
+    private static func defaultStallCanopyFootprint(
+        colRange: ClosedRange<Int>,
+        rowRange: ClosedRange<Int>
+    ) -> StallCanopyFootprint {
+        let originCol = CGFloat((colRange.lowerBound + colRange.upperBound) / 2)
+        let originRow = CGFloat(rowRange.lowerBound)
+        let farthestCorner = (
+            col: originCol + stallCanopyLocalFarthestCorner.col,
+            row: originRow + stallCanopyLocalFarthestCorner.row
+        )
+        return StallCanopyFootprint(
+            center: (
+                col: originCol + stallCanopyLocalCenter.col,
+                row: originRow + stallCanopyLocalCenter.row
+            ),
+            farthestCellSum: farthestCorner.col + farthestCorner.row
+        )
+    }
+
     /// One item's spec for `buildTableItem`: its art, native size, the
     /// pixel where its base touches the worktop (top-left origin, y down —
     /// every measurement table in this catalog reports pixels that way),
@@ -317,6 +383,17 @@ final class ShopNode: SKNode {
     /// exists to hang a gauge off of.
     private var cookGaugeNodesByMenuIndex: [Int: ShopCookGaugeNode] = [:]
 
+    /// The walled shop's own perimeter segments (tier >= 1: 봄동 식당 /
+    /// 봄동 전문점) and the pojangmacha stall's own enclosure pieces
+    /// (tier 0: 포장마차, including the canopy) — both built once in
+    /// `init`, one set hidden by default, and swapped via `isHidden` in
+    /// `applyStallTier`. Same two-nodes-always-built approach
+    /// `FillableBowl` uses for its empty/filled frames, so there's no
+    /// runtime texture swap to keep in sync with two different
+    /// measurement tables.
+    private var walledShopEnclosureNodes: [SKNode] = []
+    private var stallEnclosureNodes: [SKNode] = []
+
     /// Painter's-order slot within a cell: ground, then walls back <
     /// right < left < front, so the wall nearer the camera wins where
     /// two meet at a shared corner; `prop` sits above all four so
@@ -328,15 +405,22 @@ final class ShopNode: SKNode {
     /// object standing on the floor, since it must draw over that near
     /// cell's own ground tile too.
     ///
-    /// Two cases this scheme doesn't handle, left alone because nothing
-    /// exercises them yet:
-    /// - a corner cell has two walls of its own (e.g. `left` and
-    ///   `front`); a prop there would draw over both, not just the one
-    ///   behind it. (The cash counter is in exactly such a corner cell,
-    ///   `(1, 0)` at the default size — see `buildCashCounter` for why
-    ///   that's the correct outcome there, not an instance of this gap.)
-    /// - a prop meant to be partially *occluded* by nearer scenery would
-    ///   need the opposite rule — its farthest cell, not its nearest.
+    /// One case this scheme doesn't handle, left alone because nothing
+    /// exercises it: a corner cell has two walls of its own (e.g. `left`
+    /// and `front`); a prop there would draw over both, not just the one
+    /// behind it. (The cash counter is in exactly such a corner cell,
+    /// `(1, 0)` at the default size — see `buildCashCounter` for why
+    /// that's the correct outcome there, not an instance of this gap.)
+    ///
+    /// A second case this doc used to flag as unhandled — a prop meant
+    /// to be partially *occluded* by nearer scenery, needing its
+    /// farthest cell instead of its nearest — is now handled: see
+    /// `buildStallCanopy`, which keys the stall canopy's z-order off its
+    /// own farthest corner for exactly this reason, reusing `.back`'s
+    /// slot value rather than adding a new case (the canopy isn't a prop
+    /// within its own farthest cell; it's a structural stand-in, like a
+    /// wall, that happens to key off a cell outside the shop's own
+    /// footprint).
     private enum Slot: CGFloat {
         case ground = 0
         case back = 1
@@ -373,6 +457,15 @@ final class ShopNode: SKNode {
     /// single cell's own `col + row`.
     private static func zPosition(cellSum: Int, slot: Slot) -> CGFloat {
         CGFloat(cellSum) + slot.rawValue * slotSpacing
+    }
+
+    /// Same rule, for a footprint whose relevant corner isn't whole-cell
+    /// aligned — `StallCanopyFootprint.farthestCellSum`, unlike
+    /// `ShopPropFootprint.nearestCellSum`, is a fractional col+row sum
+    /// (its footprint starts and ends mid-cell), so it takes the raw
+    /// `CGFloat` rather than rounding into the `Int` overload above.
+    private static func zPosition(cellSum: CGFloat, slot: Slot) -> CGFloat {
+        cellSum + slot.rawValue * slotSpacing
     }
 
     /// Builds a shop at `(originX, originY)`, `width`×`height` cells,
@@ -416,6 +509,17 @@ final class ShopNode: SKNode {
 
         buildGround(colRange: colRange, rowRange: rowRange, on: grid)
         buildWalls(colRange: colRange, rowRange: rowRange, on: grid, openings: openings)
+        buildStallEnclosure(colRange: colRange, rowRange: rowRange, on: grid, openings: openings)
+        let stallCanopyFootprint = Self.defaultStallCanopyFootprint(colRange: colRange, rowRange: rowRange)
+        buildStallCanopy(footprint: stallCanopyFootprint, on: grid)
+        // Both enclosures exist from here on; the walled shop stays the
+        // visible default (matching the live shop's current tier >= 1
+        // look) until a caller actually knows the stall tier and calls
+        // `applyStallTier` — mirrors `FillableBowl`'s own empty-by-default
+        // state before `applyCookFill` first runs.
+        for node in stallEnclosureNodes {
+            node.isHidden = true
+        }
 
         let prepTableFootprint = prepTableFootprint
             ?? Self.defaultPrepTableFootprint(colRange: colRange, rowRange: rowRange)
@@ -539,6 +643,7 @@ final class ShopNode: SKNode {
             wall.position = westVertex(col: firstCol, row: row, on: grid)
             wall.zPosition = Self.zPosition(col: firstCol, row: row, slot: .back)
             addChild(wall)
+            walledShopEnclosureNodes.append(wall)
         }
 
         for col in colRange {
@@ -547,6 +652,7 @@ final class ShopNode: SKNode {
             wall.position = northVertex(col: col, row: firstRow, on: grid)
             wall.zPosition = Self.zPosition(col: col, row: firstRow, slot: .right)
             addChild(wall)
+            walledShopEnclosureNodes.append(wall)
         }
 
         for col in colRange {
@@ -555,6 +661,7 @@ final class ShopNode: SKNode {
             wall.position = westVertex(col: col, row: lastRow, on: grid)
             wall.zPosition = Self.zPosition(col: col, row: lastRow, slot: .left)
             addChild(wall)
+            walledShopEnclosureNodes.append(wall)
         }
 
         // KNOWN COSMETIC ISSUE (art, not geometry — do not "fix" here):
@@ -567,7 +674,88 @@ final class ShopNode: SKNode {
             wall.position = southVertex(col: lastCol, row: row, on: grid)
             wall.zPosition = Self.zPosition(col: lastCol, row: row, slot: .front)
             addChild(wall)
+            walledShopEnclosureNodes.append(wall)
         }
+    }
+
+    /// Same geometry as `buildWalls` (identical vertex anchors, identical
+    /// per-side loops, same `openings`) but the pojangmacha stall's own
+    /// pieces — `StallWallBackNode`/`StallCurtainRightNode`/
+    /// `StallWallLeftNode`/`StallCurtainFrontNode` — appended to
+    /// `stallEnclosureNodes` instead of `walledShopEnclosureNodes`.
+    /// Reusing `buildWalls`' own `openings` (rather than a
+    /// stall-specific set) keeps the entrance gap in the same cells on
+    /// both enclosures, since the interior layout it serves — the
+    /// counter filling that gap — doesn't change with the tier.
+    private func buildStallEnclosure(
+        colRange: ClosedRange<Int>,
+        rowRange: ClosedRange<Int>,
+        on grid: IsoGrid,
+        openings: Set<ShopWallOpening>
+    ) {
+        let firstCol = colRange.lowerBound
+        let lastCol = colRange.upperBound
+        let firstRow = rowRange.lowerBound
+        let lastRow = rowRange.upperBound
+
+        for row in rowRange {
+            guard !openings.contains(ShopWallOpening(side: .back, x: 0, y: row - firstRow)) else { continue }
+            let wall = StallWallBackNode(fittingTo: grid)
+            wall.position = westVertex(col: firstCol, row: row, on: grid)
+            wall.zPosition = Self.zPosition(col: firstCol, row: row, slot: .back)
+            addChild(wall)
+            stallEnclosureNodes.append(wall)
+        }
+
+        for col in colRange {
+            guard !openings.contains(ShopWallOpening(side: .right, x: col - firstCol, y: 0)) else { continue }
+            let wall = StallCurtainRightNode(fittingTo: grid)
+            wall.position = northVertex(col: col, row: firstRow, on: grid)
+            wall.zPosition = Self.zPosition(col: col, row: firstRow, slot: .right)
+            addChild(wall)
+            stallEnclosureNodes.append(wall)
+        }
+
+        for col in colRange {
+            guard !openings.contains(ShopWallOpening(side: .left, x: col - firstCol, y: lastRow - firstRow)) else { continue }
+            let wall = StallWallLeftNode(fittingTo: grid)
+            wall.position = westVertex(col: col, row: lastRow, on: grid)
+            wall.zPosition = Self.zPosition(col: col, row: lastRow, slot: .left)
+            addChild(wall)
+            stallEnclosureNodes.append(wall)
+        }
+
+        for row in rowRange {
+            guard !openings.contains(ShopWallOpening(side: .front, x: lastCol - firstCol, y: row - firstRow)) else { continue }
+            let wall = StallCurtainFrontNode(fittingTo: grid)
+            wall.position = southVertex(col: lastCol, row: row, on: grid)
+            wall.zPosition = Self.zPosition(col: lastCol, row: row, slot: .front)
+            addChild(wall)
+            stallEnclosureNodes.append(wall)
+        }
+    }
+
+    /// Places the free-standing canopy at `footprint.center` and
+    /// z-orders it off `footprint.farthestCellSum` — not its nearest
+    /// covered cell, unlike every other prop in this file — reusing
+    /// `.back`'s slot fraction rather than `.prop`'s: `.prop` means
+    /// "draws over this cell's own walls," which is backwards for a
+    /// piece that must never draw over anything nearer than itself,
+    /// including the prep table and its cook gauges (see `Slot`'s doc
+    /// comment and `StallCanopyFootprint`). Appended to
+    /// `stallEnclosureNodes` so `applyStallTier` hides it along with the
+    /// rest of the stall's own pieces.
+    private func buildStallCanopy(footprint: StallCanopyFootprint, on grid: IsoGrid) {
+        let canopy = ShopPropSpriteNode(
+            imageName: Self.stallCanopyImageName,
+            nativeSize: Self.stallCanopyNativeSize,
+            baseAnchor: Self.stallCanopyBaseAnchor,
+            fittingTo: grid
+        )
+        canopy.position = grid.point(col: footprint.center.col, row: footprint.center.row)
+        canopy.zPosition = Self.zPosition(cellSum: footprint.farthestCellSum, slot: .back)
+        addChild(canopy)
+        stallEnclosureNodes.append(canopy)
     }
 
     /// A requested opening that isn't on the perimeter it names (wrong
@@ -743,6 +931,21 @@ final class ShopNode: SKNode {
         for (slotIndex, bowl) in fillableBowlsBySlot {
             bowl.isGateHidden = slotIndex > tier
             bowl.updateVisibility()
+        }
+    }
+
+    /// Shows the pojangmacha stall's own enclosure at tier 0 (포장마차)
+    /// and the walled shop's at tier >= 1 (봄동 식당 / 봄동 전문점) — see
+    /// `UpgradeDefinitions.stall`. Interior props (prep table, bowls,
+    /// gauges, cash counter/register) and customers don't gate on this;
+    /// only the enclosure swaps.
+    func applyStallTier(_ tier: Int) {
+        let showStall = tier <= 0
+        for node in stallEnclosureNodes {
+            node.isHidden = !showStall
+        }
+        for node in walledShopEnclosureNodes {
+            node.isHidden = showStall
         }
     }
 
