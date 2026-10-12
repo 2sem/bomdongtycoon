@@ -596,12 +596,7 @@ private struct HireTierRow: View {
     private var isAtCap: Bool { false }
 
     private var isUnlocked: Bool {
-        switch tier {
-        case 1: true
-        case 2: store.stall.stallTier >= 1
-        case 3: store.stall.stallTier >= 2
-        default: false
-        }
+        UpgradeDefinitions.isStaffTierUnlocked(tier, stallTier: store.stall.stallTier)
     }
 
     private var unlockHint: String {
@@ -732,9 +727,9 @@ private struct HireCostLabel: View {
 
     var body: some View {
         if coins >= cost {
-            Text("₩\(Int(cost))").font(.caption.bold())
+            Text("₩\(CoinFormat.string(cost))").font(.caption.bold())
         } else {
-            Text(String(format: String(localized: "%d 코인 부족"), Int(ceil(cost - coins))))
+            Text(String(format: String(localized: "%@ 코인 부족"), CoinFormat.string(ceil(cost - coins))))
                 .font(.caption.bold())
         }
     }

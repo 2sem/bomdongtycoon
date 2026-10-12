@@ -133,10 +133,7 @@ public struct UpgradeSheet: View {
     }
 
     static func formatted(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.locale = Locale(identifier: "ko_KR")
-        return formatter.string(from: NSNumber(value: Int(value))) ?? "\(Int(value))"
+        CoinFormat.string(value)
     }
 
     private var farmWorkerSection: some View {

@@ -21,11 +21,7 @@ public struct CoinBadge: View {
     }
 
     private var formatted: String {
-        let value = Int(store.stall.coins)
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.locale = Locale(identifier: "ko_KR")
-        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+        CoinFormat.string(store.stall.coins)
     }
 }
 

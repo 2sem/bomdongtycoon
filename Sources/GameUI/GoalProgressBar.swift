@@ -40,7 +40,7 @@ public struct GoalProgressBar: View {
                 )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(String(format: String(localized: "다음 목표, %@, %d 코인"), next.name, Int(next.coinCost)))
+            .accessibilityLabel(String(format: String(localized: "다음 목표, %@, %@ 코인"), next.name, CoinFormat.string(next.coinCost)))
             .accessibilityHint(isStaff
                 ? String(localized: "탭하면 고용 화면을 엽니다")
                 : String(localized: "탭하면 업그레이드 화면을 엽니다"))
@@ -54,6 +54,8 @@ public struct GoalProgressBar: View {
                 .font(.caption)
             Text(text)
                 .font(.caption.bold())
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
             Image(systemName: "chevron.up")
                 .font(.caption2.bold())
                 .foregroundStyle(.secondary)

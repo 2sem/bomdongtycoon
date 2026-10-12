@@ -31,12 +31,15 @@ struct GameRootView: View {
         }
         .safeAreaInset(edge: .top) {
             VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .center) {
-                    CoinBadge()
-                    Spacer()
+                // Rating sits in the row, not overlaid on it: a centred overlay covered
+                // the goal pill's text once the pill got long (39,530 / 40,000 at 440pt).
+                // The pill is the only flexible item, so it is what truncates.
+                HStack(alignment: .center, spacing: 8) {
+                    CoinBadge().fixedSize()
+                    RatingBadge().fixedSize()
+                    Spacer(minLength: 0)
                     GoalProgressBar(showUpgrades: $showUpgrades, showStaff: $showStaff, staffTab: $staffTab)
                 }
-                .overlay { RatingBadge() }
                 ShopStatusStrip()
             }
             .padding(.horizontal, 12)

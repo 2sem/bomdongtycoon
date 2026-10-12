@@ -119,6 +119,18 @@ public enum UpgradeDefinitions {
         .init(name: "봄동 전문점", coinCost: 25_000, description: "재고 60개", maxStock: 60, unlocks: "봄동 요리사 고용 가능")
     ]
 
+    /// Stall tier a staff hire needs: 알바생 (tier 1) is open from the start,
+    /// 이모님 needs 봄동 식당 and 봄동 요리사 needs 봄동 전문점. The hire tab and the
+    /// goal selector both read this so they cannot disagree.
+    public static func requiredStallTier(forStaffTier staffTier: Int) -> Int {
+        max(staffTier - 1, 0)
+    }
+
+    public static func isStaffTierUnlocked(_ staffTier: Int, stallTier: Int) -> Bool {
+        staffTier >= 1 && staffTier <= staff.count
+            && stallTier >= requiredStallTier(forStaffTier: staffTier)
+    }
+
     /// Farmer staff — farm-only, 2× growth speed
     public static let farmer: [UpgradeDefinition] = [
         .init(name: "농부", coinCost: 2_000, description: "농장 전문 — 빠른 수확", productionMultiplier: 2.0)
