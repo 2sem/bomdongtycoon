@@ -137,7 +137,7 @@ jobs:
             -configuration Release \
             -archivePath "$ARCHIVE_PATH" \
             -destination 'generic/platform=iOS' \
-            IPHONEOS_DEPLOYMENT_TARGET=17.0
+            IPHONEOS_DEPLOYMENT_TARGET=18.0
 
       - name: Export IPA
         run: |
