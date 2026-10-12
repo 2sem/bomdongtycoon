@@ -19,6 +19,19 @@ public final class GameStore: ObservableObject {
     @Published public var progress: PlayerProgress
     @Published public var offlineEarnings: Double = 0
 
+    /// Set by the UI while the tutorial or shop-name overlay is up. Frozen
+    /// time: `tick` is a no-op and offline earnings are not computed, so a
+    /// player reading the tutorial loses no coins or rating. Not persisted.
+    public var isSimulationPaused = false {
+        didSet {
+            guard oldValue, !isSimulationPaused else { return }
+            progress.lastActiveDate = Date()
+            earningWindowCoins = 0
+            earningWindowTime  = 0
+            activitySaveTimer  = 0
+        }
+    }
+
     private enum DefaultsKey {
         static let stall    = "gameStore.stall"
         static let farm     = "gameStore.farm"
@@ -137,6 +150,7 @@ public final class GameStore: ObservableObject {
     // MARK: - Tick
 
     public func tick(deltaTime: Double) {
+        guard !isSimulationPaused else { return }
         let growRate   = FarmSystem.growthRate(for: farm);
         let activePlots = FarmSystem.activePlotCount(for: farm);
 
@@ -198,7 +212,10 @@ public final class GameStore: ObservableObject {
                 farm.plots[i].isPlanted = false
                 farm.plots[i].workerEnergy = max(0, farm.plots[i].workerEnergy - Self.energyPerHarvest)
             }
-            if !farm.plots[i].isPlanted, stall.coins >= FarmSystem.seedCost {
+            // A worker replants only while one more seed stays in hand
+            // afterwards, so an idle fresh save settles at seedCost coins
+            // instead of draining to 0 (manual planting is unaffected).
+            if !farm.plots[i].isPlanted, stall.coins >= FarmSystem.seedCost * 2 {
                 stall.coins -= FarmSystem.seedCost
                 farm.plots[i].isPlanted = true
             }
@@ -704,6 +721,9 @@ public final class GameStore: ObservableObject {
     /// Calculate offline earnings (cold start or bg→fg) using the stored live earning rate.
     /// Does NOT add coins or change lastActiveDate.
     public func calculateOfflineEarnings() {
+        guard !isSimulationPaused,
+              !progress.isFirstLaunch,
+              progress.isShopNameSet else { return }   // tutorial/naming time is not offline time
         guard let lastActive = progress.lastActiveDate else {
             print("[Offline] first launch — seeding lastActiveDate")
             progress.lastActiveDate = Date()
@@ -741,7 +761,11 @@ public final class GameStore: ObservableObject {
 
     public func recordFailed() {
         progress.totalFailed += 1
-        progress.rating = max(1.0, progress.rating - 0.05)
+        // Grace until the first sale: the manual cook (10 s) is slower than
+        // customer patience (8 s), so a new player cannot avoid these.
+        if progress.totalServed > 0 {
+            progress.rating = max(1.0, progress.rating - 0.05)
+        }
         save()
     }
 

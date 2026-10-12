@@ -61,7 +61,11 @@ struct GameRootView: View {
                 .presentationCornerRadius(24)
         }
         .onAppear {
+            store.isSimulationPaused = isIntroOverlayUp
             if store.progress.isShopNameSet { NotificationManager.requestPermissionIfUndetermined() }
+        }
+        .onChange(of: isIntroOverlayUp) { _, isUp in
+            store.isSimulationPaused = isUp
         }
         .onChange(of: store.progress.isShopNameSet) { _, isSet in
             if isSet { NotificationManager.requestPermissionIfUndetermined() }
@@ -88,6 +92,10 @@ struct GameRootView: View {
             guard let tier = note.userInfo?["tier"] as? Int else { return }
             showLocationToast(forTier: tier)
         }
+    }
+
+    private var isIntroOverlayUp: Bool {
+        store.progress.isFirstLaunch || !store.progress.isShopNameSet
     }
 
     private var staffButton: some View {

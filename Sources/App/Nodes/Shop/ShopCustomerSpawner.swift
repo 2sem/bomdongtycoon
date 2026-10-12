@@ -107,7 +107,7 @@ final class ShopCustomerSpawner {
     /// pre-rebuild scene used (customers start once the naming/tutorial
     /// flow finishes, not before).
     func update(delta: TimeInterval, store: GameStore, grid: IsoGrid, parent: SKNode) {
-        guard store.progress.isShopNameSet else { return }
+        guard store.progress.isShopNameSet, !store.isSimulationPaused else { return }
 
         if !isSpawningPaused {
             spawnTimer -= delta
