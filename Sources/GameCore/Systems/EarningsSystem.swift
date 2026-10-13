@@ -49,11 +49,14 @@ public enum EarningsSystem {
     }
 
     /// What a sale actually pays: the one place every revenue multiplier composes
-    /// (menu x location x cashier; a prestige multiplier slots in here). Costs are never scaled.
+    /// (menu x location x cashier x legacy). Costs are never scaled.
     /// Offline earnings use `progress.earningRate`, an EMA of these sale prices, so the
-    /// cashier bonus is already inside the rate and must not be applied again there.
-    public static func salePrice(for stall: StallState, menuIndex: Int) -> Double {
-        pricePerItem(for: stall, menuIndex: menuIndex) * cashierSaleMultiplier(for: stall)
+    /// cashier and legacy bonuses are already inside the rate and must not be applied again there.
+    /// `prestigeCount` 0 multiplies by exactly 1.0, so a first-run player's prices are untouched.
+    public static func salePrice(for stall: StallState, menuIndex: Int, prestigeCount: Int = 0) -> Double {
+        pricePerItem(for: stall, menuIndex: menuIndex)
+            * cashierSaleMultiplier(for: stall)
+            * PrestigeSystem.legacyMultiplier(prestigeCount: prestigeCount)
     }
 
     /// Price for a specific menu slot (겉절이=30, 봄동김치=75, 봄동비빔밥=180) times the location multiplier
@@ -71,13 +74,13 @@ public enum EarningsSystem {
 
     /// Coins per second summed across all assigned menu slots.
     /// Each slot uses its cook's actual tier (production rate) and its own menu price.
-    public static func coinsPerSecond(for stall: StallState) -> Double {
+    public static func coinsPerSecond(for stall: StallState, prestigeCount: Int = 0) -> Double {
         var total = 0.0
         for i in 0...stall.menuTier {
             let cookTier = i < stall.menuCooks.count ? stall.menuCooks[i] : 0
             guard cookTier > 0, cookTier <= UpgradeDefinitions.staff.count else { continue }
             let rate  = baseProductionRate * UpgradeDefinitions.staff[cookTier - 1].productionMultiplier
-            let price = salePrice(for: stall, menuIndex: i)
+            let price = salePrice(for: stall, menuIndex: i, prestigeCount: prestigeCount)
             total += rate * price
         }
         return total

@@ -18,10 +18,12 @@ public struct ShopStaffPresence: Equatable {
     public let cashier: Figure?
     public let cook: Figure?
 
-    public init(stall: StallState) {
+    /// `cashierRecentlySold` is `GameStore.cashierRecentlySold`: collection is instant, so
+    /// `pendingCoins` alone would flash the working pose for a single tick per sale.
+    public init(stall: StallState, cashierRecentlySold: Bool = false) {
         if stall.cashierCount > 0 {
             cashier = Figure(
-                isWorking: stall.pendingCoins > 0,
+                isWorking: cashierRecentlySold || stall.pendingCoins > 0,
                 isTired: stall.cashierEnergy < Self.lowEnergyThreshold
             )
         } else {

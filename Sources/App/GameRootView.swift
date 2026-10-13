@@ -7,6 +7,7 @@ struct GameRootView: View {
     @EnvironmentObject var adManager: SwiftUIAdManager
     @State private var showUpgrades = false
     @State private var showStaff = false
+    @State private var showStats = false
     @State private var staffTab: StaffTab = .assign
     @State private var locationToast: String?
     @State private var toastTask: Task<Void, Never>?
@@ -35,7 +36,7 @@ struct GameRootView: View {
                 // The pill is the only flexible item, so it is what truncates.
                 HStack(alignment: .center, spacing: 8) {
                     CoinBadge().fixedSize()
-                    RatingBadge().fixedSize()
+                    ratingButton
                     Spacer(minLength: 0)
                     GoalProgressBar(showUpgrades: $showUpgrades, showStaff: $showStaff, staffTab: $staffTab)
                 }
@@ -47,6 +48,12 @@ struct GameRootView: View {
         .sheet(isPresented: $showUpgrades) {
             UpgradeSheet(isPresented: $showUpgrades)
                 .environmentObject(store)
+        }
+        .sheet(isPresented: $showStats) {
+            StatsSheet(isPresented: $showStats)
+                .environmentObject(store)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showStaff) {
             StaffSheet(isPresented: $showStaff, tab: $staffTab)
@@ -84,6 +91,21 @@ struct GameRootView: View {
 
     private var isIntroOverlayUp: Bool {
         store.progress.isFirstLaunch || !store.progress.isShopNameSet
+    }
+
+    /// The rating badge opens the records sheet. The 44pt frame is the tap target only: the row
+    /// is already 44pt tall (goal pill), so it adds no height.
+    private var ratingButton: some View {
+        Button { showStats = true } label: {
+            RatingBadge()
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .accessibilityLabel(String(format: String(localized: "stats.rating.accessibility"),
+                                   String(format: "%.1f", store.progress.rating)))
+        .accessibilityHint(String(localized: "stats.rating.hint"))
     }
 
     private var staffButton: some View {

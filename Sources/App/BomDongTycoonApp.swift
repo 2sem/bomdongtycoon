@@ -44,6 +44,7 @@ struct BomDongTycoonApp: App {
     }
 
     private func handleScenePhaseChange(to phase: ScenePhase) {
+        store.isAppActive = phase == .active
         switch phase {
         case .active:
             NotificationManager.cancelAll()

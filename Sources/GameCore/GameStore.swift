@@ -34,6 +34,10 @@ public final class GameStore: ObservableObject {
         var corruptKey: String { "gameStore.\(rawValue).corrupt" }
     }
 
+    /// False while the scene is inactive or backgrounded; set from `scenePhase`. Only gates
+    /// `progress.totalPlaySeconds`: the scene's own update loop already stops off-screen.
+    public var isAppActive = true
+
     private let defaults: UserDefaults
     private var cookAccumulators: [Double] = [0, 0, 0];   // per-menu
     /// In-flight manual (tap) cook progress (0..<1), keyed by menu index —
@@ -175,6 +179,8 @@ public final class GameStore: ObservableObject {
 
     public func tick(deltaTime: Double) {
         guard !isSimulationPaused else { return }
+        // Play time is held in memory and rides the 5 s activity save below; no extra disk writes.
+        if isAppActive { progress.totalPlaySeconds += deltaTime }
         let growRate   = FarmSystem.growthRate(for: farm);
         let activePlots = FarmSystem.activePlotCount(for: farm);
 
@@ -312,6 +318,10 @@ public final class GameStore: ObservableObject {
         }
     }
 
+    /// True for `cashierBusyWindow` seconds after each sale, so the cashier figure keeps its
+    /// working pose long enough to read. Transient; never saved.
+    public var cashierRecentlySold: Bool { cashierBusyRemaining > 0 }
+
     // MARK: - Collect
 
     public func collectCoins() {
@@ -328,7 +338,7 @@ public final class GameStore: ObservableObject {
               stall.menuStock[menuIndex] > 0 else { return nil }
         stall.menuStock[menuIndex] -= 1
         // Priced before this sale's energy cost, so the sale that tires her still earns the bonus.
-        let price = EarningsSystem.salePrice(for: stall, menuIndex: menuIndex)
+        let price = EarningsSystem.salePrice(for: stall, menuIndex: menuIndex, prestigeCount: progress.prestigeCount)
         if stall.cashierCount > 0 {
             stall.cashierEnergy = max(0, stall.cashierEnergy - Self.energyPerCashierSale)
             cashierBusyRemaining = Self.cashierBusyWindow
@@ -723,14 +733,16 @@ public final class GameStore: ObservableObject {
         progress.totalServed += 1
         let delta = waitTime < 3.0 ? 0.03 : 0.01
         progress.rating = min(5.0, progress.rating + delta)
+        progress.bestRating = max(progress.bestRating, progress.rating)
         save()
     }
 
     public func recordFailed() {
         progress.totalFailed += 1
         // Grace until the first sale: the manual cook (10 s) is slower than
-        // customer patience (8 s), so a new player cannot avoid these.
-        if progress.totalServed > 0 {
+        // customer patience (8 s), so a new player cannot avoid these. Per run: a new spring
+        // restarts the grace along with the manual-cook slowness it exists for.
+        if progress.runServed > 0 {
             progress.rating = max(1.0, progress.rating - 0.05)
         }
         save()

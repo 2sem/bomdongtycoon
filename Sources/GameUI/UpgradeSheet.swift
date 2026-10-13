@@ -99,6 +99,7 @@ public struct UpgradeSheet: View {
                     state: Self.locationState(
                         index: index, current: current,
                         stallTier: stallTier, coins: coins, definition: def),
+                    prestigeCount: store.progress.prestigeCount,
                     onPurchase: { pendingLocationTier = index }
                 )
             }
@@ -271,6 +272,7 @@ enum LocationRowState: Equatable {
 private struct LocationRowView: View {
     let definition: LocationDefinition
     let state: LocationRowState
+    let prestigeCount: Int
     let onPurchase: () -> Void
 
     private var opacity: Double {
@@ -298,7 +300,7 @@ private struct LocationRowView: View {
                 Text(definition.description)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text(definition.displayEffect)
+                Text(effectText)
                     .font(.caption2)
                     .foregroundStyle(.green)
                 if let unlocks = definition.unlocks {
@@ -317,6 +319,18 @@ private struct LocationRowView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(definition.name), \(definition.description)")
         .accessibilityValue(accessibilityValue)
+    }
+
+    /// "시장 x2 · 유산 x1.4 = x2.8" once a spring has been welcomed; the plain effect before.
+    private var effectText: String {
+        guard prestigeCount > 0 else { return definition.displayEffect }
+        let legacy = PrestigeSystem.legacyMultiplier(prestigeCount: prestigeCount)
+        return String(
+            format: String(localized: "prestige.location.product"),
+            definition.name,
+            PrestigeSystem.multiplierNumber(definition.saleMultiplier),
+            PrestigeSystem.multiplierNumber(legacy),
+            PrestigeSystem.multiplierNumber(definition.saleMultiplier * legacy))
     }
 
     private var lockText: String? {
