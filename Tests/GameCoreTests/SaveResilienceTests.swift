@@ -90,7 +90,7 @@ final class SaveResilienceTests: XCTestCase {
         XCTAssertEqual(store.farm.plots[1].growth, 0.9)
         XCTAssertEqual(store.farm.plots[1].workerType, .farmer)
         XCTAssertEqual(store.farm.farmWorkers, 2)
-        XCTAssertNil(store.corruptBackup(of: .farm))
+        XCTAssertNotNil(store.corruptBackup(of: .farm))   // a dropped element is damage
     }
 
     func test_allBadOrEmptyPlots_keepStarterPlots() throws {
@@ -152,6 +152,59 @@ final class SaveResilienceTests: XCTestCase {
         put(#"{"shopName":"x"}"#, .progress)
         _ = GameStore(defaults: defaults)
         XCTAssertTrue(mismatches.isEmpty, "\(mismatches)")
+    }
+
+    // MARK: 5. Partial damage backup
+
+    func test_mistypedKey_backsUpRawBytes() throws {
+        let raw = #"{"coins":"x","warehouse":9,"tier1Count":"y"}"#
+        put(raw, .stall)
+        let store = GameStore(defaults: defaults)
+        XCTAssertEqual(store.corruptBackup(of: .stall), Data(raw.utf8))
+        XCTAssertEqual(store.stall.warehouse, 9)
+        store.collectCoins()   // save() overwrites the live key, never the backup
+        XCTAssertEqual(store.corruptBackup(of: .stall), Data(raw.utf8))
+    }
+
+    func test_droppedPlotElement_backsUpRawBytes() throws {
+        let raw = #"{"plots":[{"growth":0.1},7],"farmWorkers":2}"#
+        put(raw, .farm)
+        let store = GameStore(defaults: defaults)
+        XCTAssertEqual(store.farm.plots.count, 1)
+        XCTAssertEqual(store.corruptBackup(of: .farm), Data(raw.utf8))
+    }
+
+    func test_oldShapeAndEmptySaves_writeNoBackup() throws {
+        put(#"{"coins":5,"menuTier":1}"#, .stall)   // 1.0.1 shape: later keys absent
+        put(#"{"plots":[{"growth":0.2,"isPlanted":true}]}"#, .farm)
+        put("{}", .progress)
+        let store = GameStore(defaults: defaults)
+        for blob in [GameStore.SaveBlob.stall, .farm, .progress] {
+            XCTAssertNil(store.corruptBackup(of: blob), "\(blob)")
+        }
+    }
+
+    func test_emptyData_doesNotReplaceNonEmptyBackup() throws {
+        put("garbage", .stall)
+        _ = GameStore(defaults: defaults)
+        defaults.set(Data(), forKey: GameStore.SaveBlob.stall.key)
+        let store = GameStore(defaults: defaults)
+        XCTAssertEqual(store.corruptBackup(of: .stall), Data("garbage".utf8))
+    }
+
+    func test_nonDataValue_isBackedUpAsCorrupt() throws {
+        defaults.set("not data", forKey: GameStore.SaveBlob.stall.key)
+        let store = GameStore(defaults: defaults)
+        let backup = try XCTUnwrap(store.corruptBackup(of: .stall))
+        let obj = try PropertyListSerialization.propertyList(from: backup, options: [], format: nil)
+        XCTAssertEqual(obj as? String, "not data")
+        XCTAssertEqual(store.stall.coins, StallState().coins)
+    }
+
+    func test_droppedElementIsReportedAtOriginalIndex() throws {
+        put(#"{"plots":[{"growth":0.1},7,{"growth":0.3},"x"]}"#, .farm)
+        _ = GameStore(defaults: defaults)
+        XCTAssertEqual(mismatches, ["plots[1]", "plots[3]"])
     }
 
     // MARK: Encoding unchanged

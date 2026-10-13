@@ -67,19 +67,39 @@ public final class GameStore: ObservableObject {
         normalizeIdlePools()
     }
 
-    /// nil when the blob is absent. When it exists but cannot be decoded, its bytes are copied to
-    /// `corruptKey` (replacing any older copy) before the caller falls back to fresh state.
+    /// nil when the blob is absent or undecodable. Whenever the stored bytes are damaged, whether
+    /// the whole blob (decode throws) or only parts the tolerant decoders had to default or drop,
+    /// they are copied to `corruptKey` before the value is used, so the next `save()` cannot
+    /// destroy the only copy. Absent keys and `{}` are not damage.
     private static func load<T: Decodable>(_ type: T.Type, blob: SaveBlob, from defaults: UserDefaults) -> T? {
-        guard let data = defaults.data(forKey: blob.key) else { return nil }
-        do {
-            return try JSONDecoder().decode(type, from: data)
-        } catch {
-            if defaults.data(forKey: blob.corruptKey) != data {
-                defaults.set(data, forKey: blob.corruptKey)
+        guard let object = defaults.object(forKey: blob.key) else { return nil }
+        guard let data = object as? Data else {
+            // A foreign non-Data write: keep a best-effort plist rendering, then start fresh.
+            if let rendered = try? PropertyListSerialization.data(fromPropertyList: object, format: .binary, options: 0) {
+                keepBackup(rendered, blob: blob, in: defaults)
             }
+            SaveDiagnostics.corruptBlob(blob.rawValue, bytes: 0)
+            return nil
+        }
+        do {
+            let (value, mismatches) = try SaveDiagnostics.countingMismatches {
+                try JSONDecoder().decode(type, from: data)
+            }
+            if mismatches > 0 { keepBackup(data, blob: blob, in: defaults) }
+            return value
+        } catch {
+            keepBackup(data, blob: blob, in: defaults)
             SaveDiagnostics.corruptBlob(blob.rawValue, bytes: data.count)
             return nil
         }
+    }
+
+    /// Latest-only. An empty copy never displaces a non-empty one: a 0-byte blob carries nothing
+    /// worth keeping, and the older backup may be the only good data left.
+    private static func keepBackup(_ data: Data, blob: SaveBlob, in defaults: UserDefaults) {
+        let existing = defaults.data(forKey: blob.corruptKey)
+        if data.isEmpty, let existing, !existing.isEmpty { return }
+        if existing != data { defaults.set(data, forKey: blob.corruptKey) }
     }
 
     /// Raw bytes of the latest undecodable copy of `blob`, if any.
