@@ -933,7 +933,7 @@ public final class GameStore: ObservableObject {
     public func markFirstLaunchComplete() { progress.isFirstLaunch = false; save() }
 
     public func setShopName(_ name: String) {
-        progress.shopName = name.trimmingCharacters(in: .whitespaces).isEmpty ? "봄동 가게" : name
+        progress.shopName = name.trimmingCharacters(in: .whitespaces).isEmpty ? String(localized: "봄동 가게") : name
         progress.isShopNameSet = true
         save()
     }

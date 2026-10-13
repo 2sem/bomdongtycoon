@@ -148,7 +148,12 @@ public struct ShopStatusStrip: View {
 
     // MARK: - Strings
 
-    private static let shortNames = [0: "겉", 1: "김", 2: "비"]
+    /// One distinct initial per menu; the full name never fits in a chip.
+    private static let shortNames = [
+        0: String(localized: "strip.menu.short.0"),
+        1: String(localized: "strip.menu.short.1"),
+        2: String(localized: "strip.menu.short.2")
+    ]
 
     private static func energyWord(_ energy: Double) -> String {
         if energy >= 0.67 { return String(localized: "에너지 높음") }

@@ -42,7 +42,7 @@ final class CookButtonNode: SKNode {
         isHidden = manualMenuEmojis.isEmpty
         guard !manualMenuEmojis.isEmpty else { return }
         emojisLabel.text = manualMenuEmojis.joined()
-        countLabel.text  = "수동 조리 ×1"
+        countLabel.text  = String(localized: "수동 조리 ×1")
         alpha = canCook ? 1.0 : 0.45
     }
 }

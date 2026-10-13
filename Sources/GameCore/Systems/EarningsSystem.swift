@@ -139,13 +139,15 @@ public enum EarningsSystem {
         guard nextLocationUnlocked(for: stall) else {
             guard goal == nil else { return nil }
             let stallName = UpgradeDefinitions.stall[next.requiredStallTier].name
-            return "다음 목표: \(stallName)으로 \(next.name) 이전을 준비하세요"
+            return String(localized: "다음 목표: \(stallName)으로 \(next.name) 이전을 준비하세요")
         }
         guard goal?.type == .location else { return nil }
         if stall.coins >= next.coinCost {
-            return "\(next.destination) 이전할 수 있어요! 탭해서 확인"
+            return String(localized: "\(next.destination) 이전할 수 있어요! 탭해서 확인")
         }
-        return "다음 목표까지 💰 \(CoinFormat.string(stall.coins)) / \(CoinFormat.string(next.coinCost)) · \(next.name) 이전"
+        let have = CoinFormat.string(stall.coins)
+        let need = CoinFormat.string(next.coinCost)
+        return String(localized: "다음 목표까지 💰 \(have) / \(need) · \(next.name) 이전")
     }
 
     /// Short variant of `locationGoalText` for narrow pills (375pt phones truncate the full phrase,
@@ -155,7 +157,8 @@ public enum EarningsSystem {
         let goal = nextGoal(for: stall)
         guard nextLocationUnlocked(for: stall) else {
             guard goal == nil else { return nil }
-            return "\(UpgradeDefinitions.stall[next.requiredStallTier].name) 필요 · \(next.name) 이전"
+            let stallName = UpgradeDefinitions.stall[next.requiredStallTier].name
+            return String(localized: "\(stallName) 필요 · \(next.name) 이전")
         }
         guard goal?.type == .location, stall.coins < next.coinCost else { return nil }
         return "💰 \(CoinFormat.string(stall.coins)) / \(CoinFormat.string(next.coinCost)) · \(next.name)"
@@ -196,8 +199,8 @@ public enum EarningsSystem {
         if WarehouseSystem.isThrottling(count: stall.warehouse, capacity: stall.warehouseCapacity),
            let next = WarehouseSystem.nextExpansion(current: stall.warehouseCapacity) {
             result.append(Goal(type: .warehouse, definition: UpgradeDefinition(
-                name: "창고 확장", coinCost: next.cost,
-                description: "창고 \(stall.warehouseCapacity)칸 → \(next.capacity)칸")))
+                name: String(localized: "창고 확장"), coinCost: next.cost,
+                description: String(localized: "창고 \(stall.warehouseCapacity)칸 → \(next.capacity)칸"))))
         }
         return result
     }

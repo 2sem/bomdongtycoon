@@ -146,9 +146,10 @@ struct GameRootView: View {
         let location = UpgradeDefinitions.location[tier]
         let multiplier = Int(location.saleMultiplier)
         let emoji = tier == 1 ? "🏪" : "🌆"
+        let destination = location.destination
         showToast(
-            "\(emoji) \(location.destination) 이전했어요! 판매 수익 x\(multiplier)",
-            announcement: "\(location.destination) 이전했습니다. 판매 수익 \(multiplier)배.")
+            String(localized: "\(emoji) \(destination) 이전했어요! 판매 수익 x\(multiplier)"),
+            announcement: String(localized: "\(destination) 이전했습니다. 판매 수익 \(multiplier)배."))
     }
 
     /// The spring has been committed and the scene has faded back in: the success haptic, the toast

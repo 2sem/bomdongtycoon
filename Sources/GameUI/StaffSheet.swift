@@ -15,10 +15,10 @@ private struct WorkerItem: Identifiable {
 
         var label: String {
             switch self {
-            case .unassigned:   return "미배정"
-            case .farm:         return "텃밭"
-            case .cashier:      return "계산대"
-            case .menu(let i):  return "메뉴 \(i + 1)"
+            case .unassigned:   return String(localized: "미배정")
+            case .farm:         return String(localized: "텃밭")
+            case .cashier:      return String(localized: "계산대")
+            case .menu(let i):  return String(localized: "메뉴 \(i + 1)")
             }
         }
     }
@@ -145,7 +145,7 @@ public struct StaffSheet: View {
                     def: UpgradeDefinitions.veteranAlba[0],
                     count: store.stall.veteranAlbaCount,
                     isUnlocked: store.farm.plots.count > 2,
-                    unlockHint: "텃밭 확장 필요",
+                    unlockHint: String(localized: "텃밭 확장 필요"),
                     cashierHint: cashierHireHint(tier: 5),
                     onHire: {
                         store.hireVeteranAlba()
@@ -157,7 +157,7 @@ public struct StaffSheet: View {
                     def: UpgradeDefinitions.farmer[0],
                     count: store.stall.farmerCount,
                     isUnlocked: store.stall.stallTier >= 1,
-                    unlockHint: "봄동 식당 업그레이드 필요",
+                    unlockHint: String(localized: "봄동 식당 업그레이드 필요"),
                     onHire: {
                         store.hireFarmer()
                         withAnimation { tab = .assign }
@@ -430,7 +430,10 @@ private struct WorkerRow: View {
     let farmPlots: [FarmPlot];
     let onReassign: (WorkerItem.Assignment) -> Void;
 
-    private static let name  = ["", "알바생", "이모님", "봄동 요리사", "농부", "고참 알바"];
+    private static let name = [
+        "", String(localized: "알바생"), String(localized: "이모님"), String(localized: "봄동 요리사"),
+        String(localized: "농부"), String(localized: "고참 알바")
+    ]
 
     private static let tier1AssetNames = ["person_adult", "person_kid_boy", "person_kid_girl", "person_man", "person_woman", "person_adult"]
     private static let tier3AssetNames = ["staff_chef_man", "staff_chef_woman"]
@@ -484,13 +487,13 @@ private struct WorkerRow: View {
     }
 
     private func assignmentLabel(_ a: WorkerItem.Assignment, energy: Double = 1.0) -> String {
-        if case .unassigned = a, energy < 0.2 { return "😴 휴식" }
+        if case .unassigned = a, energy < 0.2 { return String(localized: "😴 휴식") }
         let prefix = energy < 0.05 ? "⚠️ " : ""
         switch a {
         case .cashier:
             let percent = EarningsSystem.cashierSaleBonusPercent(tier: worker.tier)
             return prefix + String(format: String(localized: "cashier_assignment_format"), percent)
-        case .menu(let i): return prefix + (UpgradeDefinitions.menu[safe: i]?.name ?? "메뉴 \(i + 1)")
+        case .menu(let i): return prefix + (UpgradeDefinitions.menu[safe: i]?.name ?? String(localized: "메뉴 \(i + 1)"))
         default:           return prefix + a.label
         }
     }
@@ -604,8 +607,8 @@ private struct HireTierRow: View {
 
     private var unlockHint: String {
         switch tier {
-        case 2: return "봄동 식당 업그레이드 필요"
-        case 3: return "봄동 전문점 업그레이드 필요"
+        case 2: return String(localized: "봄동 식당 업그레이드 필요")
+        case 3: return String(localized: "봄동 전문점 업그레이드 필요")
         default: return ""
         }
     }

@@ -18,13 +18,13 @@ public struct UpgradeSheet: View {
         NavigationStack {
             List {
                 upgradeSection(
-                    title: "메뉴 추가",
+                    title: String(localized: "메뉴 추가"),
                     type: .menu,
                     definitions: UpgradeDefinitions.menu,
                     currentTier: store.stall.menuTier + 1
                 )
                 upgradeSection(
-                    title: "가게 업그레이드",
+                    title: String(localized: "가게 업그레이드"),
                     type: .stall,
                     definitions: UpgradeDefinitions.stall,
                     currentTier: store.stall.stallTier + 1
@@ -144,12 +144,14 @@ public struct UpgradeSheet: View {
 
     private var alertTitle: String {
         guard let def = pendingLocation else { return "" }
-        return "\(def.destination) 이전할까요?"
+        return String(localized: "\(def.destination) 이전할까요?")
     }
 
     private var alertMessage: String {
         guard let def = pendingLocation else { return "" }
-        return "💰 \(Self.formatted(def.coinCost))을 내고 이전하면 판매 수익이 \(Int(def.saleMultiplier))배가 돼요."
+        let cost = Self.formatted(def.coinCost)
+        let multiplier = Int(def.saleMultiplier)
+        return String(localized: "💰 \(cost)을 내고 이전하면 판매 수익이 \(multiplier)배가 돼요.")
     }
 
     private func confirmLocationMove() {
@@ -415,19 +417,21 @@ private struct LocationRowView: View {
     private var lockText: String? {
         switch state {
         case .lockedPrerequisite: definition.lockedReason
-        case .lockedQueue(let previous): "\(previous)에 먼저 이전하세요"
+        case .lockedQueue(let previous): String(localized: "\(previous)에 먼저 이전하세요")
         default: nil
         }
     }
 
     private var accessibilityValue: String {
         switch state {
-        case .current: "현재 위치"
-        case .past: "이전 위치"
-        case .affordable, .short:
-            "\(UpgradeSheet.formatted(definition.coinCost)) 코인" + (state == .affordable ? ", 이전 가능" : "")
-        case .lockedPrerequisite: "잠금, \(definition.lockedReason ?? "")"
-        case .lockedQueue(let previous): "잠금, \(previous)에 먼저 이전하세요"
+        case .current: String(localized: "현재 위치")
+        case .past: String(localized: "이전 위치")
+        case .affordable:
+            String(localized: "\(UpgradeSheet.formatted(definition.coinCost)) 코인, 이전 가능")
+        case .short:
+            String(localized: "\(UpgradeSheet.formatted(definition.coinCost)) 코인")
+        case .lockedPrerequisite: String(localized: "잠금, \(definition.lockedReason ?? "")")
+        case .lockedQueue(let previous): String(localized: "잠금, \(previous)에 먼저 이전하세요")
         }
     }
 
