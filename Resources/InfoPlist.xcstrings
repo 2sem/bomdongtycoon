@@ -1,0 +1,38 @@
+{
+  "sourceLanguage" : "ko",
+  "strings" : {
+    "NSUserNotificationUsageDescription" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We will send you Bomdong Shop reminders 🥬"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "봄동 가게 알림을 보내드려요 🥬"
+          }
+        }
+      }
+    },
+    "NSUserTrackingUsageDescription" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracking permission is needed to show personalized ads and measure ad performance."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "맞춤형 광고 제공 및 광고 성과 측정을 위해 추적 권한이 필요해요."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

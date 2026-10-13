@@ -40,7 +40,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Counter · +%d%% sale price"
+            "value" : "Counter · +%d%%"
           }
         },
         "ko" : {
@@ -57,7 +57,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "💰 +%d%% sale price at the counter"
+            "value" : "💰 +%d%% sale price at counter"
           }
         },
         "ko" : {
@@ -1473,7 +1473,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens once you complete the 봄동 전문점 in 강남"
+            "value" : "Opens once you complete the Spring Bistro in Gangnam"
           }
         },
         "ko" : {
@@ -1592,6 +1592,874 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "기록 보기"
+          }
+        }
+      }
+    },
+    "골목" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alley"
+          }
+        }
+      }
+    },
+    "시장" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Market"
+          }
+        }
+      }
+    },
+    "강남" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gangnam"
+          }
+        }
+      }
+    },
+    "골목으로" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alley"
+          }
+        }
+      }
+    },
+    "시장으로" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Market"
+          }
+        }
+      }
+    },
+    "강남으로" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gangnam"
+          }
+        }
+      }
+    },
+    "한적한 골목 어귀, 봄동 장사의 시작" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A quiet alley corner where your Bomdong business begins"
+          }
+        }
+      }
+    },
+    "사람 북적이는 전통시장 한복판" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Right in the middle of a bustling traditional market"
+          }
+        }
+      }
+    },
+    "유동 인구 가득한 강남 대로변" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A Gangnam boulevard packed with foot traffic"
+          }
+        }
+      }
+    },
+    "시장 풍경과 새 손님" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Market scenery and new customers"
+          }
+        }
+      }
+    },
+    "강남 풍경과 새 손님" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gangnam scenery and new customers"
+          }
+        }
+      }
+    },
+    "봄동 식당이 필요해요" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requires the Spring Diner"
+          }
+        }
+      }
+    },
+    "봄동 전문점이 필요해요" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requires the Spring Bistro"
+          }
+        }
+      }
+    },
+    "판매 수익 x%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sale earnings x%lld"
+          }
+        }
+      }
+    },
+    "겉절이" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fresh Salad"
+          }
+        }
+      }
+    },
+    "봄동김치" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spring Kimchi"
+          }
+        }
+      }
+    },
+    "봄동비빔밥" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bibimbap"
+          }
+        }
+      }
+    },
+    "기본 메뉴" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basic menu item"
+          }
+        }
+      }
+    },
+    "인기 메뉴" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Popular menu item"
+          }
+        }
+      }
+    },
+    "시그니처 메뉴" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signature menu item"
+          }
+        }
+      }
+    },
+    "₩ ×%@ 판매가" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "₩ ×%@ sale price"
+          }
+        }
+      }
+    },
+    "알바생" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Part-timer"
+          }
+        }
+      }
+    },
+    "이모님" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auntie"
+          }
+        }
+      }
+    },
+    "봄동 요리사" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chef"
+          }
+        }
+      }
+    },
+    "고참 알바" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veteran Part-timer"
+          }
+        }
+      }
+    },
+    "농부" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Farmer"
+          }
+        }
+      }
+    },
+    "밭·계산대·주방 모두 가능" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can work the farm, counter, or kitchen"
+          }
+        }
+      }
+    },
+    "계산대·주방 배치 가능" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can work the counter or kitchen"
+          }
+        }
+      }
+    },
+    "주방 전담, 최고 속도" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kitchen only, top speed"
+          }
+        }
+      }
+    },
+    "농장 전문 — 빠른 수확" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Farm specialist — faster harvest"
+          }
+        }
+      }
+    },
+    "농장·계산대 배치 가능" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can work the farm or counter"
+          }
+        }
+      }
+    },
+    "포장마차" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Street Stall"
+          }
+        }
+      }
+    },
+    "봄동 식당" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spring Diner"
+          }
+        }
+      }
+    },
+    "봄동 전문점" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spring Bistro"
+          }
+        }
+      }
+    },
+    "시작 가게" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starting stall"
+          }
+        }
+      }
+    },
+    "재고 30개" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stock capacity 30"
+          }
+        }
+      }
+    },
+    "재고 60개" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stock capacity 60"
+          }
+        }
+      }
+    },
+    "🥬 %lld개 보관" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🥬 Holds %lld"
+          }
+        }
+      }
+    },
+    "이모님 · 농부 고용 가능" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlocks hiring Auntie · Farmer"
+          }
+        }
+      }
+    },
+    "봄동 요리사 고용 가능" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlocks hiring Chef"
+          }
+        }
+      }
+    },
+    "다음 목표: %@으로 %@ 이전을 준비하세요" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next goal: upgrade to %1$@, then move to %2$@"
+          }
+        }
+      }
+    },
+    "%@ 이전할 수 있어요! 탭해서 확인" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to move to %@"
+          }
+        }
+      }
+    },
+    "다음 목표까지 💰 %@ / %@ · %@ 이전" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next: 💰 %1$@ / %2$@ · Move to %3$@"
+          }
+        }
+      }
+    },
+    "%@ 필요 · %@ 이전" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Needs %1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "창고 %lld칸 → %lld칸" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warehouse %lld → %lld slots"
+          }
+        }
+      }
+    },
+    "%@ %@ 이전했어요! 판매 수익 x%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ Moved to %2$@! Sale earnings x%3$lld"
+          }
+        }
+      }
+    },
+    "%@ 이전했습니다. 판매 수익 %lld배." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moved to %1$@. Sale earnings x%2$lld."
+          }
+        }
+      }
+    },
+    "메뉴 추가" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Menu"
+          }
+        }
+      }
+    },
+    "가게 업그레이드" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shop Upgrades"
+          }
+        }
+      }
+    },
+    "이전하기" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move"
+          }
+        }
+      }
+    },
+    "위치" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Location"
+          }
+        }
+      }
+    },
+    "이전해도 가게와 직원은 그대로 따라와요." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your shop and staff come with you."
+          }
+        }
+      }
+    },
+    "%@ 이전할까요?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move to %@?"
+          }
+        }
+      }
+    },
+    "💰 %@을 내고 이전하면 판매 수익이 %lld배가 돼요." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pay 💰 %1$@ to move. Sale earnings will be x%2$lld."
+          }
+        }
+      }
+    },
+    "현재 위치" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current Location"
+          }
+        }
+      }
+    },
+    "%@에 먼저 이전하세요" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move to %@ first"
+          }
+        }
+      }
+    },
+    "이전 위치" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous location"
+          }
+        }
+      }
+    },
+    "%@ 코인, 이전 가능" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ coins, can move"
+          }
+        }
+      }
+    },
+    "%@ 코인" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ coins"
+          }
+        }
+      }
+    },
+    "잠금, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Locked, %@"
+          }
+        }
+      }
+    },
+    "잠금, %@에 먼저 이전하세요" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Locked, move to %@ first"
+          }
+        }
+      }
+    },
+    "미배정" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unassigned"
+          }
+        }
+      }
+    },
+    "텃밭" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Farm"
+          }
+        }
+      }
+    },
+    "메뉴 %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menu %lld"
+          }
+        }
+      }
+    },
+    "텃밭 확장 필요" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand the farm first"
+          }
+        }
+      }
+    },
+    "봄동 식당 업그레이드 필요" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requires the Spring Diner"
+          }
+        }
+      }
+    },
+    "봄동 전문점 업그레이드 필요" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requires the Spring Bistro"
+          }
+        }
+      }
+    },
+    "😴 휴식" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "😴 Resting"
+          }
+        }
+      }
+    },
+    "약 %lld억원" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About ₩%lld00M"
+          }
+        }
+      }
+    },
+    "약 %lld만원" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About ₩%lld0K"
+          }
+        }
+      }
+    },
+    "₩%@원" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "₩%@"
+          }
+        }
+      }
+    },
+    "광고 보고 2배 받기" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch Ad for 2x"
+          }
+        }
+      }
+    },
+    "봄동 가게" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bomdong Shop"
+          }
+        }
+      }
+    },
+    "가게가 꽉 찼어요! 봄동이 기다리고 있어요 🥬" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your shop is full! Your Bomdong is waiting 🥬"
+          }
+        }
+      }
+    },
+    "수동 조리 ×1" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manual Cook ×1"
+          }
+        }
+      }
+    },
+    "밭을 넓힐까요?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand the farm?"
+          }
+        }
+      }
+    },
+    "확인" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
+    "💰 %@을 내면 밭이 %lld칸에서 %lld칸으로 늘어나요. 새 칸에도 작물을 심을 수 있어요." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pay 💰 %1$@ to grow your farm from %2$lld to %3$lld plots. You can plant crops in the new plot too."
+          }
+        }
+      }
+    },
+    "💰 %@이 필요해요. 코인을 더 모으면 밭을 %lld칸으로 넓힐 수 있어요." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You need 💰 %1$@. Earn more coins to expand your farm to %2$lld plots."
+          }
+        }
+      }
+    },
+    "🌱 밭이 %lld칸이 됐어요!" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🌱 Your farm now has %lld plots!"
+          }
+        }
+      }
+    },
+    "밭이 %lld칸으로 늘어났습니다." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your farm expanded to %lld plots."
+          }
+        }
+      }
+    },
+    "strip.menu.short.0" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sa"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "겉"
+          }
+        }
+      }
+    },
+    "strip.menu.short.1" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ki"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "김"
+          }
+        }
+      }
+    },
+    "strip.menu.short.2" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bi"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "비"
+          }
+        }
+      }
+    },
+    "💰 %@ / %@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ / %2$@ · %3$@"
           }
         }
       }

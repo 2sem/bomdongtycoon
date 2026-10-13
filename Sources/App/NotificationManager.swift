@@ -38,8 +38,8 @@ enum NotificationManager {
 
     static func scheduleStallFullNotification(afterHours hours: Double = 2) {
         let content = UNMutableNotificationContent()
-        content.title = "봄동 가게"
-        content.body = "가게가 꽉 찼어요! 봄동이 기다리고 있어요 🥬"
+        content.title = String(localized: "봄동 가게")
+        content.body = String(localized: "가게가 꽉 찼어요! 봄동이 기다리고 있어요 🥬")
         content.sound = .default
 
         let trigger = UNTimeIntervalNotificationTrigger(

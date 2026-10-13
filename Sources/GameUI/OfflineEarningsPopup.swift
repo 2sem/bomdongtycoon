@@ -16,12 +16,12 @@ public struct OfflineEarningsPopup: View {
         let value = Int(amount)
         if value >= 100_000_000 {
             let uk = (value + 50_000_000) / 100_000_000
-            return "약 \(uk)억원"
+            return String(localized: "약 \(uk)억원")
         } else if value >= 10_000 {
             let man = (value + 5_000) / 10_000
-            return "약 \(man)만원"
+            return String(localized: "약 \(man)만원")
         } else {
-            return "₩\(value.formatted())원"
+            return String(localized: "₩\(value.formatted())원")
         }
     }
 
@@ -35,6 +35,8 @@ public struct OfflineEarningsPopup: View {
                     .foregroundStyle(.secondary)
                 Text(formattedEarnings(store.offlineEarnings))
                     .font(.system(size: 48, weight: .bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
                     .foregroundStyle(.orange)
 
                 Button {
