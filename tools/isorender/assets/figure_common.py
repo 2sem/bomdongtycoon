@@ -8,14 +8,15 @@ does not swallow them at ~50 pt.
 
 Who is who is carried by silhouette first, colour second:
 
-  customers  adult: short hair, tufts            teal shirt, brown trousers
-             kid:   0.70 scale, big head, buns   warm red-orange shirt
-             elder: 0.933 scale, white hair+bun  olive shirt
+  customers  adult: short hair, tufts            plum shirt, dark brown trousers
+             kid:   0.70 scale, big head, buns   hot pink shirt
+             elder: 0.933 scale, grey hair+bun   deep teal shirt
   staff      cashier: navy cap + visor, cream apron, red shirt
              cook:    tall white toque, dark red apron, off-white shirt
              farmer:  wide straw brim, mustard shirt, blue trousers
 
-Staff colours stay outside the customers' teal/brown family on purpose.
+Staff colours (white, navy, red, mustard, blue, straw) stay outside the
+customers' plum/pink/teal family on purpose.
 
 Frame: figure coordinates are (lat, fwd, z). lat is screen-right, fwd is
 toward the camera, so a face placed on +fwd is drawn dead-on. Converted to
@@ -52,12 +53,19 @@ MOUTH = (0.55, 0.20, 0.18, 1.0)
 
 # --- Cast palettes -----------------------------------------------------------
 
-ADULT = dict(shirt=(0.30, 0.45, 0.50, 1.0), pants=(0.32, 0.27, 0.24, 1.0),
-             hair=(0.25, 0.16, 0.10, 1.0), shoe=(0.16, 0.12, 0.10, 1.0), skin=SKIN)
-KID = dict(shirt=(0.75, 0.32, 0.26, 1.0), pants=(0.32, 0.27, 0.24, 1.0),
-           hair=(0.40, 0.26, 0.16, 1.0), shoe=(0.16, 0.12, 0.10, 1.0), skin=SKIN)
-ELDER = dict(shirt=(0.45, 0.48, 0.35, 1.0), pants=(0.32, 0.27, 0.24, 1.0),
-             hair=(0.62, 0.62, 0.62, 1.0), shoe=(0.16, 0.12, 0.10, 1.0), skin=SKIN)
+# Customers sit on mid green grass: shirts are saturated and darker or warmer
+# than the grass, trousers a dark warm brown. No white cap (cook), navy cap
+# (cashier) or straw brim (farmer), and no red/mustard/blue shirt (staff).
+CUSTOMER_PANTS = (0.24, 0.17, 0.12, 1.0)
+CUSTOMER_SHOE = (0.12, 0.09, 0.08, 1.0)
+ADULT = dict(shirt=(0.45, 0.20, 0.52, 1.0), pants=CUSTOMER_PANTS,
+             hair=(0.20, 0.12, 0.08, 1.0), shoe=CUSTOMER_SHOE, skin=SKIN)
+KID = dict(shirt=(0.90, 0.36, 0.58, 1.0), pants=CUSTOMER_PANTS,
+           hair=(0.30, 0.17, 0.10, 1.0), shoe=CUSTOMER_SHOE, skin=SKIN)
+# Elder hair is mid grey, not white: lit from above a pale dome reads as the
+# cook's toque at 1x (that was the original mix-up).
+ELDER = dict(shirt=(0.12, 0.36, 0.46, 1.0), pants=CUSTOMER_PANTS,
+             hair=(0.36, 0.36, 0.42, 1.0), shoe=CUSTOMER_SHOE, skin=SKIN)
 CASHIER = dict(shirt=(0.66, 0.20, 0.20, 1.0), pants=(0.16, 0.18, 0.28, 1.0),
                hair=(0.10, 0.08, 0.07, 1.0), shoe=(0.10, 0.09, 0.10, 1.0), skin=SKIN,
                hat=(0.12, 0.14, 0.26, 1.0), apron=(0.84, 0.82, 0.74, 1.0))
