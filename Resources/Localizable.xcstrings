@@ -476,6 +476,116 @@
         }
       }
     },
+    "창고 확장" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand Warehouse"
+          }
+        }
+      }
+    },
+    "창고 최대" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warehouse Maxed"
+          }
+        }
+      }
+    },
+    "%lld칸 · 최대" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld slots · Max"
+          }
+        }
+      }
+    },
+    "%lld칸 → %lld칸" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld → %lld slots"
+          }
+        }
+      }
+    },
+    "💰 %@ 더 필요해요" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "💰 %@ more needed"
+          }
+        }
+      }
+    },
+    "농장 수확과 오프라인 보관량이 늘어나요" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boosts farm harvest and offline storage"
+          }
+        }
+      }
+    },
+    "창고를 넓힐까요?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand the warehouse?"
+          }
+        }
+      }
+    },
+    "넓히기" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand"
+          }
+        }
+      }
+    },
+    "취소" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "💰 %@을 내면 창고가 %lld칸에서 %lld칸으로 늘어나요." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pay 💰 %@ to expand the warehouse from %lld to %lld slots."
+          }
+        }
+      }
+    },
+    "창고가 %lld칸으로 늘어났어요." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warehouse expanded to %lld slots."
+          }
+        }
+      }
+    },
     "tutorial.cook.title" : {
       "localizations" : {
         "en" : {

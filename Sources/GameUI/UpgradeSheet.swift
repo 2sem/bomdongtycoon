@@ -27,8 +27,8 @@ public struct UpgradeSheet: View {
                     definitions: UpgradeDefinitions.stall,
                     currentTier: store.stall.stallTier + 1
                 )
-                locationSection
                 warehouseSection
+                locationSection
             }
             .alert(
                 String(localized: "창고를 넓힐까요?"),
@@ -160,11 +160,11 @@ public struct UpgradeSheet: View {
             if let next = WarehouseSystem.nextExpansion(current: capacity) {
                 UpgradeRowView(
                     upgrade: UpgradeDefinition(
-                        name: "창고 확장", coinCost: next.cost,
-                        description: "\(capacity)칸 → \(next.capacity)칸"),
+                        name: String(localized: "창고 확장"), coinCost: next.cost,
+                        description: String(localized: "\(capacity)칸 → \(next.capacity)칸")),
                     displayEffect: shortfall > 0
-                        ? "💰 \(Self.formatted(shortfall)) 더 필요해요"
-                        : "농장 수확과 오프라인 보관량이 늘어나요",
+                        ? String(localized: "💰 \(Self.formatted(shortfall)) 더 필요해요")
+                        : String(localized: "농장 수확과 오프라인 보관량이 늘어나요"),
                     isOwned: false,
                     isNext: true,
                     canAfford: shortfall == 0,
@@ -173,7 +173,8 @@ public struct UpgradeSheet: View {
             } else {
                 UpgradeRowView(
                     upgrade: UpgradeDefinition(
-                        name: "창고 최대", coinCost: 0, description: "\(capacity)칸 · 최대"),
+                        name: String(localized: "창고 최대"), coinCost: 0,
+                        description: String(localized: "\(capacity)칸 · 최대")),
                     isOwned: true, isNext: false, canAfford: false, onPurchase: {})
             }
         }
@@ -182,7 +183,7 @@ public struct UpgradeSheet: View {
     private var warehouseAlertMessage: String {
         guard let capacity = pendingWarehouseCapacity,
               let next = WarehouseSystem.nextExpansion(current: capacity) else { return "" }
-        return "💰 \(Self.formatted(next.cost))을 내면 창고가 \(capacity)칸에서 \(next.capacity)칸으로 늘어나요."
+        return String(localized: "💰 \(Self.formatted(next.cost))을 내면 창고가 \(capacity)칸에서 \(next.capacity)칸으로 늘어나요.")
     }
 
     private func confirmWarehouseExpansion() {
@@ -194,7 +195,7 @@ public struct UpgradeSheet: View {
         guard store.stall.warehouseCapacity > capacity else { return }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         AccessibilityNotification.Announcement(
-            String(localized: "창고가 \(store.stall.warehouseCapacity)칸으로 늘어났습니다.")
+            String(localized: "창고가 \(store.stall.warehouseCapacity)칸으로 늘어났어요.")
         ).post()
     }
 

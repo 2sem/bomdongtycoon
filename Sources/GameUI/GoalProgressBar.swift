@@ -24,7 +24,8 @@ public struct GoalProgressBar: View {
             .buttonStyle(.plain)
             .accessibilityLabel(text)
         } else if let next = EarningsSystem.nextGoalUpgrade(for: store.stall) {
-            let isStaff = EarningsSystem.nextGoalType(for: store.stall) == .staff
+            let label = EarningsSystem.nextGoalLabel(for: store.stall)
+            let isStaff = label == .hire
             let ready = store.stall.coins >= next.coinCost
             // Staff is bought in StaffSheet's hire tab; UpgradeSheet has nothing to buy for it.
             Button {
@@ -38,14 +39,25 @@ public struct GoalProgressBar: View {
                 capsule(
                     icon: isStaff ? "person.badge.plus" : (ready ? "checkmark.circle.fill" : "arrow.up.circle"),
                     ready: ready,
-                    text: isStaff ? String(localized: "고용하기") : String(localized: "업그레이드")
+                    text: Self.text(for: label)
                 )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(String(format: String(localized: "다음 목표, %@, %@ 코인"), next.name, CoinFormat.string(next.coinCost)))
+            .accessibilityLabel(String(
+                format: String(localized: "다음 목표, %@, %@ 코인"),
+                label == .warehouse ? String(localized: "창고 확장") : next.name,
+                CoinFormat.string(next.coinCost)))
             .accessibilityHint(isStaff
                 ? String(localized: "탭하면 고용 화면을 엽니다")
                 : String(localized: "탭하면 업그레이드 화면을 엽니다"))
+        }
+    }
+
+    private static func text(for label: GoalLabel?) -> String {
+        switch label {
+        case .hire: String(localized: "고용하기")
+        case .warehouse: String(localized: "창고 확장")
+        case .upgrade, nil: String(localized: "업그레이드")
         }
     }
 

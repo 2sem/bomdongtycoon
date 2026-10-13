@@ -92,6 +92,14 @@ final class WarehouseExpansionTests: XCTestCase {
         XCTAssertEqual(EarningsSystem.nextGoalUpgrade(for: stall(warehouse: 8))?.coinCost, 300)
     }
 
+    func test_goalLabel_namesTheWarehouseGoal() {
+        XCTAssertEqual(EarningsSystem.nextGoalLabel(for: stall(warehouse: 8)), .warehouse)
+        XCTAssertEqual(EarningsSystem.nextGoalLabel(for: stall(warehouse: 7)), .hire)
+        var s = stall(warehouse: 7)
+        s.staffTier = UpgradeDefinitions.staff.count
+        XCTAssertEqual(EarningsSystem.nextGoalLabel(for: s), .upgrade)
+    }
+
     func test_goal_boundaryScalesWithCapacity() {
         // 20 cap: 15/20 = 75% out, 16/20 = 80% in. Next cost is 800, which loses
         // cheapest-first to 알바생 (500), so strip the other goals to see it in isolation.
