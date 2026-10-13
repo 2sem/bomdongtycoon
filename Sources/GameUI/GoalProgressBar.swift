@@ -25,7 +25,10 @@ public struct GoalProgressBar: View {
                 PrestigeSystem.multiplierNumber(
                     PrestigeSystem.legacyMultiplier(prestigeCount: store.progress.prestigeCount + 1)))
             Button { showPrestige = true } label: {
-                capsule(icon: "sparkles", ready: true, text: text)
+                // The full text does not fit beside the coin and rating badges on a phone; the
+                // compact form is just the name, so the capsule never collapses to its icon.
+                capsule(icon: "checkmark.circle.fill", ready: true, text: text,
+                        compactText: String(localized: "prestige.title"))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(text)
