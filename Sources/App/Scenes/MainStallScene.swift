@@ -272,8 +272,12 @@ final class MainStallScene: SKScene {
             self.customerSpawner.isSpawningPaused = false
             NotificationCenter.default.post(name: .newSpringDidFinish, object: nil)
         }
-        // Same key as a location move: a spring during one replaces it, so its toast never fires.
-        transitionVeil.run(.sequence([fadeOut, swap, fadeIn, finish]), withKey: "locationTransition")
+        // Own key: a location move must not cancel this sequence, or `finish` never clears
+        // `isRunTransitionActive` and the game stays untappable. A spring still cancels a running
+        // location move, so that move's toast never fires.
+        transitionVeil.removeAction(forKey: "locationTransition")
+        transitionVeil.removeAction(forKey: "runTransition")
+        transitionVeil.run(.sequence([fadeOut, swap, fadeIn, finish]), withKey: "runTransition")
     }
 
     /// Drops everything the old run left in the scene and re-applies every state-driven piece.

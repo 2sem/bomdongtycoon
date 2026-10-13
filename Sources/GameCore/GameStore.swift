@@ -74,8 +74,12 @@ public final class GameStore: ObservableObject {
         self.farm     = Self.load(FarmState.self, blob: .farm, from: defaults) ?? FarmState()
         self.progress = Self.load(PlayerProgress.self, blob: .progress, from: defaults) ?? PlayerProgress()
         normalizeIdlePools()
-        if let target = defaults.object(forKey: Self.springInFlightKey) as? Int {
-            recoverInterruptedSpring(targetPrestigeCount: target)
+        if let marker = defaults.object(forKey: Self.springInFlightKey) {
+            if let target = marker as? Int {
+                recoverInterruptedSpring(targetPrestigeCount: target)
+            } else {
+                defaults.removeObject(forKey: Self.springInFlightKey)
+            }
         }
     }
 
@@ -859,11 +863,15 @@ public final class GameStore: ObservableObject {
     /// blobs had already been written. Idempotent: the snapshot is untouched until the marker is
     /// cleared, so a second kill during recovery just recovers again. A snapshot that is missing,
     /// undecodable or not the one this marker was written for is never trusted over the blobs.
+    /// `save()` writes stall, farm, then progress last, so a loaded progress that already reached
+    /// the target means all three blobs are new: the marker is stale, and replaying the spring
+    /// from the older snapshot would overwrite the live run.
     private func recoverInterruptedSpring(targetPrestigeCount: Int) {
         let decoder = JSONDecoder()
         if let snapshot = preRestartSnapshot,
            let oldProgress = try? decoder.decode(PlayerProgress.self, from: snapshot.progress),
            oldProgress.prestigeCount + 1 == targetPrestigeCount,
+           progress.prestigeCount < targetPrestigeCount,
            let oldStall = try? decoder.decode(StallState.self, from: snapshot.stall),
            let oldFarm = try? decoder.decode(FarmState.self, from: snapshot.farm) {
             stall = oldStall

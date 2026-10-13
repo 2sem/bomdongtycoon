@@ -139,6 +139,78 @@ final class SpringRecoveryTests: XCTestCase {
         XCTAssertNil(defaults.object(forKey: GameStore.springInFlightKey))
     }
 
+    /// A completed spring leaves the snapshot saying count 1 -> 2; a marker of 2 reappearing later
+    /// (restored backup, tooling) must not replay it over the new run.
+    private func playedNewRun(on d: UserDefaults) -> GameStore {
+        let store = makeReadyStore(on: d)
+        XCTAssertTrue(store.startNewRun())
+        store.stall.coins = 4242
+        store.stall.menuTier = 1
+        store.stall.tier1Count = 3
+        store.recordBackground()
+        return store
+    }
+
+    func test_staleMarkerEqualToLoadedProgress_changesNothing_andIsCleared() {
+        _ = playedNewRun(on: defaults)
+        defaults.set(2, forKey: GameStore.springInFlightKey)
+        let reloaded = GameStore(defaults: defaults)
+        XCTAssertEqual(reloaded.progress.prestigeCount, 2)
+        XCTAssertEqual(reloaded.stall.coins, 4242)
+        XCTAssertEqual(reloaded.stall.menuTier, 1)
+        XCTAssertEqual(reloaded.stall.tier1Count, 3)
+        XCTAssertNil(defaults.object(forKey: GameStore.springInFlightKey))
+    }
+
+    func test_staleMarkerAfterCompletedSpring_keepsPlayedRunThroughTicksAndRelaunch() {
+        let store = playedNewRun(on: defaults)
+        defaults.set(2, forKey: GameStore.springInFlightKey)
+        let relaunched = GameStore(defaults: defaults)
+        relaunched.stall.coins = 123_456
+        for _ in 0..<2_000 { relaunched.tick(deltaTime: 0.1) }
+        relaunched.recordBackground()
+        let coins = relaunched.stall.coins
+        XCTAssertGreaterThan(coins, 100_000, "ticks may spend a little; a replayed spring would leave ~50")
+        _ = store
+
+        let again = GameStore(defaults: defaults)
+        XCTAssertEqual(again.progress.prestigeCount, 2)
+        XCTAssertEqual(again.stall.coins, coins)
+        XCTAssertEqual(again.stall.menuTier, 1)
+        XCTAssertEqual(again.stall.tier1Count, 3)
+    }
+
+    func test_nonIntMarker_isCleared_stateUnchanged() {
+        _ = playedNewRun(on: defaults)
+        defaults.set("2", forKey: GameStore.springInFlightKey)
+        let reloaded = GameStore(defaults: defaults)
+        XCTAssertEqual(reloaded.progress.prestigeCount, 2)
+        XCTAssertEqual(reloaded.stall.coins, 4242)
+        XCTAssertEqual(reloaded.stall.menuTier, 1)
+        XCTAssertNil(defaults.object(forKey: GameStore.springInFlightKey))
+    }
+
+    func test_interruptedSpring_completesToNewRunExactlyOnce() {
+        for budget in 2...5 {
+            let name = "\(suiteName!).once.\(budget)"
+            let d = KillableDefaults(suiteName: name)!
+            defer { UserDefaults.standard.removePersistentDomain(forName: name) }
+            let store = makeReadyStore(on: d)
+            store.recordBackground()
+            d.budget = d.writeCount + budget
+            XCTAssertTrue(store.startNewRun())
+            d.budget = nil
+
+            let first = GameStore(defaults: d)
+            assertConsistent(first, isNew: true, "budget \(budget)")
+            first.stall.coins = 31
+            first.recordBackground()
+            let second = GameStore(defaults: d)
+            XCTAssertEqual(second.progress.prestigeCount, 2, "not re-run, budget \(budget)")
+            XCTAssertEqual(second.stall.coins, 31, "budget \(budget)")
+        }
+    }
+
     func test_idleTicks_writeCountUnchanged() {
         let store = GameStore(defaults: defaults)
         let start = defaults.writeCount
