@@ -41,7 +41,8 @@ public final class GameStore: ObservableObject {
     /// Transient like `cookAccumulators`: not part of `StallState`'s
     /// Codable keys, so a cook in flight when the app dies is simply lost.
     private var manualCookProgress: [Int: Double] = [:]
-    private var cashierAccumulator: Double = 0
+    /// Seconds the cashier still counts as busy after a sale; transient like `cookAccumulators`.
+    private var cashierBusyRemaining: Double = 0
     private var activitySaveTimer: Double = 0            // flush lastActiveDate + earningRate to disk every 5s
     private var earningWindowCoins: Double = 0           // coins earned in current 5s window
     private var earningWindowTime: Double = 0            // time elapsed in current window
@@ -49,7 +50,8 @@ public final class GameStore: ObservableObject {
     // MARK: - Energy constants
     private static let energyRestoreRate:      Double = 1.0 / 90.0    // full in 1.5 min (when idle)
     private static let energyPerCook:          Double = 1.0 / 300.0   // 300 items per full bar
-    private static let energyPerCashierCollect: Double = 1.0 / 60.0   // 60 collections per full bar
+    private static let energyPerCashierSale:   Double = 1.0 / 60.0   // 60 sales per full bar
+    private static let cashierBusyWindow:      Double = 2.0          // no restore this long after a sale
     private static let energyPerHarvest:       Double = 1.0 / 8.0     // 8 harvests per full bar
 
     // MARK: - Offline constants
@@ -200,8 +202,9 @@ public final class GameStore: ObservableObject {
                 stall.menuCookEnergy[i] = min(1, stall.menuCookEnergy[i] + Self.energyRestoreRate * deltaTime)
             }
         }
-        // Cashier restore when no pending coins; depletion per collection (see cashier loop below)
-        if stall.cashierCount == 0 || stall.pendingCoins == 0 {
+        // Cashier restores once no sale landed for `cashierBusyWindow`; depletion is per sale (see `sellItem`)
+        cashierBusyRemaining = max(0, cashierBusyRemaining - deltaTime)
+        if stall.cashierCount == 0 || cashierBusyRemaining == 0 {
             stall.cashierEnergy = min(1, stall.cashierEnergy + Self.energyRestoreRate * deltaTime)
         }
         for i in 0..<farm.plots.count {
@@ -278,21 +281,10 @@ public final class GameStore: ObservableObject {
             save()
         }
 
-        // Without a cashier, pendingCoins pays out immediately: the tap-a-bubble
-        // collect was removed, so a sale must never wait on a hire that a
-        // fresh tier-0 save does not have (coins would never rise).
-        if stall.cashierCount == 0, stall.pendingCoins > 0 {
+        // pendingCoins always pays out immediately, cashier or not: the tap-a-bubble
+        // collect was removed, and a hired cashier must never collect slower than none.
+        if stall.pendingCoins > 0 {
             collectCoins()
-        }
-
-        // A cashier keeps its 1 s collect cadence and energy cost
-        if stall.cashierCount > 0, stall.pendingCoins > 0 {
-            cashierAccumulator += deltaTime
-            if cashierAccumulator >= 1.0 {
-                cashierAccumulator = 0
-                collectCoins()
-                stall.cashierEnergy = max(0, stall.cashierEnergy - Self.energyPerCashierCollect)
-            }
         }
 
         // Rating slowly decays — active serving easily overcomes it, idle play drifts down
@@ -335,8 +327,12 @@ public final class GameStore: ObservableObject {
         guard menuIndex < stall.menuStock.count,
               stall.menuStock[menuIndex] > 0 else { return nil }
         stall.menuStock[menuIndex] -= 1
-        let cashierBonus = stall.cashierTier == 5 ? 1.4 : 1.0
-        let price = EarningsSystem.pricePerItem(for: stall, menuIndex: menuIndex) * cashierBonus
+        // Priced before this sale's energy cost, so the sale that tires her still earns the bonus.
+        let price = EarningsSystem.salePrice(for: stall, menuIndex: menuIndex)
+        if stall.cashierCount > 0 {
+            stall.cashierEnergy = max(0, stall.cashierEnergy - Self.energyPerCashierSale)
+            cashierBusyRemaining = Self.cashierBusyWindow
+        }
         stall.pendingCoins += price
         earningWindowCoins += price
         return price
@@ -571,6 +567,7 @@ public final class GameStore: ObservableObject {
         let energy = displayedEnergy ?? stall.cashierEnergy
         if addToIdle { pushIdleEnergy(energy, for: stall.cashierTier) }
         stall.cashierEnergy = 1.0
+        cashierBusyRemaining = 0
         stall.cashierTier   = 0
         stall.cashierCount -= 1
         save()

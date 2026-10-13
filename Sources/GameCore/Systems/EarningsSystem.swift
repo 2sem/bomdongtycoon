@@ -27,6 +27,35 @@ public enum EarningsSystem {
         return UpgradeDefinitions.location[tier].saleMultiplier
     }
 
+    /// Design intent: a cashier at the counter is a real job, not a figure. Every sale
+    /// earns more while they work, and a tired one earns the base price until rested.
+    static let cashierSaleBonus: Double = 1.25
+    /// The veteran alba (tier 5) keeps her older x1.4; it replaces the bonus, never stacks.
+    static let veteranCashierSaleBonus: Double = 1.4
+    static let veteranCashierTier = 5
+
+    /// Revenue multiplier of the hired cashier. 1.0 with no cashier or a tired one
+    /// (energy below `ShopStaffPresence.lowEnergyThreshold`, the same cut the figure dims at).
+    public static func cashierSaleMultiplier(for stall: StallState) -> Double {
+        guard stall.cashierCount > 0,
+              stall.cashierEnergy >= ShopStaffPresence.lowEnergyThreshold else { return 1.0 }
+        return stall.cashierTier == veteranCashierTier ? veteranCashierSaleBonus : cashierSaleBonus
+    }
+
+    /// The bonus a cashier of `tier` brings when rested, in whole percent (for copy).
+    public static func cashierSaleBonusPercent(tier: Int) -> Int {
+        let m = tier == veteranCashierTier ? veteranCashierSaleBonus : cashierSaleBonus
+        return Int(((m - 1) * 100).rounded())
+    }
+
+    /// What a sale actually pays: the one place every revenue multiplier composes
+    /// (menu x location x cashier; a prestige multiplier slots in here). Costs are never scaled.
+    /// Offline earnings use `progress.earningRate`, an EMA of these sale prices, so the
+    /// cashier bonus is already inside the rate and must not be applied again there.
+    public static func salePrice(for stall: StallState, menuIndex: Int) -> Double {
+        pricePerItem(for: stall, menuIndex: menuIndex) * cashierSaleMultiplier(for: stall)
+    }
+
     /// Price for a specific menu slot (겉절이=30, 봄동김치=75, 봄동비빔밥=180) times the location multiplier
     public static func pricePerItem(for stall: StallState, menuIndex: Int) -> Double {
         let menuMultiplier = menuIndex < UpgradeDefinitions.menu.count
@@ -48,7 +77,7 @@ public enum EarningsSystem {
             let cookTier = i < stall.menuCooks.count ? stall.menuCooks[i] : 0
             guard cookTier > 0, cookTier <= UpgradeDefinitions.staff.count else { continue }
             let rate  = baseProductionRate * UpgradeDefinitions.staff[cookTier - 1].productionMultiplier
-            let price = pricePerItem(for: stall, menuIndex: i)
+            let price = salePrice(for: stall, menuIndex: i)
             total += rate * price
         }
         return total
