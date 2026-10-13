@@ -559,7 +559,10 @@ private struct WorkerRow: View {
                     }
                 } label: {
                     HStack(spacing: 4) {
-                        Text(assignmentLabel(worker.assignment, energy: worker.energy)).font(.caption.bold())
+                        Text(assignmentLabel(worker.assignment, energy: worker.energy))
+                            .font(.caption.bold())
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                         Image(systemName: "chevron.up.chevron.down").font(.caption2)
                     }
                     .padding(.horizontal, 10)

@@ -161,7 +161,9 @@ public enum EarningsSystem {
             return String(localized: "\(stallName) 필요 · \(next.name) 이전")
         }
         guard goal?.type == .location, stall.coins < next.coinCost else { return nil }
-        return "💰 \(CoinFormat.string(stall.coins)) / \(CoinFormat.string(next.coinCost)) · \(next.name)"
+        let have = CoinFormat.string(stall.coins)
+        let need = CoinFormat.string(next.coinCost)
+        return String(localized: "💰 \(have) / \(need) · \(next.name)")
     }
 
     // MARK: Goal selection

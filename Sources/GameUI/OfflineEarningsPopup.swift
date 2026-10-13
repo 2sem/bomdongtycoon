@@ -35,6 +35,8 @@ public struct OfflineEarningsPopup: View {
                     .foregroundStyle(.secondary)
                 Text(formattedEarnings(store.offlineEarnings))
                     .font(.system(size: 48, weight: .bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
                     .foregroundStyle(.orange)
 
                 Button {

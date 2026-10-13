@@ -57,7 +57,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "💰 +%d%% sale price at the counter"
+            "value" : "💰 +%d%% sale price at counter"
           }
         },
         "ko" : {
@@ -2011,7 +2011,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You can move to %@! Tap to confirm"
+            "value" : "Tap to move to %@"
           }
         }
       }
@@ -2450,6 +2450,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "비"
+          }
+        }
+      }
+    },
+    "💰 %@ / %@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ / %2$@ · %3$@"
           }
         }
       }
