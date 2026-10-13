@@ -8,7 +8,28 @@ enum SaveDiagnostics {
     /// Test hook; called with `(key, expected type)` for every present-but-mistyped value.
     nonisolated(unsafe) static var onTypeMismatch: ((_ key: String, _ expected: String) -> Void)?
 
+    private static let scopeKey = "SaveDiagnostics.scopes"
+
+    /// Runs `body` and counts the type mismatches reported on this thread while it runs, so a
+    /// caller can tell a clean decode from one that silently substituted defaults. The container
+    /// extensions below cannot reach the `Decoder`'s `userInfo`, hence a thread-local stack.
+    /// Decoding is synchronous, so the thread is stable for the whole call.
+    static func countingMismatches<R>(_ body: () throws -> R) rethrows -> (result: R, mismatches: Int) {
+        let dict = Thread.current.threadDictionary
+        let stack = (dict[scopeKey] as? NSMutableArray) ?? NSMutableArray()
+        dict[scopeKey] = stack
+        stack.add(0)
+        let depth = stack.count - 1
+        defer { stack.removeLastObject() }
+        let result = try body()
+        return (result, stack[depth] as? Int ?? 0)
+    }
+
     static func typeMismatch(key: String, expected: Any.Type) {
+        if let stack = Thread.current.threadDictionary[scopeKey] as? NSMutableArray, stack.count > 0 {
+            let top = stack.count - 1
+            stack[top] = (stack[top] as? Int ?? 0) + 1
+        }
         logger.error("save key '\(key, privacy: .public)' is present but not a \(String(describing: expected), privacy: .public); using default")
         onTypeMismatch?(key, String(describing: expected))
     }
@@ -45,11 +66,13 @@ extension KeyedDecodingContainer {
             return nil
         }
         var items: [T] = []
+        var index = 0
         while !list.isAtEnd {
+            defer { index += 1 }
             if let item = try? list.decode(T.self) {
                 items.append(item)
             } else {
-                SaveDiagnostics.typeMismatch(key: "\(key.stringValue)[\(items.count)]", expected: T.self)
+                SaveDiagnostics.typeMismatch(key: "\(key.stringValue)[\(index)]", expected: T.self)
                 // A failed decode does not advance the cursor; consume the element to step past it.
                 _ = try? list.decode(DiscardedElement.self)
             }
