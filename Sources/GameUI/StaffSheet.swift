@@ -146,7 +146,7 @@ public struct StaffSheet: View {
                     count: store.stall.veteranAlbaCount,
                     isUnlocked: store.farm.plots.count > 2,
                     unlockHint: "텃밭 확장 필요",
-                    cashierHint: "💰 계산대 배치 시 ×1.4 수입",
+                    cashierHint: cashierHireHint(tier: 5),
                     onHire: {
                         store.hireVeteranAlba()
                         withAnimation { tab = .assign }
@@ -487,6 +487,9 @@ private struct WorkerRow: View {
         if case .unassigned = a, energy < 0.2 { return "😴 휴식" }
         let prefix = energy < 0.05 ? "⚠️ " : ""
         switch a {
+        case .cashier:
+            let percent = EarningsSystem.cashierSaleBonusPercent(tier: worker.tier)
+            return prefix + String(format: String(localized: "cashier_assignment_format"), percent)
         case .menu(let i): return prefix + (UpgradeDefinitions.menu[safe: i]?.name ?? "메뉴 \(i + 1)")
         default:           return prefix + a.label
         }
@@ -625,6 +628,9 @@ private struct HireTierRow: View {
                     .foregroundStyle(isUnlocked ? .primary : .secondary)
                 if isUnlocked {
                     Text(def.description).font(.caption).foregroundStyle(.secondary)
+                    if tier <= 2 {
+                        Text(cashierHireHint(tier: tier)).font(.caption2).foregroundStyle(.blue)
+                    }
                     Text(String(format: String(localized: "staff_current_count"), count)).font(.caption2).foregroundStyle(Color.staffAmber)
                 } else {
                     Text(unlockHint).font(.caption).foregroundStyle(.secondary)
@@ -655,6 +661,14 @@ private struct HireTierRow: View {
         }
         .padding(.vertical, 4)
     }
+}
+
+// MARK: - Cashier copy
+
+/// What the counter pays off, as the hire lists show it; alba/이모님 and the veteran differ only in percent.
+private func cashierHireHint(tier: Int) -> String {
+    String(format: String(localized: "cashier_hire_hint_format"),
+           EarningsSystem.cashierSaleBonusPercent(tier: tier))
 }
 
 // MARK: - HireFarmWorkerRow
