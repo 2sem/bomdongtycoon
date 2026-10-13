@@ -51,6 +51,8 @@ public struct CoinBadge: View {
         Text("✨" + PrestigeSystem.multiplierText(prestigeCount: prestigeCount))
             .font(.caption2.weight(.semibold))
             .monospacedDigit()
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)   // the overlay proposes the coin chip's width
             .padding(.horizontal, 6)
             .padding(.vertical, 1)
             .background(Color.orange.opacity(0.85), in: Capsule())

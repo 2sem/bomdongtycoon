@@ -74,6 +74,9 @@ public final class GameStore: ObservableObject {
         self.farm     = Self.load(FarmState.self, blob: .farm, from: defaults) ?? FarmState()
         self.progress = Self.load(PlayerProgress.self, blob: .progress, from: defaults) ?? PlayerProgress()
         normalizeIdlePools()
+        if let target = defaults.object(forKey: Self.springInFlightKey) as? Int {
+            recoverInterruptedSpring(targetPrestigeCount: target)
+        }
     }
 
     /// nil when the blob is absent or undecodable. Whenever the stored bytes are damaged, whether
@@ -837,9 +840,41 @@ public final class GameStore: ObservableObject {
     public func startNewRun() -> Bool {
         guard canStartNewRun else { return false }
 
-        let old = progress
-        takePreRestartSnapshot()
+        // Order matters: the marker may only exist once the snapshot it points at is complete.
+        if takePreRestartSnapshot() {
+            defaults.set(progress.prestigeCount + 1, forKey: Self.springInFlightKey)
+        }
+        replaceRun(from: progress)
+        defaults.removeObject(forKey: Self.springInFlightKey)
+        return true
+    }
 
+    /// Present only between "snapshot written" and "all three blobs written"; the value is the
+    /// prestige count the spring is heading to. A launch that finds it knows the blobs may be a
+    /// mix of old and new, which `save()`'s three separate writes cannot rule out.
+    static let springInFlightKey = "gameStore.springInFlight"
+
+    /// Finishes a spring that was killed mid-write: the snapshot holds the complete old run, so
+    /// replaying the same replacement from it lands on one consistent new run, whichever of the
+    /// blobs had already been written. Idempotent: the snapshot is untouched until the marker is
+    /// cleared, so a second kill during recovery just recovers again. A snapshot that is missing,
+    /// undecodable or not the one this marker was written for is never trusted over the blobs.
+    private func recoverInterruptedSpring(targetPrestigeCount: Int) {
+        let decoder = JSONDecoder()
+        if let snapshot = preRestartSnapshot,
+           let oldProgress = try? decoder.decode(PlayerProgress.self, from: snapshot.progress),
+           oldProgress.prestigeCount + 1 == targetPrestigeCount,
+           let oldStall = try? decoder.decode(StallState.self, from: snapshot.stall),
+           let oldFarm = try? decoder.decode(FarmState.self, from: snapshot.farm) {
+            stall = oldStall
+            farm = oldFarm
+            progress = oldProgress
+            replaceRun(from: oldProgress)
+        }
+        defaults.removeObject(forKey: Self.springInFlightKey)
+    }
+
+    private func replaceRun(from old: PlayerProgress) {
         var next = PlayerProgress()
         // Kept: identity and everything lifetime.
         next.isFirstLaunch          = old.isFirstLaunch
@@ -868,20 +903,21 @@ public final class GameStore: ObservableObject {
         transients = RunTransients()
         normalizeIdlePools()
         save()
-        return true
     }
 
-    private func takePreRestartSnapshot() {
+    /// False when the state could not be encoded, in which case nothing was written.
+    private func takePreRestartSnapshot() -> Bool {
         let encoder = JSONEncoder()
         guard let stallData = try? encoder.encode(stall),
               let farmData = try? encoder.encode(farm),
-              let progressData = try? encoder.encode(progress) else { return }
+              let progressData = try? encoder.encode(progress) else { return false }
         defaults.set([
             SaveBlob.stall.rawValue: stallData,
             SaveBlob.farm.rawValue: farmData,
             SaveBlob.progress.rawValue: progressData,
             "takenAt": Date(),
         ] as [String: Any], forKey: Self.preRestartSnapshotKey)
+        return true
     }
 
     // MARK: - Lifecycle

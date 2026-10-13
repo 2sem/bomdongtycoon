@@ -423,6 +423,8 @@ final class MainStallScene: SKScene {
     /// while a cook is already running (or on a menu-tier-hidden bowl)
     /// does nothing, visibly as well as mechanically.
     private func handleTap(at location: CGPoint) {
+        // During the fade-out the old art is still on screen but the state is already the new run.
+        guard !isRunTransitionActive else { return }
         if let menuIndex = shop.tappedBowlMenuIndex(at: location) {
             guard store?.startManualCook(menuIndex: menuIndex) == true else { return }
             shop.pulseBowl(menuIndex: menuIndex)

@@ -10,6 +10,8 @@ public struct PrestigeSheet: View {
     /// Called after the run was replaced, so the owner can close every sheet above the shop.
     private let onStarted: () -> Void
     @State private var isConfirming = false
+    /// The confirm was refused because an offline-earnings popup arrived under the open alert.
+    @State private var isRefused = false
 
     public init(isPresented: Binding<Bool>, onStarted: @escaping () -> Void = {}) {
         self._isPresented = isPresented
@@ -47,6 +49,11 @@ public struct PrestigeSheet: View {
                 Text(String(format: String(localized: "prestige.alert.message"),
                             CoinFormat.string(store.stall.coins)))
             }
+        }
+        .alert(String(localized: "prestige.title"), isPresented: $isRefused) {
+            Button(String(localized: "확인"), role: .cancel) {}
+        } message: {
+            Text(String(localized: "prestige.pending"))
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
@@ -134,7 +141,10 @@ public struct PrestigeSheet: View {
     }
 
     private func startNewRun() {
-        guard store.startNewRun() else { return }
+        guard store.startNewRun() else {
+            isRefused = true
+            return
+        }
         onStarted()
     }
 }
