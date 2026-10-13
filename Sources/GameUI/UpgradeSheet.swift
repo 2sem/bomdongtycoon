@@ -7,6 +7,8 @@ public struct UpgradeSheet: View {
     @Binding public var isPresented: Bool
     @State private var pendingLocationTier: Int?
     @State private var pendingWarehouseCapacity: Int?
+    @State private var showPrestige = false
+    @State private var showStats = false
 
     public init(isPresented: Binding<Bool>) {
         self._isPresented = isPresented
@@ -29,6 +31,20 @@ public struct UpgradeSheet: View {
                 )
                 warehouseSection
                 locationSection
+                springSection
+            }
+            .sheet(isPresented: $showPrestige) {
+                PrestigeSheet(isPresented: $showPrestige) {
+                    showPrestige = false
+                    isPresented = false
+                }
+                .environmentObject(store)
+            }
+            .sheet(isPresented: $showStats) {
+                StatsSheet(isPresented: $showStats)
+                    .environmentObject(store)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
             .alert(
                 String(localized: "창고를 넓힐까요?"),
@@ -145,6 +161,69 @@ public struct UpgradeSheet: View {
         guard store.stall.locationTier == tier else { return }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         isPresented = false
+    }
+
+    // MARK: New spring
+
+    /// Always last: the one entry that costs the player their run. Visible but disabled until the
+    /// final location and stall tier are reached, so the goal is discoverable from the start.
+    private var springSection: some View {
+        let available = store.isPrestigeAvailable
+        let current = PrestigeSystem.legacyMultiplier(prestigeCount: store.progress.prestigeCount)
+        let next = PrestigeSystem.legacyMultiplier(prestigeCount: store.progress.prestigeCount + 1)
+        return Section {
+            Button { showPrestige = true } label: {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("✨ " + String(localized: "prestige.title")).font(.headline)
+                        Text(String(
+                            format: String(localized: "prestige.row.detail"),
+                            PrestigeSystem.multiplierNumber(current), PrestigeSystem.multiplierNumber(next)))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: available ? "chevron.right" : "lock.fill")
+                        .foregroundStyle(.tertiary)
+                }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .disabled(!available)
+            Button { showStats = true } label: {
+                HStack {
+                    Text("기록 보기")
+                    Spacer()
+                    Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+                }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+        } header: {
+            Text("새봄")
+        } footer: {
+            if !available { springLockedFooter }
+        }
+    }
+
+    private var springLockedFooter: some View {
+        let location = PrestigeSystem.locationRequirement(for: store.stall)
+        let stall = PrestigeSystem.stallRequirement(for: store.stall)
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(String(localized: "prestige.locked"))
+            Text(Self.progressLine(location, met: "prestige.progress.location.met", unmet: "prestige.progress.location"))
+            Text(Self.progressLine(stall, met: "prestige.progress.stall.met", unmet: "prestige.progress.stall"))
+        }
+    }
+
+    private static func progressLine(
+        _ requirement: PrestigeSystem.Requirement,
+        met: String.LocalizationValue,
+        unmet: String.LocalizationValue
+    ) -> String {
+        requirement.isMet
+            ? String(format: String(localized: met), requirement.requiredName)
+            : String(format: String(localized: unmet), requirement.currentName, requirement.requiredName)
     }
 
     // MARK: Warehouse

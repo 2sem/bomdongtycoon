@@ -53,7 +53,8 @@ public enum EarningsSystem {
     /// Offline earnings use `progress.earningRate`, an EMA of these sale prices, so the
     /// cashier and legacy bonuses are already inside the rate and must not be applied again there.
     /// `prestigeCount` 0 multiplies by exactly 1.0, so a first-run player's prices are untouched.
-    public static func salePrice(for stall: StallState, menuIndex: Int, prestigeCount: Int = 0) -> Double {
+    /// Required, not defaulted: a caller that forgot it would silently price a prestiged save at x1.
+    public static func salePrice(for stall: StallState, menuIndex: Int, prestigeCount: Int) -> Double {
         pricePerItem(for: stall, menuIndex: menuIndex)
             * cashierSaleMultiplier(for: stall)
             * PrestigeSystem.legacyMultiplier(prestigeCount: prestigeCount)
@@ -74,7 +75,7 @@ public enum EarningsSystem {
 
     /// Coins per second summed across all assigned menu slots.
     /// Each slot uses its cook's actual tier (production rate) and its own menu price.
-    public static func coinsPerSecond(for stall: StallState, prestigeCount: Int = 0) -> Double {
+    public static func coinsPerSecond(for stall: StallState, prestigeCount: Int) -> Double {
         var total = 0.0
         for i in 0...stall.menuTier {
             let cookTier = i < stall.menuCooks.count ? stall.menuCooks[i] : 0
@@ -132,9 +133,9 @@ public enum EarningsSystem {
     /// Goal-bar copy for the location goal; nil means "use the generic upgrade label".
     public static func locationGoalText(for stall: StallState) -> String? {
         let goal = nextGoal(for: stall)
-        guard let next = nextLocation(for: stall) else {
-            return goal == nil ? "🎉 강남에서 봄동 제국을 완성했어요!" : nil
-        }
+        // At the final location there is no location goal; with nothing else left the capsule
+        // becomes the new-spring entry (`GoalProgressBar`).
+        guard let next = nextLocation(for: stall) else { return nil }
         guard nextLocationUnlocked(for: stall) else {
             guard goal == nil else { return nil }
             let stallName = UpgradeDefinitions.stall[next.requiredStallTier].name

@@ -139,12 +139,12 @@ final class CashierSaleBonusTests: XCTestCase {
     func test_oldSaveWithCashier_loadsAndEarnsBonus() throws {
         let json = #"{"cashierCount": 1, "cashierTier": 1, "cashierEnergy": 0.9, "menuStock": [5, 0, 0]}"#
         let decoded = try JSONDecoder().decode(StallState.self, from: Data(json.utf8))
-        XCTAssertEqual(EarningsSystem.salePrice(for: decoded, menuIndex: 0), 30 * 1.25, accuracy: 0.001)
+        XCTAssertEqual(EarningsSystem.salePrice(for: decoded, menuIndex: 0, prestigeCount: 0), 30 * 1.25, accuracy: 0.001)
     }
 
     func test_stallStateWithoutCashier_salePriceEqualsPricePerItem() {
         let stall = StallState()
-        XCTAssertEqual(EarningsSystem.salePrice(for: stall, menuIndex: 0),
+        XCTAssertEqual(EarningsSystem.salePrice(for: stall, menuIndex: 0, prestigeCount: 0),
                        EarningsSystem.pricePerItem(for: stall, menuIndex: 0), accuracy: 0.0001)
     }
 }

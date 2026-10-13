@@ -90,6 +90,15 @@ final class ShopCustomerSpawner {
     /// but no new one spawns and the spawn timer does not run down.
     var isSpawningPaused = false
 
+    /// Node name of the floating "+N" pops, so a rebuild can sweep them.
+    static let coinPopName = "coinPop"
+
+    /// Customers gone and the first-customer delay restarted: what a new run starts from.
+    func reset() {
+        removeAllCustomers()
+        spawnTimer = 1.0
+    }
+
     /// Drops every in-flight customer. They are only visuals — coins were
     /// credited when the sale happened — so this is safe mid-walk.
     func removeAllCustomers() {
@@ -259,6 +268,7 @@ final class ShopCustomerSpawner {
     private func spawnCoinPop(amount: Double, from node: ShopCustomerNode, grid: IsoGrid) {
         guard let parent = node.parent else { return }
         let pop = SKNode()
+        pop.name = Self.coinPopName
         pop.position = CGPoint(x: node.position.x, y: node.position.y + node.headTopWorldOffset)
         pop.zPosition = node.zPosition + 0.01
 

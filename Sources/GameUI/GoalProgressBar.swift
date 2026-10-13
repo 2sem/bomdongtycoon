@@ -6,15 +6,34 @@ public struct GoalProgressBar: View {
     @Binding public var showUpgrades: Bool
     @Binding public var showStaff: Bool
     @Binding public var staffTab: StaffTab
+    @Binding public var showPrestige: Bool
 
-    public init(showUpgrades: Binding<Bool>, showStaff: Binding<Bool>, staffTab: Binding<StaffTab>) {
+    public init(showUpgrades: Binding<Bool>, showStaff: Binding<Bool>, staffTab: Binding<StaffTab>,
+                showPrestige: Binding<Bool>) {
         self._showUpgrades = showUpgrades
         self._showStaff = showStaff
         self._staffTab = staffTab
+        self._showPrestige = showPrestige
     }
 
     public var body: some View {
-        if let text = EarningsSystem.locationGoalText(for: store.stall) {
+        if store.isPrestigeAvailable, EarningsSystem.nextGoalUpgrade(for: store.stall) == nil {
+            // Nothing left to buy toward: the goal becomes the new spring. Leftover plots are not
+            // goals, so the sheet mentions them instead of this capsule waiting on them.
+            let text = String(
+                format: String(localized: "prestige.goal"),
+                PrestigeSystem.multiplierNumber(
+                    PrestigeSystem.legacyMultiplier(prestigeCount: store.progress.prestigeCount + 1)))
+            Button { showPrestige = true } label: {
+                // The full text does not fit beside the coin and rating badges on a phone; the
+                // compact form is just the name, so the capsule never collapses to its icon.
+                capsule(icon: "checkmark.circle.fill", ready: true, text: text,
+                        compactText: String(localized: "prestige.title"))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(text)
+            .accessibilityHint(String(localized: "prestige.goal.hint"))
+        } else if let text = EarningsSystem.locationGoalText(for: store.stall) {
             let ready = EarningsSystem.nextLocationUnlocked(for: store.stall)
                 && store.stall.coins >= (EarningsSystem.nextLocation(for: store.stall)?.coinCost ?? .infinity)
             Button { showUpgrades = true } label: {

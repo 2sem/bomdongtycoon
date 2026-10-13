@@ -23,16 +23,62 @@ public enum PrestigeSystem {
     public static func multiplierText(prestigeCount: Int) -> String {
         "x" + multiplierNumber(legacyMultiplier(prestigeCount: prestigeCount))
     }
+
+    // MARK: Availability
+
+    /// A new spring opens once the final location and the final stall tier are both reached,
+    /// and stays open while they hold. Both are read off the definition tables, so adding a
+    /// location or a stall tier moves the finish line without touching this.
+    public static func isAvailable(for stall: StallState) -> Bool {
+        stall.locationTier >= UpgradeDefinitions.location.count - 1
+            && stall.stallTier >= UpgradeDefinitions.stall.count - 1
+    }
+
+    /// The two conditions as rows for the locked state of the upgrade sheet.
+    public struct Requirement: Equatable {
+        public let isMet: Bool
+        public let currentName: String
+        public let requiredName: String
+    }
+
+    public static func locationRequirement(for stall: StallState) -> Requirement {
+        let table = UpgradeDefinitions.location
+        let current = min(max(stall.locationTier, 0), table.count - 1)
+        return Requirement(isMet: current == table.count - 1,
+                           currentName: table[current].name, requiredName: table[table.count - 1].name)
+    }
+
+    public static func stallRequirement(for stall: StallState) -> Requirement {
+        let table = UpgradeDefinitions.stall
+        let current = min(max(stall.stallTier, 0), table.count - 1)
+        return Requirement(isMet: current == table.count - 1,
+                           currentName: table[current].name, requiredName: table[table.count - 1].name)
+    }
+
+    /// Whether any plot is still for sale; the sheet mentions it without blocking.
+    public static func hasUnspentPlots(farm: FarmState) -> Bool {
+        FarmSystem.costForNextPlot(currentCount: farm.plots.count) != nil
+    }
+}
+
+extension Notification.Name {
+    /// Posted (main thread) once the scene has faded back in on a new run. The toast, haptic and
+    /// HUD chip pulse key off this, not off the state change, which lands before the fade starts.
+    public static let newSpringDidFinish = Notification.Name("newSpringDidFinish")
 }
 
 /// Number formatting for the stats sheet, kept apart from the view so it can be tested.
 public enum StatsFormat {
 
+    /// 99,000 hours (~11 years): far past any real play time, comfortably inside `Duration`.
+    static let maxSeconds: TimeInterval = 99 * 3600 * 1000
+
     /// Whole-minute abbreviated hours and minutes ("1시간 5분"), or nil under a minute so the
     /// caller can show its localized "1분 미만".
     public static func duration(seconds: TimeInterval, locale: Locale = .autoupdatingCurrent) -> String? {
         guard seconds.isFinite, seconds >= 60 else { return nil }
-        let minutes = (seconds / 60).rounded(.down)
+        // A corrupt or huge play-time value must show a long time, not trap inside `Duration`.
+        let minutes = (min(seconds, maxSeconds) / 60).rounded(.down)
         var style = Duration.UnitsFormatStyle(allowedUnits: [.hours, .minutes], width: .abbreviated)
         style.locale = locale
         return Duration.seconds(minutes * 60).formatted(style)

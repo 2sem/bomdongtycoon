@@ -8,12 +8,12 @@ final class EarningsSystemTests: XCTestCase {
 
     func test_coinsPerSecond_baseLine() {
         // No cook assigned to any slot: nothing is produced.
-        XCTAssertEqual(EarningsSystem.coinsPerSecond(for: StallState()), 0, accuracy: 0.01)
+        XCTAssertEqual(EarningsSystem.coinsPerSecond(for: StallState(), prestigeCount: 0), 0, accuracy: 0.01)
 
         var withCook = StallState()
         withCook.menuCooks = [1, 0, 0]
         // tier-1 cook 2.0 items/s x 30 coins/item = 60
-        XCTAssertEqual(EarningsSystem.coinsPerSecond(for: withCook), 60.0, accuracy: 0.01)
+        XCTAssertEqual(EarningsSystem.coinsPerSecond(for: withCook, prestigeCount: 0), 60.0, accuracy: 0.01)
     }
 
     func test_coinsPerSecond_withStaffTier1() {
@@ -21,10 +21,10 @@ final class EarningsSystemTests: XCTestCase {
         stall.staffTier = 1
         stall.menuCooks = [1, 0, 0]  // tier-1 cook, production x2.0
         // 1.0 x 2.0 x 30.0 = 60.0
-        XCTAssertEqual(EarningsSystem.coinsPerSecond(for: stall), 60.0, accuracy: 0.01)
+        XCTAssertEqual(EarningsSystem.coinsPerSecond(for: stall, prestigeCount: 0), 60.0, accuracy: 0.01)
 
         stall.menuCooks = [2, 0, 0]  // tier-2 cook, production x4.0
-        XCTAssertEqual(EarningsSystem.coinsPerSecond(for: stall), 120.0, accuracy: 0.01)
+        XCTAssertEqual(EarningsSystem.coinsPerSecond(for: stall, prestigeCount: 0), 120.0, accuracy: 0.01)
     }
 
     func test_coinsPerSecond_multipleUpgrades() {
@@ -34,7 +34,7 @@ final class EarningsSystemTests: XCTestCase {
         stall.stallTier = 1  // maxStock only — no effect on rate
         stall.menuCooks = [1, 1, 0]
         // slot 0: 2.0 x 30 = 60; slot 1: 2.0 x 75 = 150; total 210
-        XCTAssertEqual(EarningsSystem.coinsPerSecond(for: stall), 210.0, accuracy: 0.01)
+        XCTAssertEqual(EarningsSystem.coinsPerSecond(for: stall, prestigeCount: 0), 210.0, accuracy: 0.01)
     }
 
     func test_maxStock_baseLine() {

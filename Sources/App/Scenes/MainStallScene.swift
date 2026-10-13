@@ -76,6 +76,16 @@ final class MainStallScene: SKScene {
     /// always applies (a save that loads with staff already hired).
     private var lastAppliedStaff: ShopStaffPresence?
 
+    /// `prestigeCount` the scene last saw; `nil` until the store is attached. A change means the
+    /// store has already replaced the whole run (and saved it), so the scene plays the new-spring
+    /// transition and rebuilds from state instead of letting each `update*` snap its piece.
+    private var lastSeenPrestigeCount: Int?
+
+    /// True from the moment a new run is noticed until the fade-in ends. While set, nothing is
+    /// pushed from the store and the simulation does not advance, so the old shop stays on screen
+    /// until the veil covers it and the new run's first tick happens on the new shop.
+    private var isRunTransitionActive = false
+
     /// Pans the world; `GroundLayer.worldBounds` clamps how far (see
     /// `clampCameraPosition()`) — "the map data" (`GroundLayer.map` plus
     /// its margin) is what actually limits the scrollable area, not the
@@ -234,6 +244,58 @@ final class MainStallScene: SKScene {
 
         // Same key on a repeat purchase replaces the running sequence.
         transitionVeil.run(.sequence([fadeOut, swap, fadeIn, finish]), withKey: "locationTransition")
+    }
+
+    /// New spring, ~0.8 s like a location move but a full rebuild under the veil: art for every
+    /// tier, field, staff, customers, coin pops, camera and spawner all come back from state.
+    /// Reduce Motion: the same 0.1 s + 0.1 s dissolve, no settle.
+    private func runNewRunTransition() {
+        let reduceMotion = UIAccessibility.isReduceMotionEnabled
+        let fadeOutDuration: TimeInterval = reduceMotion ? 0.1 : 0.35
+        let fadeInDuration: TimeInterval = reduceMotion ? 0.1 : 0.45
+
+        isRunTransitionActive = true
+        customerSpawner.isSpawningPaused = true
+
+        let fadeOut = SKAction.fadeAlpha(to: 1, duration: fadeOutDuration)
+        fadeOut.timingMode = .easeIn
+        let swap = SKAction.run { [weak self] in
+            guard let self else { return }
+            self.rebuildFromState()
+            if !reduceMotion { self.settleShop(duration: fadeInDuration) }
+        }
+        let fadeIn = SKAction.fadeAlpha(to: 0, duration: fadeInDuration)
+        fadeIn.timingMode = .easeOut
+        let finish = SKAction.run { [weak self] in
+            guard let self else { return }
+            self.isRunTransitionActive = false
+            self.customerSpawner.isSpawningPaused = false
+            NotificationCenter.default.post(name: .newSpringDidFinish, object: nil)
+        }
+        // Same key as a location move: a spring during one replaces it, so its toast never fires.
+        transitionVeil.run(.sequence([fadeOut, swap, fadeIn, finish]), withKey: "locationTransition")
+    }
+
+    /// Drops everything the old run left in the scene and re-applies every state-driven piece.
+    /// The `lastApplied*` sentinels go back to `nil` so each `update*` pushes unconditionally.
+    private func rebuildFromState() {
+        customerSpawner.reset()
+        for node in children where node.name == ShopCustomerSpawner.coinPopName { node.removeFromParent() }
+        resetCameraToShop()
+
+        lastAppliedMenuTier = nil
+        lastAppliedStallTier = nil
+        lastAppliedCookFillByMenuIndex = [:]
+        lastAppliedStaff = nil
+        if let tier = store?.stall.locationTier {
+            applyLocationArt(tier)
+            lastAppliedLocationTier = tier
+        }
+        updateFarm()
+        updateShopMenuTier()
+        updateShopStallTier()
+        updateShopCookGauge()
+        updateShopStaff()
     }
 
     /// Back to the launch framing (the default camera), clamped like any pan.
@@ -398,6 +460,12 @@ final class MainStallScene: SKScene {
         let delta = min(rawDelta, Self.maxDelta)
         lastUpdateTime = currentTime
 
+        if let count = store?.progress.prestigeCount {
+            if let last = lastSeenPrestigeCount, count != last { runNewRunTransition() }
+            lastSeenPrestigeCount = count
+        }
+        guard !isRunTransitionActive else { return }
+
         updateShopMenuTier()
         updateShopStallTier()
         updateLocationTier()
@@ -406,7 +474,7 @@ final class MainStallScene: SKScene {
         updateFarm()
 
         Task { @MainActor [weak self] in
-            guard let self, let store = self.store else { return }
+            guard let self, let store = self.store, !self.isRunTransitionActive else { return }
             store.tick(deltaTime: delta)
             self.customerSpawner.update(delta: delta, store: store, grid: GroundLayer.grid, parent: self)
         }

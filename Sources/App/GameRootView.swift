@@ -8,6 +8,7 @@ struct GameRootView: View {
     @State private var showUpgrades = false
     @State private var showStaff = false
     @State private var showStats = false
+    @State private var showPrestige = false
     @State private var staffTab: StaffTab = .assign
     @State private var locationToast: String?
     @State private var toastTask: Task<Void, Never>?
@@ -38,7 +39,8 @@ struct GameRootView: View {
                     CoinBadge().fixedSize()
                     ratingButton
                     Spacer(minLength: 0)
-                    GoalProgressBar(showUpgrades: $showUpgrades, showStaff: $showStaff, staffTab: $staffTab)
+                    GoalProgressBar(showUpgrades: $showUpgrades, showStaff: $showStaff, staffTab: $staffTab,
+                                    showPrestige: $showPrestige)
                 }
                 ShopStatusStrip()
             }
@@ -47,6 +49,10 @@ struct GameRootView: View {
         }
         .sheet(isPresented: $showUpgrades) {
             UpgradeSheet(isPresented: $showUpgrades)
+                .environmentObject(store)
+        }
+        .sheet(isPresented: $showPrestige) {
+            PrestigeSheet(isPresented: $showPrestige) { showPrestige = false }
                 .environmentObject(store)
         }
         .sheet(isPresented: $showStats) {
@@ -86,6 +92,9 @@ struct GameRootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .locationTransitionDidFinish)) { note in
             guard let tier = note.userInfo?["tier"] as? Int else { return }
             showLocationToast(forTier: tier)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .newSpringDidFinish)) { _ in
+            showNewSpringToast()
         }
     }
 
@@ -137,11 +146,24 @@ struct GameRootView: View {
         let location = UpgradeDefinitions.location[tier]
         let multiplier = Int(location.saleMultiplier)
         let emoji = tier == 1 ? "🏪" : "🌆"
-        let text = "\(emoji) \(location.destination) 이전했어요! 판매 수익 x\(multiplier)"
+        showToast(
+            "\(emoji) \(location.destination) 이전했어요! 판매 수익 x\(multiplier)",
+            announcement: "\(location.destination) 이전했습니다. 판매 수익 \(multiplier)배.")
+    }
 
-        AccessibilityNotification.Announcement(
-            "\(location.destination) 이전했습니다. 판매 수익 \(multiplier)배."
-        ).post()
+    /// The spring has been committed and the scene has faded back in: the success haptic, the toast
+    /// and the VoiceOver line land together, on the new shop rather than under the black.
+    private func showNewSpringToast() {
+        let multiplier = PrestigeSystem.multiplierNumber(
+            PrestigeSystem.legacyMultiplier(prestigeCount: store.progress.prestigeCount))
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        showToast(
+            String(format: String(localized: "prestige.toast"), multiplier),
+            announcement: String(format: String(localized: "prestige.toast.accessibility"), multiplier))
+    }
+
+    private func showToast(_ text: String, announcement: String) {
+        AccessibilityNotification.Announcement(announcement).post()
 
         toastTask?.cancel()
         let animation: Animation = reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4)
