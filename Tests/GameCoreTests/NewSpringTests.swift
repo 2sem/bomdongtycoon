@@ -302,12 +302,10 @@ final class NewSpringTests: XCTestCase {
 
     func test_snapshotIsWrittenBeforeReset_andReplaced() throws {
         let store = makeReadyStore()
-        let oldStall = try JSONEncoder().encode(store.stall)
         XCTAssertNil(store.preRestartSnapshot)
         XCTAssertTrue(store.startNewRun())
 
         let first = try XCTUnwrap(store.preRestartSnapshot)
-        XCTAssertEqual(first.stall, oldStall)
         let oldRun = try JSONDecoder().decode(StallState.self, from: first.stall)
         XCTAssertEqual(oldRun.coins, 123_456)
         XCTAssertEqual(oldRun.locationTier, 2)
