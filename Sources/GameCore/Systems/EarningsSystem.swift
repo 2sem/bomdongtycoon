@@ -72,6 +72,17 @@ public enum EarningsSystem {
         nextGoal(for: stall)?.type
     }
 
+    /// What the goal capsule should call the next goal; `.upgrade` is the generic label.
+    /// Location goals are handled separately by `locationGoalText`.
+    public static func nextGoalLabel(for stall: StallState) -> GoalLabel? {
+        switch nextGoalType(for: stall) {
+        case .staff: .hire
+        case .warehouse: .warehouse
+        case nil: nil
+        default: .upgrade
+        }
+    }
+
     // MARK: Location goal
 
     /// The location after the current one, if any.
@@ -157,4 +168,8 @@ public enum EarningsSystem {
         }
         return result
     }
+}
+
+public enum GoalLabel: Equatable {
+    case hire, warehouse, upgrade
 }
