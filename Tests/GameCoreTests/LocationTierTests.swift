@@ -62,17 +62,6 @@ final class LocationTierTests: XCTestCase {
         XCTAssertEqual(price ?? 0, 30 * 4, accuracy: 0.001)
     }
 
-    func test_multiplier_appliesToOfflineEarnings() {
-        var stall = StallState()
-        stall.menuCooks = [1, 0, 0]
-        let lastActive = Date().addingTimeInterval(-3600)
-        let base = OfflineProgressSystem.calculateOfflineEarnings(stall: stall, lastActiveDate: lastActive)
-        stall.locationTier = 1
-        let moved = OfflineProgressSystem.calculateOfflineEarnings(stall: stall, lastActiveDate: lastActive)
-        XCTAssertGreaterThan(base, 0)
-        XCTAssertEqual(moved, base * 2, accuracy: base * 0.001)
-    }
-
     // MARK: Purchase guards
 
     func test_purchase_succeedsWithPrerequisiteAndCoins() {
@@ -117,16 +106,6 @@ final class LocationTierTests: XCTestCase {
         store.purchaseUpgrade(.location)
         XCTAssertEqual(store.stall.locationTier, 2)
         XCTAssertEqual(store.stall.coins, 1_000_000, accuracy: 0.001)
-    }
-
-    func test_purchase_postsNotification() {
-        store.stall.stallTier = 1
-        store.stall.coins = 40_000
-        let exp = expectation(forNotification: .locationTierDidChange, object: store) {
-            ($0.userInfo?["tier"] as? Int) == 1
-        }
-        store.purchaseUpgrade(.location)
-        wait(for: [exp], timeout: 1)
     }
 
     // MARK: Goal

@@ -1,29 +1,14 @@
 import Foundation
 
-// MARK: - FarmUpgradeDefinition
-
-public struct FarmUpgradeDefinition {
-    public let name: String
-    public let coinCost: Double
-    public let description: String
-    public let plotCount: Int
-    public let growthMultiplier: Double
-    public let harvestYield: Int
-
-    public var displayEffect: String {
-        "🌱 \(plotCount)칸 · ×\(String(format: "%.1f", growthMultiplier)) 성장 · 수확 \(harvestYield)개"
-    }
-}
-
 // MARK: - UpgradeDefinition
 
 public struct UpgradeDefinition {
     public let name: String
     public let coinCost: Double
     public let description: String
-    /// Multiplier on items-per-second production rate (staff, location)
+    /// Multiplier on a worker's speed (staff, farmer, veteran alba)
     public let productionMultiplier: Double
-    /// Multiplier on coins-per-item sale price (menu, location)
+    /// Multiplier on coins-per-item sale price (menu)
     public let priceMultiplier: Double
     /// Maximum stock capacity (stall upgrades only; 0 = not applicable)
     public let maxStock: Int
@@ -51,9 +36,6 @@ public struct UpgradeDefinition {
     /// Human-readable effect summary for the upgrade sheet
     public var displayEffect: String {
         var parts: [String] = []
-        if productionMultiplier != 1.0 {
-            parts.append("🍳 \(Int(round(productionMultiplier)))개 일괄조리")
-        }
         if priceMultiplier != 1.0 {
             parts.append("₩ ×\(String(format: "%.1f", priceMultiplier)) 판매가")
         }
@@ -105,7 +87,7 @@ public enum UpgradeDefinitions {
         .init(name: "봄동비빔밥", coinCost: 10_000, description: "시그니처 메뉴",  priceMultiplier: 6.0)
     ]
 
-    /// Staff upgrades — increase items produced per batch cook
+    /// Staff tiers — each hire's cook speed
     public static let staff: [UpgradeDefinition] = [
         .init(name: "알바생",      coinCost: 500,    description: "밭·계산대·주방 모두 가능", productionMultiplier: 2.0),
         .init(name: "이모님",      coinCost: 3_000,  description: "계산대·주방 배치 가능",     productionMultiplier: 4.0),
@@ -139,19 +121,5 @@ public enum UpgradeDefinitions {
     /// Veteran alba staff — farm-only, 1.4× growth speed
     public static let veteranAlba: [UpgradeDefinition] = [
         .init(name: "고참 알바", coinCost: 800, description: "농장·계산대 배치 가능", productionMultiplier: 1.4)
-    ]
-
-    /// Farm worker training — legacy, kept for backward compat
-    public static let farmWorker: [UpgradeDefinition] = [
-        .init(name: "알바생",   coinCost: 0,      description: "기본 알바 — 자동 수확만 가능", productionMultiplier: 1.0),
-        .init(name: "고참 알바", coinCost: 3_000,  description: "농장 경험자",               productionMultiplier: 1.4),
-        .init(name: "알바 달인", coinCost: 12_000, description: "농장 전문가, 최고 속도",      productionMultiplier: 2.0),
-    ]
-
-    /// Farm upgrades — increase plot count, growth speed, and harvest yield
-    public static let farm: [FarmUpgradeDefinition] = [
-        .init(name: "텃밭",     coinCost: 0,      description: "작은 시작",  plotCount: 2, growthMultiplier: 1.0, harvestYield: 1),
-        .init(name: "주말농장", coinCost: 3_000,  description: "더 넓은 밭", plotCount: 3, growthMultiplier: 1.5, harvestYield: 2),
-        .init(name: "봄동농장", coinCost: 20_000, description: "전문 농장",  plotCount: 5, growthMultiplier: 2.5, harvestYield: 3),
     ]
 }

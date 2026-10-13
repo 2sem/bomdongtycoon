@@ -15,8 +15,9 @@ public enum CustomerFacing: Equatable, Sendable {
     case front
 
     /// Customers enter up-left away from the camera and leave back along the
-    /// same lane toward it, so only the leg out shows the face. The reaction
-    /// at the counter belongs to `.waiting`: they have not turned yet.
+    /// same lane toward it, so only the leg out shows the face. The spawner
+    /// plays the reaction and then sets `.leaving` in the same step, so the
+    /// reaction pop plays as the customer turns to face the camera.
     public init(stage: CustomerStage) {
         self = stage == .leaving ? .front : .back
     }

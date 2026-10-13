@@ -5,7 +5,6 @@ public struct PlayerProgress: Codable {
     public var isShopNameSet: Bool = false
     public var shopName: String = "봄동 가게"
     public var lastActiveDate: Date? = nil
-    public var seasonStartDate: Date? = nil
     public var totalEarned: Double = 0
     public var earningRate: Double = 0     // coins/s rolling average, updated every 5s
     public var rating: Double = 3.0
@@ -22,7 +21,6 @@ public struct PlayerProgress: Codable {
         isShopNameSet   = c.decodeOrDefault(.isShopNameSet, d.isShopNameSet)
         shopName        = c.decodeOrDefault(.shopName, d.shopName)
         lastActiveDate  = c.decodeOrNil(Date.self, forKey: .lastActiveDate)
-        seasonStartDate = c.decodeOrNil(Date.self, forKey: .seasonStartDate)
         totalEarned     = c.decodeOrDefault(.totalEarned, d.totalEarned)
         earningRate     = c.decodeOrDefault(.earningRate, d.earningRate)
         rating          = c.decodeOrDefault(.rating, d.rating)

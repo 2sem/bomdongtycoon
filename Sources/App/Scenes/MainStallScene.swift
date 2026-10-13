@@ -3,8 +3,6 @@ import GameCore
 import UIKit
 
 extension Notification.Name {
-    static let openStaffSheet = Notification.Name("openStaffSheet")
-    static let openJobSheet = Notification.Name("openJobSheet")
     /// Posted by `MainStallScene` once a location purchase's transition has
     /// faded back in; `userInfo["tier"]` is the new `Int` tier. The toast
     /// and VoiceOver announcement key off this, not the purchase itself.
@@ -22,8 +20,6 @@ final class MainStallScene: SKScene {
     private var lastUpdateTime: TimeInterval = 0
     private let groundLayer = GroundLayer()
     private let fieldLayer = FieldLayer()
-    private let shopWallLayer = ShopWallLayer()
-    private let kitchenLayer = KitchenLayer()
     private let locationBackdrop = LocationBackdropNode(fittingTo: GroundLayer.grid)
 
     /// Spawns, walks and serves customers at `shop`'s counter — added
@@ -135,21 +131,10 @@ final class MainStallScene: SKScene {
         // `LocationBackdropNode`), so add order does not matter.
         addChild(locationBackdrop)
 
-        // FieldLayer is state-driven (see `updateFarm`). ShopWallLayer/
-        // KitchenLayer stay disabled — their art hasn't been redone for
-        // the new isometric style yet, so adding them now would sit a
-        // placeholder building next to the new watercolor ground.
+        // FieldLayer is state-driven (see `updateFarm`).
         fieldLayer.zPosition = 10
         addChild(fieldLayer)
         updateFarm()
-
-        // shopWallLayer.zPosition = 10
-        // addChild(shopWallLayer)
-        // shopWallLayer.layout(for: frame.size)
-        //
-        // kitchenLayer.zPosition = 10
-        // addChild(kitchenLayer)
-        // kitchenLayer.layout(for: frame.size)
 
         addChild(shop)
         updateShopMenuTier()

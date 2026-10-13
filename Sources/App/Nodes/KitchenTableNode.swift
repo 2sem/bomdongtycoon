@@ -49,9 +49,8 @@ final class KitchenTableNode: SKNode {
     // the floor rather than a table standing on it. Rather than modeling individual legs, a
     // single straight-hanging "apron" panel — dropping vertically from the tabletop's own
     // front-bottom edge (no skew, since it's a front-facing vertical face, not a ground-plane
-    // surface) — stands in for the legs/frame and visually grounds the table, the same way
-    // ShopWallNode extrudes a vertical face down from the ground line instead of leaving a
-    // flat tile floating in space.
+    // surface) — stands in for the legs/frame and visually grounds the table instead of
+    // leaving a flat tile floating in space.
     private static let apronHeight = GroundTile.height * 0.9
 
     /// The front apron's outline: a plain rectangle hanging from the tabletop's own
@@ -74,9 +73,8 @@ final class KitchenTableNode: SKNode {
 
     /// The right side panel's outline: extrudes the tabletop's own right edge (`topPath`'s
     /// skewed edge running from `(width,0)` front to `(width+skew,depth)` back) straight down
-    /// by `apronHeight`, the same "extrude a diagonal ground-line edge downward into a
-    /// vertical face" construction `ShopWallNode.wallSegmentPath` uses (there extruded upward
-    /// from the ground instead of downward from a tabletop). Without this face the table reads
+    /// by `apronHeight`, extruding a diagonal ground-line edge downward into a vertical
+    /// face. Without this face the table reads
     /// as a flat top-plus-front cutout instead of a solid box — a real table standing on this
     /// isometric grid shows three faces (top, front, and this right side), not two.
     private static let rightPath: CGPath = {
@@ -99,8 +97,8 @@ final class KitchenTableNode: SKNode {
         super.init()
 
         // The tabletop is a flat horizontal surface, so it's built as a tilted parallelogram
-        // shape textured with a top-down wood-plank texture (mirroring GroundTile/ShopWallNode's
-        // "SKShapeNode with fillTexture" recipe for tilted surfaces), rather than an upright
+        // shape textured with a top-down wood-plank texture (GroundTile's "SKShapeNode with
+        // fillTexture" recipe for tilted surfaces), rather than an upright
         // front-view sprite — a plain rectangle would ignore the isometric skew the ground and
         // walls are drawn with.
         let top = SKShapeNode(path: Self.topPath)
