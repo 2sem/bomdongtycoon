@@ -269,9 +269,20 @@ final class NewSpringTests: XCTestCase {
         let moved = try XCTUnwrap(store.progress.lastActiveDate)
         XCTAssertEqual(moved.timeIntervalSinceNow, 0, accuracy: 5, "lastActiveDate restarts at now")
 
-        // StallState and FarmState keep nothing: every stored field is its default.
+        // StallState and FarmState keep nothing: every stored field is its default. The stall list
+        // is written out so a field that should survive a spring fails here when it is added,
+        // instead of resetting by default unnoticed. Moving a name out of this set means copying
+        // it in `startNewRun`.
+        let stallReset: Set<String> = [
+            "coins", "menuTier", "staffTier", "stallTier", "locationTier", "pendingCoins",
+            "tier1Count", "tier2Count", "tier3Count", "cashierCount", "menuCooks", "menuCookEnergy",
+            "cashierEnergy", "cashierTier", "tier1IdleEnergies", "tier2IdleEnergies",
+            "tier3IdleEnergies", "warehouse", "warehouseCapacity", "menuStock", "farmerCount",
+            "farmerIdleEnergies", "veteranAlbaCount", "veteranAlbaIdleEnergies"]
+        let stallTransient: Set<String> = []   // none today: RunTransients lives on GameStore
         let stallLabels = Mirror(reflecting: store.stall).children.compactMap(\.label)
-        XCTAssertFalse(stallLabels.isEmpty)
+        XCTAssertEqual(Set(stallLabels), stallReset.union(stallTransient),
+                       "a StallState field is unclassified: reset it here or keep it in startNewRun")
         let e = JSONEncoder()
         e.outputFormatting = .sortedKeys
         XCTAssertEqual(try e.encode(store.stall), try e.encode(StallState()))
