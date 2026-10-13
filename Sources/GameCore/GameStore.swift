@@ -20,9 +20,9 @@ public final class GameStore: ObservableObject {
         didSet {
             guard oldValue, !isSimulationPaused else { return }
             progress.lastActiveDate = Date()
-            earningWindowCoins = 0
-            earningWindowTime  = 0
-            activitySaveTimer  = 0
+            transients.earningWindowCoins = 0
+            transients.earningWindowTime  = 0
+            transients.activitySaveTimer  = 0
         }
     }
 
@@ -39,17 +39,21 @@ public final class GameStore: ObservableObject {
     public var isAppActive = true
 
     private let defaults: UserDefaults
-    private var cookAccumulators: [Double] = [0, 0, 0];   // per-menu
-    /// In-flight manual (tap) cook progress (0..<1), keyed by menu index —
-    /// presence of a key means a manual cook is running for that index.
-    /// Transient like `cookAccumulators`: not part of `StallState`'s
-    /// Codable keys, so a cook in flight when the app dies is simply lost.
-    private var manualCookProgress: [Int: Double] = [:]
-    /// Seconds the cashier still counts as busy after a sale; transient like `cookAccumulators`.
-    private var cashierBusyRemaining: Double = 0
-    private var activitySaveTimer: Double = 0            // flush lastActiveDate + earningRate to disk every 5s
-    private var earningWindowCoins: Double = 0           // coins earned in current 5s window
-    private var earningWindowTime: Double = 0            // time elapsed in current window
+
+    /// Everything the simulation keeps in memory that is not in the three blobs. One value type
+    /// so `startNewRun` resets it by assigning a fresh one: a field added here resets by default.
+    private struct RunTransients {
+        var cookAccumulators: [Double] = [0, 0, 0]       // per-menu
+        /// In-flight manual (tap) cook progress (0..<1), keyed by menu index: presence of a key
+        /// means a manual cook is running for that index. A cook in flight when the app dies is lost.
+        var manualCookProgress: [Int: Double] = [:]
+        /// Seconds the cashier still counts as busy after a sale.
+        var cashierBusyRemaining: Double = 0
+        var activitySaveTimer: Double = 0                // flush lastActiveDate + earningRate to disk every 5s
+        var earningWindowCoins: Double = 0               // coins earned in current 5s window
+        var earningWindowTime: Double = 0                // time elapsed in current window
+    }
+    private var transients = RunTransients()
 
     // MARK: - Energy constants
     private static let energyRestoreRate:      Double = 1.0 / 90.0    // full in 1.5 min (when idle)
@@ -209,8 +213,8 @@ public final class GameStore: ObservableObject {
             }
         }
         // Cashier restores once no sale landed for `cashierBusyWindow`; depletion is per sale (see `sellItem`)
-        cashierBusyRemaining = max(0, cashierBusyRemaining - deltaTime)
-        if stall.cashierCount == 0 || cashierBusyRemaining == 0 {
+        transients.cashierBusyRemaining = max(0, transients.cashierBusyRemaining - deltaTime)
+        if stall.cashierCount == 0 || transients.cashierBusyRemaining == 0 {
             stall.cashierEnergy = min(1, stall.cashierEnergy + Self.energyRestoreRate * deltaTime)
         }
         for i in 0..<farm.plots.count {
@@ -258,11 +262,11 @@ public final class GameStore: ObservableObject {
             guard canAutoCook(menuIndex: i, maxStock: maxStock) else { continue }
             let tier = stall.menuCooks[i]
             let energy = i < stall.menuCookEnergy.count ? stall.menuCookEnergy[i] : 1.0;
-            cookAccumulators[i] += cookRate(forTier: tier) * energyMultiplier(energy) * deltaTime;
-            while cookAccumulators[i] >= 1.0,
+            transients.cookAccumulators[i] += cookRate(forTier: tier) * energyMultiplier(energy) * deltaTime;
+            while transients.cookAccumulators[i] >= 1.0,
                   stall.warehouse > 0,
                   stall.menuStock[i] < maxStock {
-                cookAccumulators[i] -= 1.0
+                transients.cookAccumulators[i] -= 1.0
                 stall.warehouse    -= 1
                 stall.menuStock[i] += 1
                 stall.menuCookEnergy[i] = max(0, stall.menuCookEnergy[i] - Self.energyPerCook)
@@ -277,10 +281,10 @@ public final class GameStore: ObservableObject {
         // re-checked at completion, not just at start — the warehouse can
         // empty or stock can fill while the cook is running, in which case
         // it ends without producing.
-        for menuIndex in manualCookProgress.keys.sorted() {
-            manualCookProgress[menuIndex, default: 0] += Self.manualCookRate * deltaTime
-            guard manualCookProgress[menuIndex] ?? 0 >= 1.0 else { continue }
-            manualCookProgress[menuIndex] = nil
+        for menuIndex in transients.manualCookProgress.keys.sorted() {
+            transients.manualCookProgress[menuIndex, default: 0] += Self.manualCookRate * deltaTime
+            guard transients.manualCookProgress[menuIndex] ?? 0 >= 1.0 else { continue }
+            transients.manualCookProgress[menuIndex] = nil
             guard canManualCook(menuIndex: menuIndex) else { continue }
             stall.warehouse -= 1
             stall.menuStock[menuIndex] += 1
@@ -298,20 +302,20 @@ public final class GameStore: ObservableObject {
 
         // Persist lastActiveDate + earningRate every 5 s
         if offlineEarnings == 0 {
-            earningWindowTime += deltaTime
-            activitySaveTimer += deltaTime
-            if activitySaveTimer >= 5 {
-                if earningWindowTime > 0, earningWindowCoins > 0 {
-                    let sample = earningWindowCoins / earningWindowTime
+            transients.earningWindowTime += deltaTime
+            transients.activitySaveTimer += deltaTime
+            if transients.activitySaveTimer >= 5 {
+                if transients.earningWindowTime > 0, transients.earningWindowCoins > 0 {
+                    let sample = transients.earningWindowCoins / transients.earningWindowTime
                     // Exponential moving average: weight new sample at 30%
                     // Only update when coins were actually earned — idle windows must not decay the rate
                     progress.earningRate = progress.earningRate == 0
                         ? sample
                         : progress.earningRate * 0.7 + sample * 0.3
                 }
-                earningWindowCoins = 0
-                earningWindowTime  = 0
-                activitySaveTimer  = 0
+                transients.earningWindowCoins = 0
+                transients.earningWindowTime  = 0
+                transients.activitySaveTimer  = 0
                 progress.lastActiveDate = Date()
                 save()
             }
@@ -320,7 +324,7 @@ public final class GameStore: ObservableObject {
 
     /// True for `cashierBusyWindow` seconds after each sale, so the cashier figure keeps its
     /// working pose long enough to read. Transient; never saved.
-    public var cashierRecentlySold: Bool { cashierBusyRemaining > 0 }
+    public var cashierRecentlySold: Bool { transients.cashierBusyRemaining > 0 }
 
     // MARK: - Collect
 
@@ -341,10 +345,10 @@ public final class GameStore: ObservableObject {
         let price = EarningsSystem.salePrice(for: stall, menuIndex: menuIndex, prestigeCount: progress.prestigeCount)
         if stall.cashierCount > 0 {
             stall.cashierEnergy = max(0, stall.cashierEnergy - Self.energyPerCashierSale)
-            cashierBusyRemaining = Self.cashierBusyWindow
+            transients.cashierBusyRemaining = Self.cashierBusyWindow
         }
         stall.pendingCoins += price
-        earningWindowCoins += price
+        transients.earningWindowCoins += price
         return price
     }
 
@@ -393,18 +397,18 @@ public final class GameStore: ObservableObject {
         // accumulator is the one actually producing, so it takes over
         // display even if a manual session happens to still be in flight.
         let hasDedicatedCook = menuIndex < stall.menuCooks.count && stall.menuCooks[menuIndex] > 0
-        if !hasDedicatedCook, let manual = manualCookProgress[menuIndex] {
+        if !hasDedicatedCook, let manual = transients.manualCookProgress[menuIndex] {
             return min(max(manual, 0), 1)
         }
-        guard cookAccumulators.indices.contains(menuIndex) else { return 0 }
-        return min(max(cookAccumulators[menuIndex], 0), 1)
+        guard transients.cookAccumulators.indices.contains(menuIndex) else { return 0 }
+        return min(max(transients.cookAccumulators[menuIndex], 0), 1)
     }
 
     /// Whether a manual (tap) cook is currently running for `menuIndex` —
     /// lets a caller show the gauge even in the first instant after
     /// starting, before `cookProgress` has anything above 0 to report.
     public func isManualCookRunning(menuIndex: Int) -> Bool {
-        manualCookProgress[menuIndex] != nil
+        transients.manualCookProgress[menuIndex] != nil
     }
 
     /// Whether `menuIndex` is actually producing right now — a manual
@@ -446,8 +450,8 @@ public final class GameStore: ObservableObject {
     /// tapping again mid-cook is a no-op.
     @discardableResult
     public func startManualCook(menuIndex: Int) -> Bool {
-        guard manualCookProgress[menuIndex] == nil, canManualCook(menuIndex: menuIndex) else { return false }
-        manualCookProgress[menuIndex] = 0
+        guard transients.manualCookProgress[menuIndex] == nil, canManualCook(menuIndex: menuIndex) else { return false }
+        transients.manualCookProgress[menuIndex] = 0
         return true
     }
 
@@ -577,7 +581,7 @@ public final class GameStore: ObservableObject {
         let energy = displayedEnergy ?? stall.cashierEnergy
         if addToIdle { pushIdleEnergy(energy, for: stall.cashierTier) }
         stall.cashierEnergy = 1.0
-        cashierBusyRemaining = 0
+        transients.cashierBusyRemaining = 0
         stall.cashierTier   = 0
         stall.cashierCount -= 1
         save()
@@ -793,6 +797,91 @@ public final class GameStore: ObservableObject {
             return
         }
         save()
+    }
+
+    // MARK: - New spring
+
+    /// Where the previous run's three blobs are copied before `startNewRun` replaces them. A single
+    /// key holding the latest only: a support or recovery path, never read by the game itself.
+    static let preRestartSnapshotKey = "gameStore.preRestartSnapshot"
+
+    public struct PreRestartSnapshot {
+        public let stall: Data
+        public let farm: Data
+        public let progress: Data
+        public let takenAt: Date
+    }
+
+    public var preRestartSnapshot: PreRestartSnapshot? {
+        guard let dict = defaults.dictionary(forKey: Self.preRestartSnapshotKey),
+              let stall = dict[SaveBlob.stall.rawValue] as? Data,
+              let farm = dict[SaveBlob.farm.rawValue] as? Data,
+              let progress = dict[SaveBlob.progress.rawValue] as? Data,
+              let takenAt = dict["takenAt"] as? Date else { return nil }
+        return PreRestartSnapshot(stall: stall, farm: farm, progress: progress, takenAt: takenAt)
+    }
+
+    /// The final location and the final stall tier. Pure state: whether the CTA is also enabled
+    /// (an offline popup can be pending) is `canStartNewRun`.
+    public var isPrestigeAvailable: Bool { PrestigeSystem.isAvailable(for: stall) }
+
+    /// False while the offline-earnings popup is pending: its coins belong to the old run and its
+    /// rate to the old shop, so the player settles it first.
+    public var canStartNewRun: Bool { isPrestigeAvailable && offlineEarnings == 0 }
+
+    /// 새봄 맞이. Destructive, so: the old run is snapshotted first, the new state is built from a
+    /// fresh default with a whitelist copied over (a run field added later resets by default; a
+    /// kept field must be named here), and the save is flushed before this returns. Nothing
+    /// animates until it has. Returns false, changing nothing, when the spring is not available.
+    @discardableResult
+    public func startNewRun() -> Bool {
+        guard canStartNewRun else { return false }
+
+        let old = progress
+        takePreRestartSnapshot()
+
+        var next = PlayerProgress()
+        // Kept: identity and everything lifetime.
+        next.isFirstLaunch          = old.isFirstLaunch
+        next.isShopNameSet          = old.isShopNameSet
+        next.shopName               = old.shopName
+        next.totalEarned            = old.totalEarned
+        next.totalServed            = old.totalServed
+        next.totalFailed            = old.totalFailed
+        next.totalPlaySeconds       = old.totalPlaySeconds
+        next.bestRating             = old.highestRating
+        next.hasSeenPrestigeIntro   = true
+        // Changed on purpose.
+        next.prestigeCount          = old.prestigeCount + 1
+        next.fastestRunSeconds      = min(old.fastestRunSeconds ?? .infinity, old.runPlaySeconds)
+        next.runBaselinePlaySeconds = old.totalPlaySeconds
+        next.runBaselineEarned      = old.totalEarned
+        next.runBaselineServed      = old.totalServed
+        next.runBaselineFailed      = old.totalFailed
+        // Anchored to now: the old shop's elapsed time must not be paid out as offline earnings of
+        // the new one (its `earningRate` is already back to 0).
+        next.lastActiveDate         = Date()
+
+        stall = StallState()
+        farm = FarmState()
+        progress = next
+        transients = RunTransients()
+        normalizeIdlePools()
+        save()
+        return true
+    }
+
+    private func takePreRestartSnapshot() {
+        let encoder = JSONEncoder()
+        guard let stallData = try? encoder.encode(stall),
+              let farmData = try? encoder.encode(farm),
+              let progressData = try? encoder.encode(progress) else { return }
+        defaults.set([
+            SaveBlob.stall.rawValue: stallData,
+            SaveBlob.farm.rawValue: farmData,
+            SaveBlob.progress.rawValue: progressData,
+            "takenAt": Date(),
+        ] as [String: Any], forKey: Self.preRestartSnapshotKey)
     }
 
     // MARK: - Lifecycle

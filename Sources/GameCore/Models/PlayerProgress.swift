@@ -14,7 +14,7 @@ public struct PlayerProgress: Codable {
     // MARK: Prestige and stats
     // `legacyMultiplier` is derived from `prestigeCount` (`PrestigeSystem`), never stored.
     // Lifetime totals above only ever grow; "this run" is the total minus its `runBaseline*`, which
-    // a new spring (PR 2) will set to the totals at the moment of the reset.
+    // `GameStore.startNewRun` sets to the totals at the moment of the reset.
     public var prestigeCount: Int = 0
     public var totalPlaySeconds: TimeInterval = 0
     public var runBaselinePlaySeconds: TimeInterval = 0
@@ -48,12 +48,13 @@ public struct PlayerProgress: Codable {
         rating          = c.decodeOrDefault(.rating, d.rating)
         totalServed     = c.decodeOrDefault(.totalServed, d.totalServed)
         totalFailed     = c.decodeOrDefault(.totalFailed, d.totalFailed)
-        prestigeCount          = c.decodeOrDefault(.prestigeCount, d.prestigeCount)
+        // A hand-edited or corrupt negative would make `prestigeCount + 1` and "this run" read wrong.
+        prestigeCount          = max(0, c.decodeOrDefault(.prestigeCount, d.prestigeCount))
         totalPlaySeconds       = c.decodeOrDefault(.totalPlaySeconds, d.totalPlaySeconds)
-        runBaselinePlaySeconds = c.decodeOrDefault(.runBaselinePlaySeconds, d.runBaselinePlaySeconds)
-        runBaselineEarned      = c.decodeOrDefault(.runBaselineEarned, d.runBaselineEarned)
-        runBaselineServed      = c.decodeOrDefault(.runBaselineServed, d.runBaselineServed)
-        runBaselineFailed      = c.decodeOrDefault(.runBaselineFailed, d.runBaselineFailed)
+        runBaselinePlaySeconds = max(0, c.decodeOrDefault(.runBaselinePlaySeconds, d.runBaselinePlaySeconds))
+        runBaselineEarned      = max(0, c.decodeOrDefault(.runBaselineEarned, d.runBaselineEarned))
+        runBaselineServed      = max(0, c.decodeOrDefault(.runBaselineServed, d.runBaselineServed))
+        runBaselineFailed      = max(0, c.decodeOrDefault(.runBaselineFailed, d.runBaselineFailed))
         bestRating             = c.decodeOrDefault(.bestRating, d.bestRating)
         fastestRunSeconds      = c.decodeOrNil(TimeInterval.self, forKey: .fastestRunSeconds)
         hasSeenPrestigeIntro   = c.decodeOrDefault(.hasSeenPrestigeIntro, d.hasSeenPrestigeIntro)

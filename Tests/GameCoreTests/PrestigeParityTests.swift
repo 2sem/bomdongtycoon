@@ -45,7 +45,7 @@ final class PrestigeParityTests: XCTestCase {
         }
         return [store.stall.coins, store.progress.totalEarned, store.stall.pendingCoins, offered,
                 store.progress.rating, Double(store.progress.totalServed), Double(store.progress.totalFailed),
-                EarningsSystem.coinsPerSecond(for: store.stall)]
+                EarningsSystem.coinsPerSecond(for: store.stall, prestigeCount: 0)]
     }
 
     func test_prestige0_300TickRun_matchesMain() {

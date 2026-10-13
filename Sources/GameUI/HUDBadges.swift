@@ -5,6 +5,9 @@ import GameCore
 public struct CoinBadge: View {
     @EnvironmentObject var store: GameStore
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Dims the chip for one slow breath when a new spring lands, so the eye finds what is new.
+    @State private var isChipDimmed = false
 
     public init() {}
 
@@ -25,6 +28,18 @@ public struct CoinBadge: View {
         }
         .accessibilityElement(children: prestigeCount > 0 ? .combine : .contain)
         .accessibilityValue(prestigeCount > 0 ? legacyAccessibilityValue : "")
+        .onReceive(NotificationCenter.default.publisher(for: .newSpringDidFinish)) { _ in
+            pulseChip()
+        }
+    }
+
+    /// Odd leg count, so the animation ends on full opacity rather than snapping there.
+    private func pulseChip() {
+        guard !reduceMotion else { return }
+        isChipDimmed = true
+        withAnimation(.easeInOut(duration: 0.4).repeatCount(3, autoreverses: true)) {
+            isChipDimmed = false
+        }
     }
 
     private var prestigeCount: Int { store.progress.prestigeCount }
@@ -40,6 +55,7 @@ public struct CoinBadge: View {
             .padding(.vertical, 1)
             .background(Color.orange.opacity(0.85), in: Capsule())
             .foregroundStyle(.white)
+            .opacity(isChipDimmed ? 0.25 : 1)
             .offset(x: 4, y: 9)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
