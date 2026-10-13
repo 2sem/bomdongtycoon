@@ -25,35 +25,6 @@ public struct CoinBadge: View {
     }
 }
 
-/// Shows the player's total lifetime earnings in Korean format (e.g. 1,234,567원).
-public struct TotalEarnedBadge: View {
-    @EnvironmentObject var store: GameStore
-
-    public init() {}
-
-    public var body: some View {
-        HStack(spacing: 4) {
-            Image("money_bag")
-                .resizable()
-                .frame(width: 14, height: 14)
-            Text(formatted)
-                .font(.caption.bold())
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(.ultraThinMaterial, in: Capsule())
-    }
-
-    private var formatted: String {
-        let value = Int(store.progress.totalEarned)
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.locale = Locale(identifier: "ko_KR")
-        let number = formatter.string(from: NSNumber(value: value)) ?? "\(value)"
-        return "\(number)원"
-    }
-}
-
 /// Shows the shop's star rating (e.g. ★ 3.8) in the top-center HUD.
 public struct RatingBadge: View {
     @EnvironmentObject var store: GameStore

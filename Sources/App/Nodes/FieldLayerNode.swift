@@ -14,16 +14,7 @@ import GameCore
 /// frame and only touches a node whose stage or pose actually changed.
 final class FieldLayer: SKNode {
 
-    // `ShopWallLayer`/`KitchenLayer` (not yet ported, not added to the
-    // scene) still read these to align with the old crop patch.
-    static let columnCount = 3
-    static let rowCount = 3
     static let startColumn = -1
-    static let startRow = -(1 + rowCount)
-
-    static func layoutMetrics(for size: CGSize) -> (startRow: Int, startColumn: Int) {
-        (startRow, startColumn)
-    }
 
     enum Hit: Equatable {
         case plot(Int)

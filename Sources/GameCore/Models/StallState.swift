@@ -35,16 +35,10 @@ public struct StallState: Codable {
 
     // Computed
     public var staffCount: Int { tier1Count + tier2Count + tier3Count }
-    /// Number of shop-side workers (cashier + one cook per assigned menu slot)
-    public var shopWorkers: Int { cashierCount + menuCooks.filter { $0 > 0 }.count }
     public var stock: Double { Double(menuStock.reduce(0, +)) }
-    public var autoCollectEnabled: Bool { cashierCount > 0 }
 
-    // Legacy — kept for FarmState compatibility only
-    public var farmWorkers: Int = 0
-
-    // Farm worker training level (legacy — kept for backward compat with old saves)
-    public var farmWorkerTier: Int = 1
+    // Older saves still carry `farmWorkers` and `farmWorkerTier` (write-only, never read);
+    // decoding ignores keys it does not know, so they are simply dropped on the next save.
 
     // Farmer staff (farm-only, 2× speed)
     public var farmerCount: Int = 0
@@ -61,7 +55,6 @@ public struct StallState: Codable {
         case menuCookEnergy, cashierEnergy, cashierTier
         case tier1IdleEnergies, tier2IdleEnergies, tier3IdleEnergies
         case warehouse, warehouseCapacity, menuStock
-        case farmWorkers, farmWorkerTier
         case farmerCount, farmerIdleEnergies
         case veteranAlbaCount, veteranAlbaIdleEnergies
     }
@@ -91,8 +84,6 @@ public struct StallState: Codable {
         warehouse = c.decodeOrDefault(.warehouse, d.warehouse)
         warehouseCapacity = c.decodeOrDefault(.warehouseCapacity, d.warehouseCapacity)
         menuStock = c.decodeOrDefault(.menuStock, d.menuStock)
-        farmWorkers = c.decodeOrDefault(.farmWorkers, d.farmWorkers)
-        farmWorkerTier = c.decodeOrDefault(.farmWorkerTier, d.farmWorkerTier)
         farmerCount = c.decodeOrDefault(.farmerCount, d.farmerCount)
         farmerIdleEnergies = c.decodeOrDefault(.farmerIdleEnergies, d.farmerIdleEnergies)
         veteranAlbaCount = c.decodeOrDefault(.veteranAlbaCount, d.veteranAlbaCount)

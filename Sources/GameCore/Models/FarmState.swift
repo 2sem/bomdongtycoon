@@ -54,7 +54,6 @@ public struct FarmPlot: Codable {
 
 public struct FarmState: Codable {
     public var plots: [FarmPlot]
-    public var farmWorkers: Int = 0
 
     public init() {
         var plot0 = FarmPlot()
@@ -69,7 +68,7 @@ public struct FarmState: Codable {
         plots = [plot0, plot1]
     }
 
-    private enum CodingKeys: String, CodingKey { case plots, farmWorkers }
+    private enum CodingKeys: String, CodingKey { case plots }
 
     /// Plots decode one by one so a bad entry costs only that plot. A missing key, a non-array,
     /// or no surviving plot keeps the starting plots rather than an empty farm.
@@ -78,6 +77,5 @@ public struct FarmState: Codable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let decoded = c.decodeLossyArray(FarmPlot.self, forKey: .plots) ?? []
         plots       = decoded.isEmpty ? d.plots : decoded
-        farmWorkers = c.decodeOrDefault(.farmWorkers, d.farmWorkers)
     }
 }

@@ -2,13 +2,7 @@ import Foundation
 import Combine
 
 public enum UpgradeType {
-    case staff, menu, stall, farm, farmWorker, location, warehouse
-}
-
-extension Notification.Name {
-    /// Posted after a location purchase. `userInfo["tier"]` is the new `Int` tier.
-    /// Scene hook only; `store.stall.locationTier` is also published.
-    public static let locationTierDidChange = Notification.Name("GameStore.locationTierDidChange")
+    case staff, menu, stall, farm, location, warehouse
 }
 
 @MainActor
@@ -57,6 +51,11 @@ public final class GameStore: ObservableObject {
     private static let energyPerCook:          Double = 1.0 / 300.0   // 300 items per full bar
     private static let energyPerCashierCollect: Double = 1.0 / 60.0   // 60 collections per full bar
     private static let energyPerHarvest:       Double = 1.0 / 8.0     // 8 harvests per full bar
+
+    // MARK: - Offline constants
+    static let maxOfflineHours: Double = 8
+    /// Offline earnings rate relative to real-time: keeps progression rewarding but not trivial.
+    static let offlineEfficiency: Double = 0.25
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -467,23 +466,6 @@ public final class GameStore: ObservableObject {
             && menuIndex < stall.menuStock.count && stall.menuStock[menuIndex] < maxStock
     }
 
-    /// Cooks 1 item for each menu that has no dedicated cook assigned.
-    public func batchCook() {
-        guard stall.warehouse > 0 else { return }
-        let maxStock = EarningsSystem.maxStock(for: stall)
-        var changed = false
-        for i in 0...stall.menuTier {
-            guard stall.menuCooks[i] == 0,          // skip auto-cook menus
-                  i < stall.menuStock.count,
-                  stall.warehouse > 0,
-                  stall.menuStock[i] < maxStock else { continue }
-            stall.warehouse    -= 1
-            stall.menuStock[i] += 1
-            changed = true
-        }
-        if changed { save() }
-    }
-
     // MARK: - Cook rate
 
     /// Items per second a cook of the given tier produces.
@@ -500,16 +482,6 @@ public final class GameStore: ObservableObject {
     /// staff has to buy both speed and automation, so tap-spamming a bowl
     /// can never outpace hiring the cheapest cook.
     private static let manualCookRate: Double = 0.10
-
-    /// Human-readable cook speed label for the given tier.
-    public static func cookSpeedLabel(forTier tier: Int) -> String {
-        switch tier {
-        case 1: return "7초/개"
-        case 2: return "3.6초/개"
-        case 3: return "2초/개"
-        default: return ""
-        }
-    }
 
     // MARK: - Staff workers
 
@@ -582,13 +554,7 @@ public final class GameStore: ObservableObject {
             farm.plots[plotIndex].workerEnergy = energy
             farm.plots[plotIndex].workerType   = workerType
         }
-        stall.farmWorkers = farmAssigned
         save()
-    }
-
-    /// Legacy shim — toggles an alba worker.
-    public func toggleWorker(plotIndex: Int, displayedEnergy: Double? = nil, addToIdle: Bool = true, directEnergy: Double? = nil) {
-        toggleFarmWorker(plotIndex: plotIndex, workerType: .alba, displayedEnergy: displayedEnergy, addToIdle: addToIdle, directEnergy: directEnergy)
     }
 
     public func assignToCashier(tier: Int = 0, directEnergy: Double? = nil) {
@@ -674,27 +640,8 @@ public final class GameStore: ObservableObject {
         return 1
     }
 
-    /// Legacy: kept so old call sites compile
-    public func assignWorkerToShop() { assignToCashier() }
-    public func removeWorkerFromShop() { removeFromCashier() }
-
-    public func hireWorker() {
-        guard stall.staffTier > 0 else { return }
-        let idx  = stall.staffTier - 1
-        let cost = UpgradeDefinitions.staff[idx].coinCost
-        guard stall.coins >= cost else { return }
-        stall.coins -= cost
-        switch stall.staffTier {
-        case 1: stall.tier1Count += 1; stall.tier1IdleEnergies.append(1.0)
-        case 2: stall.tier2Count += 1; stall.tier2IdleEnergies.append(1.0)
-        case 3: stall.tier3Count += 1; stall.tier3IdleEnergies.append(1.0)
-        default: break
-        }
-        save()
-    }
-
     public func hireWorker(tier: Int) {
-        guard tier >= 1, tier <= UpgradeDefinitions.staff.count else { return }
+        guard UpgradeDefinitions.isStaffTierUnlocked(tier, stallTier: stall.stallTier) else { return }
         let cost = UpgradeDefinitions.staff[tier - 1].coinCost
         guard stall.coins >= cost else { return }
         stall.coins -= cost
@@ -758,8 +705,8 @@ public final class GameStore: ObservableObject {
             print("[Offline] earningRate=0 — no earnings recorded yet")
             return
         }
-        let elapsed = min(Date().timeIntervalSince(lastActive), OfflineProgressSystem.maxOfflineHours * 3600)
-        let earned = rate * elapsed * OfflineProgressSystem.offlineEfficiency
+        let elapsed = min(Date().timeIntervalSince(lastActive), Self.maxOfflineHours * 3600)
+        let earned = rate * elapsed * Self.offlineEfficiency
         print("[Offline] lastActive=\(lastActive), elapsed=\(Int(elapsed))s, rate=\(String(format:"%.4f",rate))/s, earned=\(Int(earned))")
         offlineEarnings = earned >= 1 ? earned : 0
     }
@@ -797,18 +744,7 @@ public final class GameStore: ObservableObject {
     public func purchaseUpgrade(_ type: UpgradeType) {
         switch type {
         case .staff:
-            let nextTier = stall.staffTier
-            guard nextTier < UpgradeDefinitions.staff.count else { return }
-            let cost = UpgradeDefinitions.staff[nextTier].coinCost
-            guard stall.coins >= cost else { return }
-            stall.coins    -= cost
-            stall.staffTier += 1
-            switch stall.staffTier {
-            case 1: stall.tier1Count += 1; stall.tier1IdleEnergies.append(1.0)
-            case 2: stall.tier2Count += 1; stall.tier2IdleEnergies.append(1.0)
-            case 3: stall.tier3Count += 1; stall.tier3IdleEnergies.append(1.0)
-            default: break
-            }
+            return   // a goal tag only: hiring goes through `hireWorker(tier:)`
 
         case .menu:
             let nextTier = stall.menuTier + 1
@@ -832,14 +768,6 @@ public final class GameStore: ObservableObject {
             stall.coins -= cost
             farm.plots.append(FarmPlot())
 
-        case .farmWorker:
-            let nextTier = stall.farmWorkerTier
-            guard nextTier < UpgradeDefinitions.farmWorker.count else { return }
-            let cost = UpgradeDefinitions.farmWorker[nextTier].coinCost
-            guard stall.coins >= cost else { return }
-            stall.coins -= cost
-            stall.farmWorkerTier += 1
-
         case .location:
             let nextTier = stall.locationTier + 1
             guard nextTier < UpgradeDefinitions.location.count else { return }
@@ -849,8 +777,6 @@ public final class GameStore: ObservableObject {
             stall.coins -= next.coinCost
             stall.locationTier = nextTier
             save()
-            NotificationCenter.default.post(
-                name: .locationTierDidChange, object: self, userInfo: ["tier": nextTier])
             return
 
         case .warehouse:

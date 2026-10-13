@@ -3,12 +3,11 @@ import SwiftUI
 
 /// Legacy sheared-parallelogram tile geometry. This described the *old*
 /// ground art (a flat, seamless repeat texture stretched into a sheared
-/// parallelogram and clipped) and is kept only because `ShopWallNode`,
-/// `FieldLayerNode`, `KitchenNode`, and `KitchenTableNode`
-/// still position themselves with this formula. `GroundLayer` itself no
-/// longer uses it — see `IsoGrid` below for the new true-isometric grid.
-/// Do not change these values without checking every one of those call
-/// sites first.
+/// parallelogram and clipped) and is kept only because the scene reads
+/// `fillColor` and `KitchenTableNode` and the Kitchen bowl nodes still
+/// size themselves with it. `GroundLayer` itself no longer uses it — see
+/// `IsoGrid` below for the new true-isometric grid. Do not change these
+/// values without checking every one of those call sites first.
 enum GroundTile {
     static let width: CGFloat = 64
     static let height: CGFloat = 32
@@ -440,8 +439,7 @@ final class GroundLayer: SKNode {
                 // drawn after — on top of — the tiles behind them, so a
                 // south tile's own art fully buries the skirt the north
                 // tile behind it left hanging into its territory (see
-                // `grid`'s doc comment). Matches the row-based zPosition
-                // convention already used by ShopWallNode.
+                // `grid`'s doc comment).
                 tile.zPosition = CGFloat(col + row)
                 addChild(tile)
             }

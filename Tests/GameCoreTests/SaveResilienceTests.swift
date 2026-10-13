@@ -89,7 +89,6 @@ final class SaveResilienceTests: XCTestCase {
         XCTAssertEqual(store.farm.plots[0].growth, 0.1)
         XCTAssertEqual(store.farm.plots[1].growth, 0.9)
         XCTAssertEqual(store.farm.plots[1].workerType, .farmer)
-        XCTAssertEqual(store.farm.farmWorkers, 2)
         XCTAssertNotNil(store.corruptBackup(of: .farm))   // a dropped element is damage
     }
 
@@ -124,7 +123,6 @@ final class SaveResilienceTests: XCTestCase {
             for _ in 0..<20 { store.tick(deltaTime: 1) }
             _ = store.startManualCook(menuIndex: n - 1)
             _ = store.sellItem(menuIndex: n - 1)
-            store.batchCook()
         }
     }
 
@@ -217,14 +215,14 @@ final class SaveResilienceTests: XCTestCase {
         XCTAssertEqual(try keys(PlayerProgress()), [
             "isFirstLaunch", "isShopNameSet", "shopName", "totalEarned", "earningRate",
             "rating", "totalServed", "totalFailed"])
-        XCTAssertEqual(try keys(FarmState()), ["plots", "farmWorkers"])
+        XCTAssertEqual(try keys(FarmState()), ["plots"])
         XCTAssertEqual(try keys(FarmPlot()), ["growth", "isPlanted", "workerType", "workerEnergy"])
         XCTAssertEqual(try keys(StallState()), [
             "coins", "menuTier", "staffTier", "stallTier", "locationTier", "pendingCoins",
             "tier1Count", "tier2Count", "tier3Count", "cashierCount", "menuCooks",
             "menuCookEnergy", "cashierEnergy", "cashierTier",
             "tier1IdleEnergies", "tier2IdleEnergies", "tier3IdleEnergies",
-            "warehouse", "warehouseCapacity", "menuStock", "farmWorkers", "farmWorkerTier",
+            "warehouse", "warehouseCapacity", "menuStock",
             "farmerCount", "farmerIdleEnergies", "veteranAlbaCount", "veteranAlbaIdleEnergies"])
     }
 }

@@ -16,7 +16,6 @@ final class TolerantSaveDecodingTests: XCTestCase {
         s.menuCookEnergy = [0.5, 0.6, 0.7]; s.cashierEnergy = 0.4; s.cashierTier = 2
         s.tier1IdleEnergies = [0.9]; s.tier2IdleEnergies = [0.8, 0.7]; s.tier3IdleEnergies = [0.3]
         s.warehouse = 9; s.warehouseCapacity = 40; s.menuStock = [4, 5, 6]
-        s.farmWorkers = 2; s.farmWorkerTier = 3
         s.farmerCount = 2; s.farmerIdleEnergies = [0.2, 0.3]
         s.veteranAlbaCount = 1; s.veteranAlbaIdleEnergies = [0.1]
         return s
@@ -32,7 +31,6 @@ final class TolerantSaveDecodingTests: XCTestCase {
         var f = FarmState()
         var p2 = samplePlot(); p2.workerType = .veteranAlba
         f.plots = [samplePlot(), p2, FarmPlot()]
-        f.farmWorkers = 3
         return f
     }
 
@@ -40,7 +38,6 @@ final class TolerantSaveDecodingTests: XCTestCase {
         var p = PlayerProgress()
         p.isFirstLaunch = false; p.isShopNameSet = true; p.shopName = "행복 분식"
         p.lastActiveDate = Date(timeIntervalSince1970: 1_700_000_000)
-        p.seasonStartDate = Date(timeIntervalSince1970: 1_690_000_000)
         p.totalEarned = 12_345; p.earningRate = 4.5; p.rating = 4.2
         p.totalServed = 99; p.totalFailed = 7
         return p
@@ -165,7 +162,7 @@ final class TolerantSaveDecodingTests: XCTestCase {
         XCTAssertEqual(Set(try json(PlayerProgress()).keys), [
             "isFirstLaunch", "isShopNameSet", "shopName", "totalEarned", "earningRate",
             "rating", "totalServed", "totalFailed"])
-        XCTAssertEqual(Set(try json(FarmState()).keys), ["plots", "farmWorkers"])
+        XCTAssertEqual(Set(try json(FarmState()).keys), ["plots"])
         XCTAssertEqual(Set(try json(FarmPlot()).keys), ["growth", "isPlanted", "workerType", "workerEnergy"])
     }
 
@@ -208,6 +205,12 @@ final class TolerantSaveDecodingTests: XCTestCase {
         defaults.set(Data(progress.utf8), forKey: "gameStore.progress")
 
         let store = GameStore(defaults: defaults)
+
+        // `farmWorkers`, `farmWorkerTier` and `seasonStartDate` are no longer modelled;
+        // an old save carrying them must load silently, not be flagged as damaged.
+        for blob in [GameStore.SaveBlob.stall, .farm, .progress] {
+            XCTAssertNil(store.corruptBackup(of: blob), "\(blob)")
+        }
 
         let s = store.stall
         XCTAssertEqual(s.coins, 4321.5)

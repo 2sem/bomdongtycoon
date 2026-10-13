@@ -61,22 +61,75 @@ final class GameStoreTests: XCTestCase {
         store.progress.lastActiveDate = Date().addingTimeInterval(-3600)
         store.calculateOfflineEarnings()
         // 10 coins/s x 3600 s x offlineEfficiency
-        XCTAssertEqual(store.offlineEarnings, 10 * 3600 * OfflineProgressSystem.offlineEfficiency, accuracy: 1)
+        XCTAssertEqual(store.offlineEarnings, 10 * 3600 * GameStore.offlineEfficiency, accuracy: 1)
     }
 
-    func test_purchaseUpgrade_staff_deductsCoins() {
-        store.stall.coins = 1000
-        store.purchaseUpgrade(.staff)
-        let staffCost = UpgradeDefinitions.staff[0].coinCost
-        XCTAssertEqual(store.stall.coins, 1000 - staffCost, accuracy: 0.001)
-        XCTAssertEqual(store.stall.staffTier, 1)
+    func test_offlineEarnings_cappedAtMaxOfflineHours() {
+        store.progress.isFirstLaunch = false
+        store.progress.isShopNameSet = true
+        store.progress.earningRate = 10
+        store.progress.lastActiveDate = Date().addingTimeInterval(-20 * 3600)
+        store.calculateOfflineEarnings()
+        let cap = 10 * GameStore.maxOfflineHours * 3600 * GameStore.offlineEfficiency
+        XCTAssertEqual(store.offlineEarnings, cap, accuracy: 1)
+    }
+
+    func test_purchaseUpgrade_menu_deductsCoins() {
+        store.stall.coins = 5000
+        store.purchaseUpgrade(.menu)
+        XCTAssertEqual(store.stall.coins, 5000 - UpgradeDefinitions.menu[1].coinCost, accuracy: 0.001)
+        XCTAssertEqual(store.stall.menuTier, 1)
     }
 
     func test_purchaseUpgrade_insufficientCoins_doesNothing() {
         store.stall.coins = 10
-        store.purchaseUpgrade(.staff)
+        store.purchaseUpgrade(.menu)
         XCTAssertEqual(store.stall.coins, 10, accuracy: 0.001)
-        XCTAssertEqual(store.stall.staffTier, 0)
+        XCTAssertEqual(store.stall.menuTier, 0)
+    }
+
+    // MARK: - Hiring gate
+
+    func test_hireWorker_lockedTier_isRefusedByTheStore() {
+        store.stall.coins = 1_000_000
+        store.stall.stallTier = 0
+        let before = store.stall
+
+        store.hireWorker(tier: 2)   // 이모님 needs 봄동 식당
+        store.hireWorker(tier: 3)   // 봄동 요리사 needs 봄동 전문점
+        XCTAssertEqual(store.stall.coins, before.coins, accuracy: 0.001)
+        XCTAssertEqual(store.stall.tier2Count, before.tier2Count)
+        XCTAssertEqual(store.stall.tier3Count, before.tier3Count)
+        XCTAssertEqual(store.stall.staffTier, before.staffTier)
+
+        store.stall.stallTier = 1
+        store.hireWorker(tier: 3)
+        XCTAssertEqual(store.stall.tier3Count, 0, "tier 3 stays locked at stall tier 1")
+    }
+
+    func test_hireWorker_unlockedTier_hires() {
+        store.stall.coins = 10_000
+        store.stall.stallTier = 1
+        store.hireWorker(tier: 2)
+        XCTAssertEqual(store.stall.tier2Count, 1)
+        XCTAssertEqual(store.stall.staffTier, 2)
+        XCTAssertEqual(store.stall.coins, 10_000 - UpgradeDefinitions.staff[1].coinCost, accuracy: 0.001)
+    }
+
+    func test_hireWorker_firstTier_isNeverGated() {
+        store.stall.coins = 1_000
+        XCTAssertEqual(store.stall.stallTier, 0)
+        let before = store.stall.tier1Count
+        store.hireWorker(tier: 1)
+        XCTAssertEqual(store.stall.tier1Count, before + 1)
+        XCTAssertEqual(store.stall.coins, 1_000 - UpgradeDefinitions.staff[0].coinCost, accuracy: 0.001)
+    }
+
+    func test_hireWorker_outOfRangeTier_isRefused() {
+        store.stall.coins = 1_000_000
+        store.hireWorker(tier: 0)
+        store.hireWorker(tier: 4)
+        XCTAssertEqual(store.stall.coins, 1_000_000, accuracy: 0.001)
     }
 
     // MARK: - Manual (tap) cook

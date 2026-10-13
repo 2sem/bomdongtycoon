@@ -8,7 +8,6 @@ struct GameRootView: View {
     @State private var showUpgrades = false
     @State private var showStaff = false
     @State private var staffTab: StaffTab = .assign
-    @State private var showJob = false
     @State private var locationToast: String?
     @State private var toastTask: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -56,13 +55,6 @@ struct GameRootView: View {
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(24)
         }
-        .sheet(isPresented: $showJob) {
-            JobSheet(isPresented: $showJob)
-                .environmentObject(store)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(24)
-        }
         .onAppear {
             store.isSimulationPaused = isIntroOverlayUp
             if store.progress.isShopNameSet { NotificationManager.requestPermissionIfUndetermined() }
@@ -72,13 +64,6 @@ struct GameRootView: View {
         }
         .onChange(of: store.progress.isShopNameSet) { _, isSet in
             if isSet { NotificationManager.requestPermissionIfUndetermined() }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .openStaffSheet)) { _ in
-            staffTab = .assign
-            showStaff = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .openJobSheet)) { _ in
-            showJob = true
         }
         .modifier(AddFarmPlotConfirmation())
         .overlay(alignment: .top) {
