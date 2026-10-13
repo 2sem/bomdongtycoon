@@ -4,6 +4,7 @@ import GameCore
 /// Shows spendable coins in Korean format (e.g. ₩1,234).
 public struct CoinBadge: View {
     @EnvironmentObject var store: GameStore
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     public init() {}
 
@@ -18,6 +19,36 @@ public struct CoinBadge: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(.ultraThinMaterial, in: Capsule())
+        // Hangs off the corner without taking layout space, so the first-run row is unchanged.
+        .overlay(alignment: .bottomTrailing) {
+            if showsLegacyChip { legacyChip }
+        }
+        .accessibilityElement(children: prestigeCount > 0 ? .combine : .contain)
+        .accessibilityValue(prestigeCount > 0 ? legacyAccessibilityValue : "")
+    }
+
+    private var prestigeCount: Int { store.progress.prestigeCount }
+
+    /// Dropped at accessibility sizes, where the chip would collide with the next badge.
+    private var showsLegacyChip: Bool { prestigeCount > 0 && !typeSize.isAccessibilitySize }
+
+    private var legacyChip: some View {
+        Text("✨" + PrestigeSystem.multiplierText(prestigeCount: prestigeCount))
+            .font(.caption2.weight(.semibold))
+            .monospacedDigit()
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(Color.orange.opacity(0.85), in: Capsule())
+            .foregroundStyle(.white)
+            .offset(x: 4, y: 9)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
+    private var legacyAccessibilityValue: String {
+        String(
+            format: String(localized: "prestige.multiplier.accessibility"),
+            PrestigeSystem.multiplierNumber(PrestigeSystem.legacyMultiplier(prestigeCount: prestigeCount)))
     }
 
     private var formatted: String {

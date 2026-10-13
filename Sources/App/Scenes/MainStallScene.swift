@@ -165,8 +165,8 @@ final class MainStallScene: SKScene {
     /// Shows the hired cashier/cook figures, only when their derived
     /// presence changed.
     private func updateShopStaff() {
-        guard let stall = store?.stall else { return }
-        let presence = ShopStaffPresence(stall: stall)
+        guard let store else { return }
+        let presence = ShopStaffPresence(stall: store.stall, cashierRecentlySold: store.cashierRecentlySold)
         guard presence != lastAppliedStaff else { return }
         shop.applyStaff(presence)
         lastAppliedStaff = presence

@@ -161,7 +161,10 @@ final class TolerantSaveDecodingTests: XCTestCase {
     func test_encodingKeysUnchanged() throws {
         XCTAssertEqual(Set(try json(PlayerProgress()).keys), [
             "isFirstLaunch", "isShopNameSet", "shopName", "totalEarned", "earningRate",
-            "rating", "totalServed", "totalFailed"])
+            "rating", "totalServed", "totalFailed",
+            // Prestige core. `fastestRunSeconds` is nil until a spring, so it is omitted by default.
+            "prestigeCount", "totalPlaySeconds", "runBaselinePlaySeconds", "runBaselineEarned",
+            "runBaselineServed", "runBaselineFailed", "bestRating", "hasSeenPrestigeIntro"])
         XCTAssertEqual(Set(try json(FarmState()).keys), ["plots"])
         XCTAssertEqual(Set(try json(FarmPlot()).keys), ["growth", "isPlanted", "workerType", "workerEnergy"])
     }
