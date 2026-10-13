@@ -89,9 +89,13 @@ def mat(name, rgba):
 
 
 class Fig:
-    def __init__(self, role, scale=1.0):
+    def __init__(self, role, scale=1.0, back=False):
         self.role = role
         self.s = scale
+        # back=True turns the whole figure 180 degrees about the vertical:
+        # every (lat, fwd) is negated in P, so the back of the head and torso
+        # face the camera. Everything routes through P, so nothing else knows.
+        self.flip = -1.0 if back else 1.0
         self.seg = 14
         self.rings = 6
         self._n = 0
@@ -107,8 +111,8 @@ class Fig:
         return f"{self.role}{what}{self._n}"
 
     def P(self, lat, fwd, z):
-        s = self.s
-        return (lat * s, fwd * s, z * s)
+        s, k = self.s, self.flip
+        return (lat * s * k, fwd * s * k, z * s)
 
     def ellipsoid(self, what, at, radii, rgba, no_ink=False, rings=None):
         """`at` and `radii` are scale-1; radii = (lat, fwd, z)."""
@@ -204,15 +208,17 @@ TORSO = [(0.0, HIP - 0.005), (0.075, HIP + 0.02), (0.098, 0.20), (0.092, 0.27),
 
 
 def build(role, palette, scale=1.0, head_k=1.0, face_k=1.0, hair="short",
-          hat=None, apron=False, pose="idle", tool=None):
+          hat=None, apron=False, pose="idle", tool=None, back=False):
     """One figure.
 
     hair: "short" | "buns" (kid) | "elder".
     hat:  None | "cap" | "toque" | "straw".
     pose: "idle" | "walk" | "work" (both hands forward on the held prop).
     tool: None | "register" | "pan" | "hoe" (only with pose "work").
+    back: seen from behind (customers walking away from the camera or queued
+          facing the counter): no face, extra hair volume at the nape.
     """
-    f = Fig(role, scale)
+    f = Fig(role, scale, back)
     walking, working = pose == "walk", pose == "work"
 
     # head: `head_k` swells it for a childlike ratio; it still sits on the neck.
@@ -259,7 +265,8 @@ def build(role, palette, scale=1.0, head_k=1.0, face_k=1.0, hair="short",
 
     # head and face
     f.ellipsoid("Head", head_c, hr, palette["skin"], rings=f.rings + 1)
-    f.face(head_c, hr, face_k)
+    if not back:
+        f.face(head_c, hr, face_k)
 
     hl, hf, hz = head_c
     hair_r = hr[2] * 1.10
@@ -268,7 +275,7 @@ def build(role, palette, scale=1.0, head_k=1.0, face_k=1.0, hair="short",
 
     def shell(name, rgba, polar, tilt_fwd, lift=0.010, rings=5, radius=hair_r):
         acol, arow = grid(0.0, tilt_fwd)
-        col, row = grid(0.0, -0.010 * f.s)
+        col, row = grid(0.0, -0.010 * f.s * f.flip)
         return isobuild.lathe(
             f._name(name), (col, row, (hz + lift) * f.s),
             isobuild.dome_profile(radius * f.s, polar, rings), f.m(rgba),
@@ -323,6 +330,12 @@ def build(role, palette, scale=1.0, head_k=1.0, face_k=1.0, hair="short",
                 for sgn in (-1, 1):
                     f.ellipsoid("Bun", (sgn * 0.108, -0.005, hz + 0.100),
                                 (0.052, 0.048, 0.052), hair_rgba, rings=4)
+
+    if back and hat is None:
+        # from the front the face side of the shell is bare skin; from behind
+        # the nape and crown need real hair mass (buns / bun show fully).
+        f.ellipsoid("NapeHair", (0.0, -0.030, hz - 0.012),
+                    (hr[0] * 1.04, hr[1] * 0.92, hr[2] * 0.96), hair_rgba)
 
     # held props, grid (col, row) at the hands' meeting point
     if working and tool == "register":
