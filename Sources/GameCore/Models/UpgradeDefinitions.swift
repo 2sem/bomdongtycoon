@@ -89,7 +89,7 @@ public enum UpgradeDefinitions {
 
     /// Staff tiers — each hire's cook speed
     public static let staff: [UpgradeDefinition] = [
-        .init(name: "알바생",      coinCost: 500,    description: "밭·계산대·주방 모두 가능", productionMultiplier: 2.0),
+        .init(name: "알바생",      coinCost: 300,    description: "밭·계산대·주방 모두 가능", productionMultiplier: 2.0),
         .init(name: "이모님",      coinCost: 3_000,  description: "계산대·주방 배치 가능",     productionMultiplier: 4.0),
         .init(name: "봄동 요리사", coinCost: 15_000, description: "주방 전담, 최고 속도",       productionMultiplier: 7.0)
     ]
@@ -97,7 +97,7 @@ public enum UpgradeDefinitions {
     /// Stall upgrades — increase maximum stock capacity
     public static let stall: [UpgradeDefinition] = [
         .init(name: "포장마차",    coinCost: 0,      description: "시작 가게", maxStock: 15),
-        .init(name: "봄동 식당",    coinCost: 5_000,  description: "재고 30개", maxStock: 30, unlocks: "이모님 · 농부 고용 가능"),
+        .init(name: "봄동 식당",    coinCost: 2_500,  description: "재고 30개", maxStock: 30, unlocks: "이모님 · 농부 고용 가능"),
         .init(name: "봄동 전문점", coinCost: 25_000, description: "재고 60개", maxStock: 60, unlocks: "봄동 요리사 고용 가능")
     ]
 

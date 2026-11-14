@@ -24,3 +24,7 @@ ProjectDescriptionHelpers/
 .claude/*
 !.claude/agents/
 .firebase/
+
+# dotart review renders — reproducible from tools/dotart
+tools/dotart/out/
+__pycache__/

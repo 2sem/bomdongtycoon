@@ -49,23 +49,46 @@ public enum EarningsSystem {
     }
 
     /// What a sale actually pays: the one place every revenue multiplier composes
-    /// (menu x location x cashier x legacy). Costs are never scaled.
+    /// (menu x location x renovation x cashier x legacy). Costs are never scaled.
     /// Offline earnings use `progress.earningRate`, an EMA of these sale prices, so the
     /// cashier and legacy bonuses are already inside the rate and must not be applied again there.
     /// `prestigeCount` 0 multiplies by exactly 1.0, so a first-run player's prices are untouched.
     /// Required, not defaulted: a caller that forgot it would silently price a prestiged save at x1.
-    public static func salePrice(for stall: StallState, menuIndex: Int, prestigeCount: Int) -> Double {
+    /// `feverMultiplier`, `boostMultiplier` and `gourmetMultiplier` are active-play bonuses: only `sellItem` passes
+    /// them, so `coinsPerSecond`, the golden bonus and offline earnings stay on the base economy.
+    public static func salePrice(for stall: StallState, menuIndex: Int, prestigeCount: Int,
+                                 feverMultiplier: Double = 1, gourmetMultiplier: Double = 1,
+                                 boostMultiplier: Double = 1) -> Double {
         pricePerItem(for: stall, menuIndex: menuIndex)
             * cashierSaleMultiplier(for: stall)
             * PrestigeSystem.legacyMultiplier(prestigeCount: prestigeCount)
+            * feverMultiplier
+            * boostMultiplier
+            * gourmetMultiplier
     }
 
-    /// Price for a specific menu slot (겉절이=30, 봄동김치=75, 봄동비빔밥=180) times the location multiplier
+    public static let gourmetMultiplier: Double = 3
+
+    /// Price for a specific menu slot (겉절이=30, 봄동김치=75, 봄동비빔밥=180) times the recipe level,
+    /// location and renovation multipliers
     public static func pricePerItem(for stall: StallState, menuIndex: Int) -> Double {
         let menuMultiplier = menuIndex < UpgradeDefinitions.menu.count
             ? UpgradeDefinitions.menu[menuIndex].priceMultiplier
             : 1.0
         return basePricePerItem * menuMultiplier * locationMultiplier(for: stall)
+            * RenovationSystem.priceMultiplier(level: stall.renovationLevel)
+            * RecipeSystem.priceMultiplier(level: RecipeSystem.level(for: stall, menuIndex: menuIndex))
+    }
+
+    /// Dishes a customer may order: unlocked and either in stock or with a cook assigned. When no dish
+    /// qualifies (a fresh shop), any unlocked dish, so a customer always has something to ask for.
+    public static func orderableMenus(for stall: StallState) -> [Int] {
+        let unlocked = Array(0...max(0, min(stall.menuTier, UpgradeDefinitions.menu.count - 1)))
+        let ready = unlocked.filter { i in
+            (i < stall.menuStock.count && stall.menuStock[i] > 0)
+                || (i < stall.menuCooks.count && stall.menuCooks[i] > 0)
+        }
+        return ready.isEmpty ? unlocked : ready
     }
 
     /// Maximum stock the stall can hold at once
@@ -111,9 +134,17 @@ public enum EarningsSystem {
         switch nextGoalType(for: stall) {
         case .staff: .hire
         case .warehouse: .warehouse
+        case .renovation: .renovation
+        case .recipe: .recipe
         case nil: nil
         default: .upgrade
         }
+    }
+
+    /// Nothing but the endless sinks (recipe levels, renovation) left to buy: the point where the
+    /// goal capsule becomes the new-spring entry, since those never outrank it.
+    public static func isOnlyRenovationLeft(for stall: StallState) -> Bool {
+        structuralCandidates(for: stall).isEmpty
     }
 
     // MARK: Location goal
@@ -169,10 +200,33 @@ public enum EarningsSystem {
     }
 
     private static func nextGoal(for stall: StallState) -> Goal? {
-        candidates(for: stall).min(by: { $0.definition.coinCost < $1.definition.coinCost })
+        // A tie goes to the warehouse: it is only offered when it is the real throttle.
+        candidates(for: stall).min { a, b in
+            if a.definition.coinCost != b.definition.coinCost { return a.definition.coinCost < b.definition.coinCost }
+            return a.type == .warehouse && b.type != .warehouse
+        }
     }
 
+    /// Everything the player can ever save toward, cheapest first wins: the structural purchases plus
+    /// the endless recipe levels and renovation, so there is always a next goal.
     private static func candidates(for stall: StallState) -> [Goal] {
+        var result = structuralCandidates(for: stall)
+        for menuIndex in 0..<UpgradeDefinitions.menu.count {
+            guard let cost = RecipeSystem.nextCost(for: stall, menuIndex: menuIndex) else { continue }
+            let level = RecipeSystem.level(for: stall, menuIndex: menuIndex)
+            result.append(Goal(type: .recipe(menuIndex: menuIndex), definition: UpgradeDefinition(
+                name: UpgradeDefinitions.menu[menuIndex].name, coinCost: cost,
+                description: "레시피 \(level) → \(level + 1)")))
+        }
+        if let cost = RenovationSystem.nextCost(for: stall) {
+            result.append(Goal(type: .renovation, definition: UpgradeDefinition(
+                name: "가게 단장", coinCost: cost,
+                description: "판매가 +\(RenovationSystem.percentPerLevel)%")))
+        }
+        return result
+    }
+
+    private static func structuralCandidates(for stall: StallState) -> [Goal] {
         var result: [Goal] = []
         // Hire tier = staffTier + 1; skipped while the stall is too low, so the
         // stall upgrade that unlocks it becomes the goal instead.
@@ -191,9 +245,11 @@ public enum EarningsSystem {
             result.append(Goal(type: .location, definition: UpgradeDefinition(
                 name: next.name, coinCost: next.coinCost, description: next.description)))
         }
-        // Warehouse: only a goal once it is the real throttle (>= 80% full), so cheapest-first
-        // cannot let a 300-coin expansion displace a hire/menu/stall while there is still room.
+        // Warehouse: only a goal once it is the real throttle (>= 80% full) AND a menu cook is
+        // assigned. Before a cook exists the cook is the bottleneck, so cheapest-first must not let
+        // a 300-coin expansion displace a hire/menu/stall while there is still room.
         if WarehouseSystem.isThrottling(count: stall.warehouse, capacity: stall.warehouseCapacity),
+           stall.menuCooks.contains(where: { $0 > 0 }),
            let next = WarehouseSystem.nextExpansion(current: stall.warehouseCapacity) {
             result.append(Goal(type: .warehouse, definition: UpgradeDefinition(
                 name: "창고 확장", coinCost: next.cost,
@@ -204,5 +260,5 @@ public enum EarningsSystem {
 }
 
 public enum GoalLabel: Equatable {
-    case hire, warehouse, upgrade
+    case hire, warehouse, upgrade, renovation, recipe
 }

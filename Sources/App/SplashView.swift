@@ -1,4 +1,5 @@
 import SwiftUI
+import GameUI
 import GoogleMobileAds
 
 struct SplashView: View {
@@ -7,19 +8,16 @@ struct SplashView: View {
 
     var body: some View {
         ZStack {
-            Image("Splash")
-                .resizable()
-                .scaledToFill()
-                .ignoresSafeArea()
+            // Same colour as LaunchScreen.storyboard, so the hand-off from launch to splash is seamless.
+            DotPalette.meadow.ignoresSafeArea()
 
-            VStack {
-                Spacer()
+            VStack(spacing: 20) {
+                DotImage("dot_ui_logo", scale: 4)
                 Text(String(localized: "봄동 타이쿤"))
-                    .font(.system(size: 36, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.6), radius: 4, x: 0, y: 2)
-                    .padding(.bottom, 60)
+                    .dotText(.title, color: DotPalette.paper, shadow: true)
+                    .accessibilityAddTraits(.isHeader)
             }
+            .offset(y: -24)
         }
         .transition(.opacity)
         .onAppear { setup() }

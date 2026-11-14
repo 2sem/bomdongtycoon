@@ -1,0 +1,165 @@
+#if DEBUG
+import SpriteKit
+import GameCore
+
+/// `-dotAutoplay`: an attentive player with no fingers. Drives the same handlers a tap would, at
+/// most `tapsPerStep` taps per game second, and logs a `[DotQA]` line every 30 game seconds.
+/// Priorities: fever, tip coins, ripe plots, dishes running low, empty plots; claims and purchases
+/// are free. Seed it with `-dotSeed` to start mid-game, or run it on a fresh install.
+struct AutoplayState {
+    var clock: Double = 0
+    var nextLog: Double = 0
+    var seenServed = 0, seenStaff = 1, seenFevers = 0, seenTiers = 0
+    var firstSaleLogged = false
+    var lastStep: Double = 0
+    var readyLoggedAt = -1
+    var purchases = 0
+    var lastPurchase: Double = 0
+    var longestGap: Double = 0
+}
+
+extension DotWorldScene {
+
+    private static let stepSeconds = 1.0
+    private static let tapsPerStep = 2
+    private static let logEvery = 30.0
+
+    func autoplay(delta: TimeInterval, store: GameStore) {
+        guard DotDebug.wantsAutoplay, !store.isSimulationPaused, layout != nil else { return }
+        autoplayState.clock += delta
+        logEvents(store)
+        if autoplayState.clock >= autoplayState.nextLog {
+            logSnapshot(store)
+            autoplayState.nextLog += Self.logEvery
+        }
+        guard autoplayState.clock >= autoplayState.lastStep + Self.stepSeconds else { return }
+        autoplayState.lastStep = autoplayState.clock
+        claim(store)
+        takeAds(store)
+        buyGoal(store)
+        tapAround(store)
+    }
+
+    private func tapAround(_ store: GameStore) {
+        var taps = Self.tapsPerStep
+        if store.isFeverReady, !DotDebug.autoplaySkipsFever { store.startFever(); taps -= 1 }
+        if let layout {
+            for point in tipLayer?.points ?? [] where taps > 0 {
+                if let tip = tipLayer?.collect(at: point) { collectTip(tip, store: store, layout: layout); taps -= 1 }
+            }
+        }
+        for i in store.farm.plots.indices where taps > 0 && store.farm.plots[i].stage == .ready
+            && store.stall.warehouse < store.stall.warehouseCapacity {
+            handleFarmTap(.plot(i), store: store); taps -= 1
+        }
+        let low = store.isFeverActive ? EarningsSystem.maxStock(for: store.stall) : 3
+        for menu in 0...min(store.stall.menuTier, 2) where taps > 0
+            && store.stall.menuStock[menu] < low && store.stall.warehouse > 0
+            && !(store.stall.menuCooks[menu] > 0) && !store.isManualCookRunning(menuIndex: menu) {
+            handleDishTap(menu, store: store); taps -= 1
+        }
+        for i in store.farm.plots.indices where taps > 0 && store.farm.plots[i].stage == .empty
+            && store.stall.coins >= FarmSystem.seedCost * 2 {
+            handleFarmTap(.plot(i), store: store); taps -= 1
+        }
+    }
+
+    private func claim(_ store: GameStore) {
+        let multiplier = DotDebug.autoplayTakesAds ? 2.0 : 1.0
+        for mission in store.missions where mission.isComplete && !mission.isClaimed {
+            if let paid = store.claimMission(id: mission.id, multiplier: multiplier) {
+                DotDebug.qa("event claim \(mission.kind.rawValue) +\(Int(paid)) t=\(timeText(store))")
+            }
+        }
+        if let paid = store.claimDailyBonus(multiplier: multiplier) {
+            DotDebug.qa("event claim daily_bonus +\(Int(paid)) t=\(timeText(store))")
+        }
+    }
+
+    /// `-dotAutoplayAds`: says yes to every rewarded offer (the ad itself is skipped, as `-dotAdsGrant` does).
+    private func takeAds(_ store: GameStore) {
+        guard DotDebug.autoplayTakesAds else { return }
+        if store.claimFeverAdCharge() { DotDebug.qa("event ad fever t=\(timeText(store))") }
+        if store.claimBoost() { DotDebug.qa("event ad boost t=\(timeText(store))") }
+        if let paid = store.claimGift() { DotDebug.qa("event ad gift +\(Int(paid)) t=\(timeText(store))") }
+    }
+
+    private func notePurchase(_ store: GameStore) {
+        let now = autoplayState.clock
+        autoplayState.longestGap = max(autoplayState.longestGap, now - autoplayState.lastPurchase)
+        autoplayState.lastPurchase = now
+        autoplayState.purchases += 1
+    }
+
+    /// Buys the current goal the moment it is affordable (never the new spring), then puts a new
+    /// hire to work: a menu cook first, then the cashier.
+    private func buyGoal(_ store: GameStore) {
+        guard !store.isPrestigeAvailable || EarningsSystem.nextGoalType(for: store.stall) != nil,
+              let type = EarningsSystem.nextGoalType(for: store.stall),
+              let goal = EarningsSystem.nextGoalUpgrade(for: store.stall) else { return }
+        let coins = store.stall.coins
+        switch type {
+        case .staff:
+            guard coins >= goal.coinCost else { return }
+            store.hireWorker(tier: store.stall.staffTier + 1)
+            notePurchase(store)
+            DotDebug.qa("event hire t=\(timeText(store)) staff=\(store.stall.staffCount)")
+        default:
+            guard coins >= goal.coinCost else { return }
+            store.purchaseUpgrade(type)
+            notePurchase(store)
+            DotDebug.qa("event buy \(type) cost=\(Int(goal.coinCost)) t=\(timeText(store))")
+        }
+        placeIdleStaff(store)
+    }
+
+    private func placeIdleStaff(_ store: GameStore) {
+        for menu in 0...min(store.stall.menuTier, 2) where store.stall.menuCooks[menu] == 0 && store.availableWorkers > 0 {
+            store.assignMenuCook(menuIndex: menu)
+        }
+        if store.stall.cashierCount == 0, store.availableWorkers > 0 { store.assignToCashier() }
+    }
+
+    private func logEvents(_ store: GameStore) {
+        let p = store.progress
+        if p.totalServed > 0, !autoplayState.firstSaleLogged {
+            autoplayState.firstSaleLogged = true
+            DotDebug.qa("event first_sale t=\(timeText(store))")
+        }
+        if p.totalFevers > autoplayState.seenFevers {
+            autoplayState.seenFevers = p.totalFevers
+            DotDebug.qa("event fever_start t=\(timeText(store)) n=\(p.totalFevers)")
+        }
+        if store.isFeverReady, autoplayState.readyLoggedAt != p.totalFevers {
+            autoplayState.readyLoggedAt = p.totalFevers
+            DotDebug.qa("event fever_ready t=\(timeText(store))")
+        }
+    }
+
+    private func logSnapshot(_ store: GameStore) {
+        let p = store.progress
+        let s = store.stall
+        let lost = p.totalServed + p.totalFailed > 0
+            ? String(format: "%.0f%%", Double(p.totalFailed) / Double(p.totalServed + p.totalFailed) * 100) : "-"
+        DotDebug.qa(String(format: "t=%@ coins=%.0f rating=%.2f served=%d failed=%d lost=%@ stall=%d menu=%d loc=%d staff=%d fevers=%d goldens=%d tips=%d buys=%d gap=%.0f recipes=%@ reno=%d boost=%d",
+                           timeText(store), s.coins, p.rating, p.totalServed, p.totalFailed, lost, s.stallTier, s.menuTier,
+                           s.locationTier, s.staffCount + s.farmerCount + s.veteranAlbaCount, p.totalFevers,
+                           p.totalGoldenHarvested, p.totalTipsCollected, autoplayState.purchases,
+                           max(autoplayState.longestGap, autoplayState.clock - autoplayState.lastPurchase),
+                           s.recipeLevels.map(String.init).joined(separator: "/"), s.renovationLevel,
+                           store.isBoostActive ? 1 : 0))
+    }
+
+    private func timeText(_ store: GameStore) -> String {
+        let t = Int(store.progress.totalPlaySeconds)
+        return String(format: "%d:%02d", t / 60, t % 60)
+    }
+}
+#else
+import Foundation
+import GameCore
+
+extension DotWorldScene {
+    func autoplay(delta: TimeInterval, store: GameStore) {}
+}
+#endif

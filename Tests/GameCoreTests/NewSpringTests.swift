@@ -251,7 +251,8 @@ final class NewSpringTests: XCTestCase {
             "isFirstLaunch", "isShopNameSet", "shopName", "totalEarned", "totalServed", "totalFailed",
             "totalPlaySeconds", "bestRating", "hasSeenPrestigeIntro", "prestigeCount",
             "fastestRunSeconds", "runBaselinePlaySeconds", "runBaselineEarned", "runBaselineServed",
-            "runBaselineFailed", "lastActiveDate"]
+            "runBaselineFailed", "lastActiveDate",
+            "totalGourmetServed", "totalGoldenHarvested", "totalFevers", "totalTipsCollected"]
         let progressReset: Set<String> = ["earningRate", "rating"]
 
         let store = makeReadyStore()
@@ -278,7 +279,7 @@ final class NewSpringTests: XCTestCase {
             "tier1Count", "tier2Count", "tier3Count", "cashierCount", "menuCooks", "menuCookEnergy",
             "cashierEnergy", "cashierTier", "tier1IdleEnergies", "tier2IdleEnergies",
             "tier3IdleEnergies", "warehouse", "warehouseCapacity", "menuStock", "farmerCount",
-            "farmerIdleEnergies", "veteranAlbaCount", "veteranAlbaIdleEnergies"]
+            "farmerIdleEnergies", "veteranAlbaCount", "veteranAlbaIdleEnergies", "renovationLevel", "recipeLevels"]
         let stallTransient: Set<String> = []   // none today: RunTransients lives on GameStore
         let stallLabels = Mirror(reflecting: store.stall).children.compactMap(\.label)
         XCTAssertEqual(Set(stallLabels), stallReset.union(stallTransient),
@@ -413,7 +414,8 @@ final class NewSpringTests: XCTestCase {
             "isFirstLaunch", "isShopNameSet", "shopName", "lastActiveDate", "totalEarned", "earningRate",
             "rating", "totalServed", "totalFailed", "prestigeCount", "totalPlaySeconds",
             "runBaselinePlaySeconds", "runBaselineEarned", "runBaselineServed", "runBaselineFailed",
-            "bestRating", "fastestRunSeconds", "hasSeenPrestigeIntro"]
+            "bestRating", "fastestRunSeconds", "hasSeenPrestigeIntro",
+            "totalGourmetServed", "totalGoldenHarvested", "totalFevers", "totalTipsCollected"]
         XCTAssertTrue(Set(object.keys).isSubset(of: previous), "\(Set(object.keys).subtracting(previous))")
 
         let back = try JSONDecoder().decode(PlayerProgress.self, from: data)

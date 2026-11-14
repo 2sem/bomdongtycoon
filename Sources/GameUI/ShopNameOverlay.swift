@@ -9,41 +9,38 @@ public struct ShopNameOverlay: View {
     public init() {}
 
     public var body: some View {
-        ZStack {
-            Color.black.opacity(0.55).ignoresSafeArea()
-            VStack(spacing: 20) {
-                Image("building_tent")
-                    .resizable()
-                    .frame(width: 64, height: 64)
+        DotOverlay {
+            VStack(spacing: 14) {
+                DotImage("dot_ui_logo", scale: 2)
                 Text(String(localized: "가게 이름을 정해주세요!"))
-                    .font(.title2.bold())
-                Text(String(localized: "당신만의 봄동 가게를 만들어보세요 🥬"))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .dotText(.title)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+                Text(String(localized: "dot.name.subtitle"))
+                    .dotText(.body, color: DotPalette.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                TextField("봄동 가게", text: $name)
-                    .font(.headline)
+                TextField("", text: $name,
+                          prompt: Text(String(localized: "봄동 가게")).foregroundColor(DotPalette.grey))
+                    .font(.dot(.bold))
+                    .foregroundStyle(DotPalette.paper)
+                    .tint(DotPalette.goldLight)
                     .multilineTextAlignment(.center)
                     .focused($focused)
-                    .padding()
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .submitLabel(.done)
+                    .onSubmit { store.setShopName(name) }
+                    .frame(minHeight: 28)
+                    .dotPanel(.dark)
+                    .accessibilityLabel(String(localized: "dot.name.field"))
 
-                Button(String(localized: "시작하기! 🥬")) {
-                    store.setShopName(name)
+                Button { store.setShopName(name) } label: {
+                    Text(String(localized: "dot.start")).frame(maxWidth: .infinity)
                 }
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.green)
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .buttonStyle(.dot)
             }
-            .padding(28)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24))
-            .padding(24)
         }
         .onAppear { focused = true }
-        .transition(.opacity)
     }
 }

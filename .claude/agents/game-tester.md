@@ -19,15 +19,29 @@ You review; you do not fix. You do **not** write or edit Swift, specs, art or wo
 
 ## How to test
 
-**Static audit first (cheap, catches the worst gaps).** For every UI entry in `Sources/GameUI/` and every system in `Sources/GameCore/Systems/`, find what opens or calls it. A sheet with no opener, a notification nobody posts, or a system with no caller is a finding. Read `Sources/App/GameRootView.swift` and `Sources/App/Scenes/MainStallScene.swift` as the real entry points. The scene was reset to a skeleton in `2677abd` and is being rebuilt in layers, so expect gaps; list them rather than assuming they are known.
+**Be fast. A round is 10–15 minutes of wall clock and about 60 tool calls, not 200.** Real-time tapping is the slow path: one tap, one screenshot, one look is three calls for two seconds of game. Use it only where a finger is the thing under test. If the brief is bigger than the budget, cover it in priority order and list the rest under NOT TESTED rather than running long.
 
-**Then play it.** Check your auto-memory index first; it holds how this Mac runs the simulator:
-- There is no Simulator.app here; the sim is viewed through DeviceHub.app.
-- Seed a save at a chosen tier by editing the app's defaults with `defaults` while the app is shut down (a plist edit alone gets overwritten by the cfprefsd cache), then launch.
-- Tap through using the Xcode MCP device-interaction tools and take screenshots.
-- Build with `tuist test GameCoreTests --no-selective-testing` using the pinned binary `~/.local/share/mise/installs/tuist/4.158.2/tuist` (`mise x --` prints nothing in this shell). Do not regenerate the project unless a file was added.
+**Static audit first (cheap, catches the worst gaps).** For every UI entry in `Sources/GameUI/` and every system in `Sources/GameCore/Systems/`, find what opens or calls it. A sheet with no opener, a notification nobody posts, or a system with no caller is a finding. Entry points: `Sources/App/GameRootView.swift` and `Sources/App/Dot/DotWorldScene.swift`.
 
-Play at least: first launch, earning, the upgrade sheet, a stall upgrade, a location purchase, hiring and assigning staff, a customer arriving and buying, and quit and relaunch with offline earnings.
+**Build once.** `/usr/bin/xcodebuild -workspace BomDongTycoon.xcworkspace -scheme BomDongTycoon -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 18 Pro' -derivedDataPath /private/tmp/claude-501/dd IPHONEOS_DEPLOYMENT_TARGET=17.0 build` (bare `xcodebuild` is shadowed in this shell; `mise` is at `/opt/homebrew/bin/mise`; do not regenerate the project). Install and launch with `xcrun simctl` (bundle id `com.leesam.bomdongtycoon`). There is no Simulator.app here; the sim is headless (DeviceHub.app shows it).
+
+**Then pick the cheapest tool that answers the question** — the DEBUG launch arguments in `Sources/App/Dot/DotDebug.swift` are the source of truth; read that file first:
+
+| Question | Tool | Cost |
+|---|---|---|
+| Economy, pacing, balance, "is there a dead stretch" | `-dotAutoplay -dotSpeed 8` on a fresh install, read the `[DotQA]` log lines (`xcrun simctl spawn booted log stream --predicate 'eventMessage CONTAINS "[DotQA]"'`) | one launch, one log read for 12 game-minutes |
+| How a screen looks (any sheet, any progress point, fever, rain, night, en) | `-dotSeed early\|mid\|late` + `-dotSheet …` / `-dotFever` / `-dotRain` / `-dotPhase …`, one screenshot each | 2 calls per screen |
+| Does a tap land, does a flow connect (purchase, hire, assign, alerts, transitions) | real taps: `mcp__xcode__XcodeOpenWorkspace` once, then `DeviceInteractionStartSession` / `DeviceInteractionSynthesize` | keep to the flows the brief names |
+| Motion (pulse, shake, pops) | `xcrun simctl io booted recordVideo` for a few seconds, then extract 3–4 frames | not screenshot-per-frame |
+
+Rules that save the most time:
+- Launch several states back to back in ONE shell command (launch, sleep, screenshot, terminate, next), then look at the images together — make a contact-sheet montage with Pillow and read one image instead of ten.
+- Chain taps in one `DeviceInteractionSynthesize` call when the steps do not depend on what you see in between; screenshot at the end of the chain.
+- Never wait in real time for the economy. Speed it up or seed it.
+- Never seed with `simctl spawn … defaults write` — it writes the simulator's global prefs domain and contaminates later "fresh" installs. Use `-dotSeed`, or uninstall and delete the container plist.
+- If a tool call is denied, report it; do not route around it.
+
+Unless the brief narrows it, cover: first launch, earning, the upgrade sheet, a stall upgrade, a location purchase, hiring and assigning staff, a customer arriving and buying, fever, missions, and quit and relaunch with offline earnings.
 
 ## Rules of evidence
 

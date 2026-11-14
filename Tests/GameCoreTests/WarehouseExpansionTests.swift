@@ -73,11 +73,13 @@ final class WarehouseExpansionTests: XCTestCase {
     // MARK: Goal selection
 
     /// Menu/stall/staff maxed or locked would be noisy; instead zero coins and a
-    /// cheapest competitor (알바생, 500) so the 300 warehouse wins only when offered.
+    /// cheapest competitor (알바생, 300) so the 300 warehouse wins only when offered.
     private func goalName(warehouse: Int, capacity: Int = 10) -> String? {
         var stall = StallState()
         stall.warehouse = warehouse
         stall.warehouseCapacity = capacity
+        stall.menuCooks = [1, 0, 0]
+        stall.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]
         return EarningsSystem.nextGoalUpgrade(for: stall)?.name
     }
 
@@ -109,11 +111,22 @@ final class WarehouseExpansionTests: XCTestCase {
             s.menuTier = UpgradeDefinitions.menu.count - 1
             s.stallTier = UpgradeDefinitions.stall.count - 1
             s.locationTier = UpgradeDefinitions.location.count - 1
+            s.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]
             return s
         }
-        XCTAssertNil(EarningsSystem.nextGoalType(for: only(warehouse: 15)))
+        // With everything bought and no throttle, only the endless renovation is left.
+        XCTAssertEqual(EarningsSystem.nextGoalType(for: only(warehouse: 15)), .renovation)
         XCTAssertEqual(EarningsSystem.nextGoalType(for: only(warehouse: 16)), .warehouse)
         XCTAssertEqual(EarningsSystem.nextGoalUpgrade(for: only(warehouse: 16))?.coinCost, 800)
+    }
+
+    func test_goal_fullWarehouse_withoutAMenuCook_isNotWarehouse() {
+        // Before a cook is assigned the cook is the bottleneck, not the warehouse.
+        var s = stall(warehouse: 10)
+        s.menuCooks = [0, 0, 0]
+        XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .staff)
+        s.menuCooks = [0, 2, 0]
+        XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .warehouse, "any menu's cook counts")
     }
 
     func test_goal_atMaxCap_neverWarehouse() {
@@ -122,8 +135,10 @@ final class WarehouseExpansionTests: XCTestCase {
 
     private func stall(warehouse: Int, capacity: Int = 10) -> StallState {
         var s = StallState()
+        s.menuCooks = [1, 0, 0]
         s.warehouse = warehouse
         s.warehouseCapacity = capacity
+        s.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]
         return s
     }
 

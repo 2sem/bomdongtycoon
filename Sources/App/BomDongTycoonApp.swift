@@ -5,7 +5,7 @@ import FirebaseMessaging
 
 @main
 struct BomDongTycoonApp: App {
-    @StateObject private var store = GameStore()
+    @StateObject private var store = GameStore(defaults: DotDebug.storeDefaults, now: DotDebug.clock)
     @StateObject private var adManager = SwiftUIAdManager()
 
     init() {
@@ -27,20 +27,26 @@ struct BomDongTycoonApp: App {
             }
             .environmentObject(store)
             .environmentObject(adManager)
+            .environmentObject(adManager.rewarded)
             .onChange(of: isSplashDone) { _, done in
                 guard done, pendingOfflineCalc else { return }
                 pendingOfflineCalc = false
                 print("[App] splash done → calculateOfflineEarnings")
                 store.calculateOfflineEarnings()
-                if store.offlineEarnings == 0 {
-                    print("[App] no offline earnings → show app open ad")
-                    adManager.showAppOpen {}
-                }
+                showAppOpenIfPlayable()
             }
         }
         .onChange(of: scenePhase) { _, phase in
             handleScenePhaseChange(to: phase)
         }
+    }
+
+    /// Not over the tutorial or the shop-name overlay, and not when the offline popup has the screen.
+    private func showAppOpenIfPlayable() {
+        guard store.offlineEarnings == 0,
+              !store.progress.isFirstLaunch, store.progress.isShopNameSet else { return }
+        print("[App] show app open ad")
+        adManager.showAppOpen {}
     }
 
     private func handleScenePhaseChange(to phase: ScenePhase) {
@@ -55,11 +61,9 @@ struct BomDongTycoonApp: App {
             } else if isFromBackground {
                 print("[App] bg→fg → calculateOfflineEarnings")
                 isFromBackground = false
+                if store.progress.isShopNameSet { NotificationManager.requestPermissionIfUndetermined() }
                 store.calculateOfflineEarnings()
-                if store.offlineEarnings == 0 {
-                    print("[App] no offline earnings → show app open ad")
-                    adManager.showAppOpen {}
-                }
+                showAppOpenIfPlayable()
             } else {
                 print("[App] .active but skipped (isLaunched=\(isLaunched), isFromBackground=\(isFromBackground))")
             }

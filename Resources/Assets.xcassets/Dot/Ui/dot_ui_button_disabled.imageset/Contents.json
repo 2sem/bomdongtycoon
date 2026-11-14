@@ -1,0 +1,13 @@
+{
+  "images": [
+    {
+      "filename": "dot_ui_button_disabled.png",
+      "idiom": "universal",
+      "scale": "1x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
