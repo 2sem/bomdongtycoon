@@ -13,6 +13,7 @@ enum NotificationManager {
     /// system recording the answer, where two calls would both see
     /// `.notDetermined`.
     static func requestPermissionIfUndetermined() {
+        guard !DotDebug.suppressesSystemPrompts else { return }
         requestLock.lock()
         guard !isRequesting else { requestLock.unlock(); return }
         isRequesting = true

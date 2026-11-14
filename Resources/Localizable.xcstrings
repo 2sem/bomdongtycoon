@@ -1595,6 +1595,86 @@
           }
         }
       }
+    },
+    "warehouse.expand.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand the warehouse?"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "창고를 넓힐까요?"
+          }
+        }
+      }
+    },
+    "warehouse.expand.confirm" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "넓히기"
+          }
+        }
+      }
+    },
+    "warehouse.expand.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pay 💰 %1$@ to grow the warehouse from %2$d to %3$d slots."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "💰 %1$@을 내면 창고가 %2$d칸에서 %3$d칸으로 늘어나요."
+          }
+        }
+      }
+    },
+    "warehouse.expand.short" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You need 💰 %1$@. Earn more coins to grow the warehouse to %3$d slots."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "💰 %1$@이 필요해요. 코인을 더 모으면 창고를 %3$d칸으로 넓힐 수 있어요."
+          }
+        }
+      }
+    },
+    "warehouse.expand.max" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The warehouse is already at its largest."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "창고가 이미 가장 커요."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

@@ -17,7 +17,6 @@ struct GameRootView: View {
     var body: some View {
         ZStack {
             GameSceneView()
-                .ignoresSafeArea()
             staffButton
             if store.progress.isFirstLaunch {
                 TutorialOverlay()
@@ -79,6 +78,7 @@ struct GameRootView: View {
             if isSet { NotificationManager.requestPermissionIfUndetermined() }
         }
         .modifier(AddFarmPlotConfirmation())
+        .modifier(ExpandWarehouseConfirmation())
         .overlay(alignment: .top) {
             if let toast = locationToast {
                 LocationToast(text: toast)
