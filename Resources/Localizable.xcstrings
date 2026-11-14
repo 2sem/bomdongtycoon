@@ -1713,13 +1713,13 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "비가 와요, %d초 남았어요"
+            "value" : "비가 와요, %d초 남았어요, 성장 두 배"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Raining, %d seconds left"
+            "value" : "Raining, %d seconds left, growth doubled"
           }
         }
       }
@@ -2008,22 +2008,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "DONE!"
-          }
-        }
-      }
-    },
-    "dot.mission.countdown" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "새 미션까지 %@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "New missions in %@"
           }
         }
       }
@@ -2769,13 +2753,13 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "빈 밭을 누르면 씨앗을 심고,\n다 자란 봄동을 누르면 수확해요.\n가끔 자라는 황금 봄동은 보너스 코인!"
+            "value" : "빈 밭을 누르면 씨앗을 심고,\n다 자란 봄동을 누르면 수확해요.\n첫 번째 밭은 알바생이 알아서 돌봐요.\n황금 봄동은 보너스 코인!"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap an empty plot to plant,\nand a ripe bomdong to harvest.\nGolden bomdong pays bonus coins!"
+            "value" : "Tap an empty plot to plant,\nand a ripe bomdong to harvest.\nYour starting part-timer tends the first plot by themselves.\nGolden bomdong pays bonus coins!"
           }
         }
       }
@@ -3438,6 +3422,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Expand the field?"
+          }
+        }
+      }
+    },
+    "dot.mission.countdown.hm" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "새 미션까지 %d시간 %d분"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New missions in %dh %dm"
+          }
+        }
+      }
+    },
+    "dot.mission.countdown.m" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "새 미션까지 %d분"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New missions in %dm"
+          }
+        }
+      }
+    },
+    "dot.weather.boost" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "성장 x2"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Growth x2"
+          }
+        }
+      }
+    },
+    "dot.weather.clear.accessibility" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "맑음, %d분 %d초 뒤에 비가 와요"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear, rain in %dm %ds"
           }
         }
       }

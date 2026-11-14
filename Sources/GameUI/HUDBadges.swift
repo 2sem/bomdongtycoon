@@ -6,8 +6,6 @@ import GameCore
 public struct CoinBadge: View {
     @EnvironmentObject var store: GameStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// Dims the legacy chip for one slow breath when a new spring lands, so the eye finds what is new.
-    @State private var isChipDimmed = false
     @State private var isHopped = false
 
     private let onCenterChange: (CGPoint) -> Void
@@ -30,19 +28,11 @@ public struct CoinBadge: View {
             return CGPoint(x: frame.midX, y: frame.midY)
         } action: { onCenterChange($0) }
         .offset(y: isHopped ? -DotTheme.px : 0)
-        // Hangs off the corner without taking layout space.
-        .overlay(alignment: .bottomTrailing) {
-            if showsLegacyChip { legacyChip }
-        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(format: String(localized: "dot.coins.accessibility"),
                                    CoinFormat.string(store.stall.coins)))
-        .accessibilityValue(prestigeCount > 0 ? legacyAccessibilityValue : "")
         .onChange(of: store.stall.coins) { old, new in
             if new > old { hop() }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .newSpringDidFinish)) { _ in
-            pulseChip()
         }
     }
 
@@ -54,40 +44,47 @@ public struct CoinBadge: View {
             isHopped = false
         }
     }
+}
 
-    /// Odd leg count, so the animation ends on full opacity rather than snapping there.
-    private func pulseChip() {
-        guard !reduceMotion else { return }
-        isChipDimmed = true
-        withAnimation(.easeInOut(duration: 0.4).repeatCount(3, autoreverses: true)) {
-            isChipDimmed = false
-        }
-    }
+/// The prestige multiplier ("★x1.4"), shown once the player has prestiged. It has its own slot in
+/// the HUD's top row; it used to hang off the coin badge and covered the status strip.
+public struct LegacyChip: View {
+    @EnvironmentObject var store: GameStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Dims for one slow breath when a new spring lands, so the eye finds what is new.
+    @State private var isDimmed = false
+
+    public init() {}
 
     private var prestigeCount: Int { store.progress.prestigeCount }
 
-    private var showsLegacyChip: Bool { prestigeCount > 0 }
-
-    private var legacyChip: some View {
-        HStack(spacing: 2) {
-            DotImage("dot_ui_star", scale: 1)
-            Text(PrestigeSystem.multiplierText(prestigeCount: prestigeCount))
-                .dotText(.caption, color: DotPalette.ink)
+    public var body: some View {
+        if prestigeCount > 0 {
+            HStack(spacing: 2) {
+                DotImage("dot_ui_star", scale: 1)
+                Text(PrestigeSystem.multiplierText(prestigeCount: prestigeCount))
+                    .dotText(.caption, color: DotPalette.ink)
+            }
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
+            .background(DotPalette.gold)
+            .overlay { Rectangle().strokeBorder(DotPalette.ink, lineWidth: DotTheme.px) }
+            .opacity(isDimmed ? 0.25 : 1)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(String(
+                format: String(localized: "prestige.multiplier.accessibility"),
+                PrestigeSystem.multiplierNumber(PrestigeSystem.legacyMultiplier(prestigeCount: prestigeCount))))
+            .onReceive(NotificationCenter.default.publisher(for: .newSpringDidFinish)) { _ in pulse() }
         }
-        .lineLimit(1)
-        .fixedSize()
-        .padding(.horizontal, 2)
-        .background(DotPalette.gold)
-        .overlay { Rectangle().strokeBorder(DotPalette.ink, lineWidth: DotTheme.px) }
-        .opacity(isChipDimmed ? 0.25 : 1)
-        .offset(x: 4, y: 10)
-        .allowsHitTesting(false)
     }
 
-    private var legacyAccessibilityValue: String {
-        String(
-            format: String(localized: "prestige.multiplier.accessibility"),
-            PrestigeSystem.multiplierNumber(PrestigeSystem.legacyMultiplier(prestigeCount: prestigeCount)))
+    /// Odd leg count, so the animation ends on full opacity rather than snapping there.
+    private func pulse() {
+        guard !reduceMotion else { return }
+        isDimmed = true
+        withAnimation(.easeInOut(duration: 0.4).repeatCount(3, autoreverses: true)) { isDimmed = false }
     }
 }
 
@@ -114,7 +111,8 @@ public struct RatingBadge: View {
     }
 }
 
-/// Rain remaining, while it rains.
+/// Always-on weather chip. Clear: the time until the next rain, as m:ss (hidden until it is known).
+/// Raining: seconds left and the growth bonus.
 public struct WeatherChip: View {
     @EnvironmentObject var store: GameStore
 
@@ -123,15 +121,30 @@ public struct WeatherChip: View {
     public var body: some View {
         if store.weather == .rain {
             let seconds = Int(store.weatherRemaining.rounded(.up))
-            HStack(spacing: 4) {
-                DotImage("dot_ui_rain", scale: 1)
+            chip(icon: "dot_ui_rain", tint: DotPalette.paper) {
                 Text(String(format: String(localized: "dot.weather.seconds"), seconds))
-                    .dotText(.caption, color: DotPalette.paper)
-                    .fixedSize()
+                Text(String(localized: "dot.weather.boost"))
+                    .foregroundStyle(DotPalette.goldLight)
             }
-            .dotPanel(.dark, padding: EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 12))
-            .accessibilityElement(children: .ignore)
             .accessibilityLabel(String(format: String(localized: "dot.weather.accessibility"), seconds))
+        } else {
+            let seconds = Int(store.secondsUntilRain.rounded(.up))
+            if seconds > 0 {
+                chip(icon: "dot_ui_clock", tint: DotPalette.paper) {
+                    Text(String(format: "%d:%02d", seconds / 60, seconds % 60)).monospacedDigit()
+                }
+                .accessibilityLabel(String(format: String(localized: "dot.weather.clear.accessibility"),
+                                           seconds / 60, seconds % 60))
+            }
         }
+    }
+
+    private func chip<Content: View>(icon: String, tint: Color, @ViewBuilder _ content: () -> Content) -> some View {
+        HStack(spacing: 4) {
+            DotImage(icon, scale: 1)
+            content().dotText(.caption, color: tint).fixedSize()
+        }
+        .dotPanel(.dark, padding: EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10))
+        .accessibilityElement(children: .ignore)
     }
 }

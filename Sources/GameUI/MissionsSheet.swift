@@ -130,23 +130,25 @@ private struct MissionRow: View {
 
 // MARK: - Countdown
 
-/// "New missions in HH:MM": missions reset at local midnight.
+/// "New missions in 5h 10m": missions reset at local midnight. Under an hour it is minutes only.
 private struct MissionCountdown: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            let text = String(format: String(localized: "dot.mission.countdown"), Self.remaining(from: context.date))
             HStack(spacing: 6) {
                 DotImage("dot_ui_clock", scale: 1)
-                Text(text).dotText(.body, color: DotPalette.soilDark).monospacedDigit()
+                Text(Self.text(from: context.date)).dotText(.body, color: DotPalette.soilDark).monospacedDigit()
             }
             .accessibilityElement(children: .combine)
         }
     }
 
-    static func remaining(from now: Date, calendar: Calendar = .current) -> String {
+    static func text(from now: Date, calendar: Calendar = .current) -> String {
         let midnight = calendar.nextDate(after: now, matching: DateComponents(hour: 0, minute: 0, second: 0),
                                          matchingPolicy: .nextTime) ?? now
-        let seconds = max(0, Int(midnight.timeIntervalSince(now)))
-        return String(format: "%02d:%02d", seconds / 3600, (seconds % 3600) / 60)
+        let minutes = max(0, Int(midnight.timeIntervalSince(now))) / 60
+        if minutes >= 60 {
+            return String(format: String(localized: "dot.mission.countdown.hm"), minutes / 60, minutes % 60)
+        }
+        return String(format: String(localized: "dot.mission.countdown.m"), max(minutes, 1))
     }
 }

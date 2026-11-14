@@ -18,7 +18,7 @@ struct GameRootView: View {
 
     var body: some View {
         ZStack {
-            GameSceneView(bottomReserve: 0, coinTarget: coinTarget)
+            GameSceneView(bottomReserve: 6, coinTarget: coinTarget)
             if store.progress.isFirstLaunch {
                 TutorialOverlay()
             } else if !store.progress.isShopNameSet {
@@ -41,7 +41,8 @@ struct GameRootView: View {
                     FeverButton()
                 }
                 .padding(.horizontal, 8)
-                .padding(.bottom, 4)
+                .padding(.top, 4)
+                .padding(.bottom, 8)
                 DotTabBar(
                     onUpgrades: { showUpgrades = true },
                     onStaff: { staffTab = .assign; showStaff = true },

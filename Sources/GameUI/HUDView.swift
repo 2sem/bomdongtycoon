@@ -28,6 +28,7 @@ public struct HUDView: View {
             HStack(alignment: .center, spacing: 6) {
                 CoinBadge(onCenterChange: onCoinCenterChange).fixedSize()
                 ratingButton
+                LegacyChip()
                 Spacer(minLength: 0)
                 GoalProgressBar(showUpgrades: $showUpgrades, showStaff: $showStaff, staffTab: $staffTab,
                                 showPrestige: $showPrestige)
