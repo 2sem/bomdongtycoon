@@ -14,19 +14,8 @@
                     <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <subviews>
-                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Splash" translatesAutoresizingMaskIntoConstraints="NO" id="BLc-Xd-VWY">
-                                <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
-                            </imageView>
-                        </subviews>
                         <viewLayoutGuide key="safeArea" id="Bcu-3y-fUS"/>
-                        <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                        <constraints>
-                            <constraint firstItem="BLc-Xd-VWY" firstAttribute="bottom" secondItem="Ze5-6b-2t3" secondAttribute="bottom" id="Z9F-An-dmF"/>
-                            <constraint firstItem="BLc-Xd-VWY" firstAttribute="trailing" secondItem="Ze5-6b-2t3" secondAttribute="trailing" id="bpH-ma-GHc"/>
-                            <constraint firstItem="BLc-Xd-VWY" firstAttribute="top" secondItem="Ze5-6b-2t3" secondAttribute="top" id="q2s-zN-T1x"/>
-                            <constraint firstItem="BLc-Xd-VWY" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" id="x0H-P5-XVJ"/>
-                        </constraints>
+                        <color key="backgroundColor" red="0.5254902" green="0.77254902" blue="0.38431373" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                     </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
@@ -34,7 +23,4 @@
             <point key="canvasLocation" x="53" y="375"/>
         </scene>
     </scenes>
-    <resources>
-        <image name="Splash" width="1024" height="1536"/>
-    </resources>
 </document>

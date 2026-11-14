@@ -90,7 +90,8 @@ private struct MissionRow: View {
     private var readyFlag: some View {
         Text(String(localized: "dot.mission.done"))
             .dotText(.caption, color: DotPalette.ink)
-            .padding(.horizontal, 4)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
             .background(DotPalette.gold)
             .overlay { Rectangle().strokeBorder(DotPalette.ink, lineWidth: DotTheme.px) }
             .offset(x: -8, y: -8)

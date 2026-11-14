@@ -16,7 +16,7 @@ enum DotContent {
             parts.append(String(format: String(localized: "dot.effect.price"),
                                 String(format: "%.1f", upgrade.priceMultiplier)))
         }
-        if upgrade.maxStock > 0 {
+        if upgrade.maxStock > 0, !upgrade.description.contains("\(upgrade.maxStock)") {
             parts.append(String(format: String(localized: "dot.effect.stock"), upgrade.maxStock))
         }
         return parts.joined(separator: " · ")
@@ -24,13 +24,5 @@ enum DotContent {
 
     static func effect(for location: LocationDefinition) -> String {
         String(format: String(localized: "dot.effect.sales"), Int(location.saleMultiplier))
-    }
-
-    /// The emoji the model strings still carry never render in the pixel font.
-    static func plain(_ text: String) -> String {
-        text.replacingOccurrences(of: "💰 ", with: "")
-            .replacingOccurrences(of: "🥬 ", with: "")
-            .replacingOccurrences(of: "🔓 ", with: "")
-            .replacingOccurrences(of: "🔒 ", with: "")
     }
 }
