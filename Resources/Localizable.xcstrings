@@ -3405,6 +3405,42 @@
         }
       },
       "extractionState" : "manual"
+    },
+    "dot.tab.staff" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "직원"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Staff"
+          }
+        }
+      }
+    },
+    "광고 보고 2배 받기" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch an ad for 2x"
+          }
+        }
+      }
+    },
+    "밭을 넓힐까요?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand the field?"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

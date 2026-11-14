@@ -5,6 +5,7 @@ import GameCore
 ///   -dotSeed mid|late   start from a seeded mid- or late-game save (in memory, skips the intro)
 ///   -dotFever           keep fever running
 ///   -dotRain            keep it raining
+///   -dotFeverReady      keep the fever gauge full (the FEVER! button) without starting it
 ///   -dotDemo            tap a ripe plot, an empty plot and a dish in turn
 ///   -dotPhase morning|noon|dusk|night   freeze the time of day
 ///   -dotSheet upgrades|staff|hire|missions|stats|prestige|tutorial|name|offline   open that screen at launch
@@ -44,6 +45,7 @@ enum DotDebug {
     static var wantsDemo: Bool { arguments.contains("-dotDemo") }
     private static var wantsFever: Bool { arguments.contains("-dotFever") }
     private static var wantsRain: Bool { arguments.contains("-dotRain") }
+    private static var wantsFeverReady: Bool { arguments.contains("-dotFeverReady") }
     #endif
 
     @MainActor
@@ -116,6 +118,9 @@ enum DotDebug {
         if wantsFever, !store.isFeverActive {
             for _ in 0..<10 { store.recordServed(waitTime: 0) }
             store.startFever()
+        }
+        if wantsFeverReady, !store.isFeverActive, !store.isFeverReady {
+            for _ in 0..<10 { store.recordServed(waitTime: 0) }
         }
         if wantsRain, store.weather == .clear {
             var guardCount = 0

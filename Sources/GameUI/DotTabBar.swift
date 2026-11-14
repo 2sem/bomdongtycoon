@@ -20,7 +20,7 @@ public struct DotTabBar: View {
     public var body: some View {
         HStack(spacing: 0) {
             tab("dot_ui_upgrade", String(localized: "업그레이드"), badge: 0, action: onUpgrades)
-            tab("dot_ui_staff", String(localized: "직원"), badge: 0, action: onStaff)
+            tab("dot_ui_staff", String(localized: "dot.tab.staff"), badge: 0, action: onStaff)
             tab("dot_ui_mission", String(localized: "dot.tab.missions"),
                 badge: store.unclaimedCompletedMissionCount, action: onMissions)
             tab("dot_ui_stats", String(localized: "stats.title"), badge: 0, action: onStats)
