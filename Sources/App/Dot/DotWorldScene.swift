@@ -33,6 +33,7 @@ final class DotWorldScene: SKScene {
     var bottomInset: CGFloat = 0 { didSet { if oldValue != bottomInset { needsLayout = true } } }
     /// Where flying coins land, in view points from the top-left; defaults to the HUD coin badge.
     var coinTarget = CGPoint(x: 56, y: 84)
+    var isStorefrontHeld = false { didSet { director?.isHeld = isStorefrontHeld } }
 
     var isSoundEnabled: Bool {
         get { DotSound.shared.isEnabled }
@@ -130,6 +131,7 @@ final class DotWorldScene: SKScene {
         let farm = FarmNode(layout: layout)
         let decor = GrassDecorNode(layout: layout)
         let director = CustomerDirector(street: street, layout: layout)
+        director.isHeld = isStorefrontHeld
         director.onServed = { [weak self] in self?.customerServed($0) }
         director.onFailed = { [weak self] point in
             self?.fx?.reaction("dot_fx_anger", at: point)

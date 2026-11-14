@@ -8,6 +8,7 @@ struct GameSceneView: View {
     var bottomReserve: CGFloat = 70
     /// Global point of the HUD coin badge's centre, where flying coins land.
     var coinTarget: CGPoint?
+    var isStorefrontHeld = false
     @State private var scene: DotWorldScene = {
         let s = DotWorldScene()
         s.scaleMode = .resizeFill
@@ -23,6 +24,7 @@ struct GameSceneView: View {
                     updateInsets(geo.safeAreaInsets)
                 }
                 .onChange(of: geo.safeAreaInsets) { _, insets in updateInsets(insets) }
+                .onChange(of: isStorefrontHeld) { _, held in scene.isStorefrontHeld = held }
                 .onChange(of: coinTarget) { _, point in
                     if let point { scene.coinTarget = point }
                 }

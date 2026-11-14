@@ -11,6 +11,7 @@ struct ExpandWarehouseConfirmation: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .preference(key: AlertUpKey.self, value: pendingCapacity != nil)
             .onReceive(NotificationCenter.default.publisher(for: .requestExpandWarehouse)) { _ in
                 pendingCapacity = store.stall.warehouseCapacity
             }

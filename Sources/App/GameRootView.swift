@@ -16,11 +16,12 @@ struct GameRootView: View {
     @State private var toastTask: Task<Void, Never>?
     @State private var showFeverPointer = false
     @State private var lastGoldenToast: Date?
+    @State private var isAlertUp = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
-            GameSceneView(bottomReserve: 0, coinTarget: coinTarget)
+            GameSceneView(bottomReserve: 0, coinTarget: coinTarget, isStorefrontHeld: isStorefrontHeld)
             if store.progress.isFirstLaunch {
                 TutorialOverlay()
             } else if !store.progress.isShopNameSet {
@@ -106,6 +107,7 @@ struct GameRootView: View {
         }
         .modifier(AddFarmPlotConfirmation())
         .modifier(ExpandWarehouseConfirmation())
+        .onPreferenceChange(AlertUpKey.self) { isAlertUp = $0 }
         .overlay(alignment: .top) {
             if let toast = locationToast {
                 DotToast(text: toast)
@@ -150,6 +152,10 @@ struct GameRootView: View {
         lastGoldenToast = Date()
         let text = String(localized: "dot.toast.golden")
         showToast(text, announcement: text)
+    }
+
+    private var isStorefrontHeld: Bool {
+        showUpgrades || showStaff || showStats || showPrestige || showMissions || isAlertUp
     }
 
     private var isIntroOverlayUp: Bool {
@@ -216,4 +222,10 @@ private extension DotSoundEffect {
         case .feverStart: .feverStart
         }
     }
+}
+
+/// Set by the confirmation alerts so the storefront holds while one is open.
+struct AlertUpKey: PreferenceKey {
+    static let defaultValue = false
+    static func reduce(value: inout Bool, nextValue: () -> Bool) { value = value || nextValue() }
 }

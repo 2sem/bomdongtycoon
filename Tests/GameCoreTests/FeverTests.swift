@@ -4,20 +4,20 @@ import XCTest
 @MainActor
 final class FeverTests: DotWorldTestCase {
 
-    func test_serve_adds_a_tenth() {
+    func test_serve_adds_a_thirtysixth() {
         store.recordServed(waitTime: 5)
-        XCTAssertEqual(store.feverCharge, 0.1, accuracy: 1e-9)
+        XCTAssertEqual(store.feverCharge, 1.0 / 36, accuracy: 1e-9)
     }
 
     func test_fastServe_adds_one_and_a_half_times() {
         store.recordServed(waitTime: 1.9)
-        XCTAssertEqual(store.feverCharge, 0.15, accuracy: 1e-9)
+        XCTAssertEqual(store.feverCharge, 1.5 / 36, accuracy: 1e-9)
         store.recordServed(waitTime: 2.0)   // exactly 2 s is not fast
-        XCTAssertEqual(store.feverCharge, 0.25, accuracy: 1e-9)
+        XCTAssertEqual(store.feverCharge, 2.5 / 36, accuracy: 1e-9)
     }
 
-    func test_tenServes_isReady_andChargeClampsAtOne() {
-        serve(9)
+    func test_thirtySixServes_isReady_andChargeClampsAtOne() {
+        serve(35)
         XCTAssertFalse(store.isFeverReady)
         serve(1)
         XCTAssertTrue(store.isFeverReady)
@@ -26,13 +26,13 @@ final class FeverTests: DotWorldTestCase {
     }
 
     func test_noDecay_untilSixSeconds() {
-        serve(5)
+        serve(18)
         store.tick(deltaTime: 5.9)
         XCTAssertEqual(store.feverCharge, 0.5, accuracy: 1e-9)
     }
 
     func test_decay_startsAfterSixSeconds_atOneSixtiethPerSecond() {
-        serve(5)
+        serve(18)
         store.tick(deltaTime: 6)
         XCTAssertEqual(store.feverCharge, 0.5, accuracy: 1e-9)
         store.tick(deltaTime: 6)
@@ -40,17 +40,17 @@ final class FeverTests: DotWorldTestCase {
     }
 
     func test_decay_withinOneTick_onlyCountsTimePastTheDelay() {
-        serve(5)
+        serve(18)
         store.tick(deltaTime: 16)   // 10 s of decay
         XCTAssertEqual(store.feverCharge, 0.5 - 10.0 / 60, accuracy: 1e-9)
     }
 
     func test_aSale_restartsTheDecayDelay() {
-        serve(5)
+        serve(18)
         store.tick(deltaTime: 5)
         store.recordServed(waitTime: 5)
         store.tick(deltaTime: 5)
-        XCTAssertEqual(store.feverCharge, 0.6, accuracy: 1e-9)
+        XCTAssertEqual(store.feverCharge, 19.0 / 36, accuracy: 1e-9)
     }
 
     func test_chargeNeverGoesNegative() {
@@ -60,7 +60,7 @@ final class FeverTests: DotWorldTestCase {
     }
 
     func test_startFever_needsFullCharge() {
-        serve(9)
+        serve(35)
         XCTAssertFalse(store.startFever())
         XCTAssertFalse(store.isFeverActive)
         XCTAssertEqual(store.progress.totalFevers, 0)
@@ -84,7 +84,7 @@ final class FeverTests: DotWorldTestCase {
     func test_cannotStartWhileActive() {
         chargeFever()
         store.startFever()
-        serve(10)
+        serve(36)
         XCTAssertEqual(store.feverCharge, 0, "no accumulation while active")
         XCTAssertFalse(store.startFever())
         XCTAssertEqual(store.progress.totalFevers, 1)
@@ -95,7 +95,7 @@ final class FeverTests: DotWorldTestCase {
         store.startFever()
         store.tick(deltaTime: 15)
         store.recordServed(waitTime: 5)
-        XCTAssertEqual(store.feverCharge, 0.1, accuracy: 1e-9)
+        XCTAssertEqual(store.feverCharge, 1.0 / 36, accuracy: 1e-9)
     }
 
     func test_active_spawnsAtThirtyFivePercentOfTheInterval() {
@@ -148,7 +148,7 @@ final class FeverTests: DotWorldTestCase {
     func test_feverSystem_isPure() {
         var state = FeverState()
         FeverSystem.recordServed(&state, waitTime: 0)
-        XCTAssertEqual(state.charge, 0.15, accuracy: 1e-9)
+        XCTAssertEqual(state.charge, 1.5 / 36, accuracy: 1e-9)
         XCTAssertFalse(FeverSystem.start(&state))
     }
 }

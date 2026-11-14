@@ -60,6 +60,8 @@ final class CustomerDirector {
     private var sessions: [Session] = []
     private var spawnTimer: TimeInterval = 1
     var isSpawningPaused = false
+    /// A game sheet or alert is up: queued customers stop losing patience and nobody new arrives.
+    var isHeld = false
 
     var onServed: ((ServeEvent) -> Void)?
     var onFailed: ((CGPoint) -> Void)?
@@ -80,7 +82,7 @@ final class CustomerDirector {
 
     func update(delta: TimeInterval, store: GameStore, isFever: Bool, reduceMotion: Bool) {
         guard store.progress.isShopNameSet, !store.isSimulationPaused else { return }
-        if !isSpawningPaused {
+        if !isSpawningPaused, !isHeld {
             spawnTimer -= delta
             if spawnTimer <= 0 { trySpawn(store: store, isFever: isFever) }
         }
@@ -124,7 +126,7 @@ final class CustomerDirector {
             if s.reactTimer <= 0 { beginServing(s, store: store) }
         case .waiting:
             s.node.showBack()
-            s.waited += delta
+            if !isHeld { s.waited += delta }
             s.pollTimer += delta
             guard s.pollTimer >= Self.pollInterval else { return }
             s.pollTimer = 0

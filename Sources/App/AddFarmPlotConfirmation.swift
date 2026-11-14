@@ -18,6 +18,7 @@ struct AddFarmPlotConfirmation: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .preference(key: AlertUpKey.self, value: pendingPlotCount != nil)
             .onReceive(NotificationCenter.default.publisher(for: .requestAddFarmPlot)) { _ in
                 guard FarmSystem.costForNextPlot(currentCount: store.farm.plots.count) != nil else { return }
                 pendingPlotCount = store.farm.plots.count

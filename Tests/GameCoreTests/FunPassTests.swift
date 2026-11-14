@@ -53,7 +53,7 @@ final class FunPassTests: DotWorldTestCase {
         store.tick(deltaTime: 15)
         XCTAssertFalse(store.isFeverActive)
         XCTAssertEqual(store.feverEarned, 120, accuracy: 1e-9, "kept for the summary after fever ends")
-        serve(10)
+        serve(36)
         store.startFever()
         XCTAssertEqual(store.feverEarned, 0)
     }
@@ -339,10 +339,13 @@ final class FunPassTests: DotWorldTestCase {
 
     // MARK: Rating tension
 
-    func test_rating_decaysHalfAPointPerThousandSeconds() {
-        store.progress.rating = 4.0
+    func test_rating_decayScalesWithRating() {
+        store.progress.rating = 3.0
         store.tick(deltaTime: 100)
-        XCTAssertEqual(store.progress.rating, 3.95, accuracy: 1e-9)
+        XCTAssertEqual(store.progress.rating, 2.95, accuracy: 1e-9)
+        store.progress.rating = 5.0
+        store.tick(deltaTime: 100)
+        XCTAssertEqual(store.progress.rating, 4.85, accuracy: 1e-9)
     }
 
     func test_rating_servedGainIsTwoHundredthsFast_oneHundredthSlow() {
@@ -350,6 +353,18 @@ final class FunPassTests: DotWorldTestCase {
         store.recordServed(waitTime: 2.9)
         XCTAssertEqual(store.progress.rating, 3.02, accuracy: 1e-9)
         store.recordServed(waitTime: 3.0)
-        XCTAssertEqual(store.progress.rating, 3.03, accuracy: 1e-9)
+        XCTAssertEqual(store.progress.rating, 3.0 + 0.02 + 0.01 * (5 - 3.02) / 2, accuracy: 1e-9)
+    }
+
+    func test_rating_gainTapersTowardFive() {
+        store.progress.rating = 4.0
+        store.recordServed(waitTime: 1)
+        XCTAssertEqual(store.progress.rating, 4.01, accuracy: 1e-9)
+        store.progress.rating = 4.5
+        store.recordServed(waitTime: 1)
+        XCTAssertEqual(store.progress.rating, 4.505, accuracy: 1e-9)
+        store.progress.rating = 5.0
+        store.recordServed(waitTime: 1)
+        XCTAssertEqual(store.progress.rating, 5.0, accuracy: 1e-9)
     }
 }

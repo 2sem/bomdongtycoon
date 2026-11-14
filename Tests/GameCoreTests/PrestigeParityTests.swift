@@ -50,7 +50,7 @@ final class PrestigeParityTests: XCTestCase {
 
     func test_prestige0_300TickRun_matchesMain() {
         // coins, totalEarned, pendingCoins, sum of sale prices, rating, served, failed, coins/s
-        let expected: [Double] = [26007.5, 21007.5, 0.0, 21007.5, 3.5850000000000284, 100.0, 18.0, 1140.0]
+        let expected: [Double] = [26007.5, 21007.5, 0.0, 21007.5, 3.4166708930929497, 100.0, 18.0, 1140.0]
         XCTAssertEqual(run300Ticks(), expected)
     }
 }

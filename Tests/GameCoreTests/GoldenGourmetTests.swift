@@ -169,7 +169,7 @@ final class GoldenGourmetTests: DotWorldTestCase {
         XCTAssertEqual(store.progress.rating, 3.04, accuracy: 1e-9)
         XCTAssertEqual(store.progress.totalGourmetServed, 1)
         store.recordServed(waitTime: 5, isGourmet: true)
-        XCTAssertEqual(store.progress.rating, 3.06, accuracy: 1e-9)
+        XCTAssertEqual(store.progress.rating, 3.04 + 0.02 * (5 - 3.04) / 2, accuracy: 1e-9)
     }
 
     func test_gourmetFailed_doublesLoss_afterFirstSaleGrace() {

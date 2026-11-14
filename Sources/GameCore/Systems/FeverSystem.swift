@@ -9,7 +9,7 @@ public struct FeverState: Equatable {
 }
 
 public enum FeverSystem {
-    public static let chargePerServe: Double = 1.0 / 10.0
+    public static let chargePerServe: Double = 1.0 / 36.0
     /// Applied when the customer waited less than `fastServeWait`.
     public static let fastServeBonus: Double = 1.5
     public static let fastServeWait: Double = 2.0

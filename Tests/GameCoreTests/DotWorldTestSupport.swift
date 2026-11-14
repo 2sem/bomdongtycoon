@@ -73,7 +73,7 @@ class DotWorldTestCase: XCTestCase {
     }
 
     func chargeFever() {
-        serve(10)
+        serve(36)
         XCTAssertTrue(store.isFeverReady)
     }
 }

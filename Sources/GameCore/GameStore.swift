@@ -346,7 +346,7 @@ public final class GameStore: ObservableObject {
         }
 
         // Rating slowly decays — active serving easily overcomes it, idle play drifts down
-        progress.rating = max(1.0, progress.rating - Self.ratingDecayPerSecond * deltaTime)
+        progress.rating = max(1.0, progress.rating - Self.ratingDecayPerSecond * max(1, progress.rating - 2) * deltaTime)
 
         // Persist lastActiveDate + earningRate every 5 s
         if offlineEarnings == 0 {
@@ -983,7 +983,8 @@ public final class GameStore: ObservableObject {
 
     public func recordServed(waitTime: Double, isGourmet: Bool = false) {
         progress.totalServed += 1
-        let delta = (waitTime < 3.0 ? Self.ratingGainFast : Self.ratingGainSlow) * (isGourmet ? 2 : 1)
+        let headroom = min(1, (5.0 - progress.rating) / 2)
+        let delta = (waitTime < 3.0 ? Self.ratingGainFast : Self.ratingGainSlow) * (isGourmet ? 2 : 1) * headroom
         progress.rating = min(5.0, progress.rating + delta)
         progress.bestRating = max(progress.bestRating, progress.rating)
         FeverSystem.recordServed(&transients.fever, waitTime: waitTime)
@@ -996,8 +997,9 @@ public final class GameStore: ObservableObject {
     }
 
     static let gourmetChance: Double = 0.08
-    /// Rating falls this much per second while nothing is served and gains 0.02/0.01 a customer
-    /// (fast < 3 s / slow), so keeping a high rating takes steady service instead of a one-off climb.
+    /// Rating gains 0.02/0.01 a customer (fast < 3 s / slow), tapering to nothing between 3.0 and 5.0,
+    /// and falls this much per second at 3.0, scaling up with the rating (3x at 5.0): a high rating
+    /// takes steady service and settles below 5.0 instead of pinning there.
     static let ratingDecayPerSecond: Double = 0.0005
     static let ratingGainFast: Double = 0.02
     static let ratingGainSlow: Double = 0.01
