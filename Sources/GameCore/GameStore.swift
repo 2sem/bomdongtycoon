@@ -1,8 +1,9 @@
 import Foundation
 import Combine
 
-public enum UpgradeType {
+public enum UpgradeType: Equatable {
     case staff, menu, stall, farm, location, warehouse, renovation
+    case recipe(menuIndex: Int)
 }
 
 @MainActor
@@ -14,6 +15,8 @@ public final class GameStore: ObservableObject {
     @Published public var offlineEarnings: Double = 0
     /// Daily missions. Not part of a run: `startNewRun` leaves them alone.
     @Published public private(set) var missionState: MissionState
+    /// 봄바람 부스트 end and cooldown, as wall-clock dates so a killed app neither refunds nor loses them.
+    @Published public private(set) var adState = AdRewardState()
 
     /// Set by the UI while the tutorial or shop-name overlay is up. Frozen
     /// time: `tick` is a no-op and offline earnings are not computed, so a
@@ -40,7 +43,11 @@ public final class GameStore: ObservableObject {
     /// `progress.totalPlaySeconds`: the scene's own update loop already stops off-screen.
     public var isAppActive = true
 
+    /// A gift dialog is open: the crate must not leave while the player decides or an ad plays.
+    public var isGiftHeld = false
+
     private let defaults: UserDefaults
+    static let adStateKey = "gameStore.adRewards"
 
     /// Everything the simulation keeps in memory that is not in the three blobs. One value type
     /// so `startNewRun` resets it by assigning a fresh one: a field added here resets by default.
@@ -61,6 +68,13 @@ public final class GameStore: ObservableObject {
         var goldenAge: [Int: Double] = [:]
         /// Sale coins taken during the current or latest fever; reset when the next one starts.
         var feverEarned: Double = 0
+        /// Seconds until the fever recharge ad is offered again.
+        var adFeverCooldown: Double = 0
+        /// Active play seconds since the last crate left the yard (or since launch).
+        var giftClock: Double = 0
+        /// Interval the clock must reach, rolled the first time a crate is allowed.
+        var giftDue: Double?
+        var giftRemaining: Double = 0
     }
     private var transients = RunTransients()
 
@@ -97,6 +111,10 @@ public final class GameStore: ObservableObject {
         self.farm     = Self.load(FarmState.self, blob: .farm, from: defaults) ?? FarmState()
         self.progress = Self.load(PlayerProgress.self, blob: .progress, from: defaults) ?? PlayerProgress()
         let loadedMissions = Self.load(MissionState.self, blob: .missions, from: defaults)
+        if let data = defaults.data(forKey: Self.adStateKey),
+           let state = try? JSONDecoder().decode(AdRewardState.self, from: data) {
+            self.adState = state
+        }
         self.missionState = loadedMissions ?? MissionState()
         self.persistedMissions = loadedMissions
         normalizeIdlePools()
@@ -220,6 +238,8 @@ public final class GameStore: ObservableObject {
         // Play time is held in memory and rides the 5 s activity save below; no extra disk writes.
         if isAppActive { progress.totalPlaySeconds += deltaTime }
         FeverSystem.tick(&transients.fever, deltaTime: deltaTime)
+        transients.adFeverCooldown = max(0, transients.adFeverCooldown - deltaTime)
+        advanceGift(deltaTime: deltaTime)
         WeatherSystem.advance(&transients.weather, deltaTime: deltaTime, roll: random)
         transients.missionCheckTimer += deltaTime
         if transients.missionCheckTimer >= 1 {
@@ -412,14 +432,15 @@ public final class GameStore: ObservableObject {
         let price = EarningsSystem.salePrice(
             for: stall, menuIndex: menuIndex, prestigeCount: progress.prestigeCount,
             feverMultiplier: FeverSystem.isActive(transients.fever) ? FeverSystem.priceMultiplier : 1,
-            gourmetMultiplier: isGourmet ? EarningsSystem.gourmetMultiplier : 1)
+            gourmetMultiplier: isGourmet ? EarningsSystem.gourmetMultiplier : 1,
+            boostMultiplier: isBoostActive ? AdBoostSystem.priceMultiplier : 1)
         if stall.cashierCount > 0 {
             stall.cashierEnergy = max(0, stall.cashierEnergy - Self.energyPerCashierSale)
             transients.cashierBusyRemaining = Self.cashierBusyWindow
         }
         stall.pendingCoins += price
         if isFeverActive { transients.feverEarned += price }
-        // Fever and gourmet are active-play bonuses: offline earnings stay priced on the base economy.
+        // Fever, boost and gourmet are active-play bonuses: offline earnings stay priced on the base economy.
         transients.earningWindowCoins += basePrice
         advanceMissions(.earnCoins, by: Int(price.rounded()))
         return price
@@ -532,6 +553,100 @@ public final class GameStore: ObservableObject {
         return true
     }
 
+    // MARK: - Rewarded placements
+
+    private var hasPassedAdGrace: Bool { progress.totalPlaySeconds >= AdBoostSystem.graceSeconds }
+
+    /// The fever recharge is offered while the gauge is neither full nor running, off cooldown, and
+    /// after the install's first minutes.
+    public var isFeverAdAvailable: Bool {
+        hasPassedAdGrace && !isFeverActive && !isFeverReady && transients.adFeverCooldown <= 0
+    }
+
+    public var adFeverCooldownRemaining: Double { transients.adFeverCooldown }
+
+    /// The reward of the fever recharge ad: fills the gauge. False, changing nothing, when not offered.
+    @discardableResult
+    public func claimFeverAdCharge() -> Bool {
+        guard isFeverAdAvailable else { return false }
+        transients.fever.charge = 1
+        transients.fever.secondsSinceSale = 0
+        transients.adFeverCooldown = AdBoostSystem.feverCooldown
+        return true
+    }
+
+    public var boostRemaining: Double {
+        max(0, adState.boostEndsAt?.timeIntervalSince(now()) ?? 0)
+    }
+    public var isBoostActive: Bool { boostRemaining > 0 }
+
+    /// Seconds until a boost can be bought again; 0 while one is running or when none is cooling.
+    public var boostCooldownRemaining: Double {
+        guard !isBoostActive else { return 0 }
+        return max(0, adState.boostCooldownEndsAt?.timeIntervalSince(now()) ?? 0)
+    }
+
+    public var isBoostAvailable: Bool {
+        hasPassedAdGrace && !isBoostActive && boostCooldownRemaining <= 0
+    }
+
+    /// Starts 180 s of x2 sale price; the cooldown runs from its end.
+    @discardableResult
+    public func claimBoost() -> Bool {
+        guard isBoostAvailable else { return false }
+        let end = now().addingTimeInterval(AdBoostSystem.boostDuration)
+        adState.boostEndsAt = end
+        adState.boostCooldownEndsAt = end.addingTimeInterval(AdBoostSystem.boostCooldown)
+        saveAdState()
+        return true
+    }
+
+    public var isGiftPresent: Bool { transients.giftRemaining > 0 }
+    public var giftRemaining: Double { transients.giftRemaining }
+
+    /// Coins the crate pays right now.
+    public var giftAmount: Double {
+        GiftSystem.amount(
+            bestSalePrice: EarningsSystem.salePrice(for: stall, menuIndex: stall.menuTier,
+                                                    prestigeCount: progress.prestigeCount),
+            earningRate: progress.earningRate)
+    }
+
+    private var hasHired: Bool {
+        stall.staffTier > 0 || stall.farmerCount > 0 || stall.veteranAlbaCount > 0
+    }
+
+    private func advanceGift(deltaTime: Double) {
+        if transients.giftRemaining > 0 {
+            if !isGiftHeld { transients.giftRemaining = max(0, transients.giftRemaining - deltaTime) }
+            if transients.giftRemaining == 0 { transients.giftClock = 0; transients.giftDue = nil }
+            return
+        }
+        transients.giftClock += deltaTime
+        guard progress.totalPlaySeconds >= GiftSystem.firstGiftPlaySeconds, hasHired else { return }
+        let due = transients.giftDue ?? GiftSystem.interval(roll: random())
+        transients.giftDue = due
+        if transients.giftClock >= due { transients.giftRemaining = GiftSystem.lifetime }
+    }
+
+    /// The reward of the crate's ad. nil when no crate is in the yard.
+    @discardableResult
+    public func claimGift() -> Double? {
+        guard isGiftPresent else { return nil }
+        let amount = giftAmount
+        stall.coins += amount
+        progress.totalEarned += amount
+        transients.giftRemaining = 0
+        transients.giftClock = 0
+        transients.giftDue = nil
+        save()
+        return amount
+    }
+
+    private func saveAdState() {
+        if let d = try? JSONEncoder().encode(adState) { defaults.set(d, forKey: Self.adStateKey) }
+    }
+
     // MARK: - Weather
 
     public var weather: Weather { transients.weather.weather }
@@ -560,9 +675,9 @@ public final class GameStore: ObservableObject {
 
     /// Pays "오늘의 미션 완료" once, when every mission of the day is complete.
     @discardableResult
-    public func claimDailyBonus() -> Double? {
+    public func claimDailyBonus(multiplier: Double = 1) -> Double? {
         guard missionState.isBonusReady else { return nil }
-        let reward = missionState.bonusReward
+        let reward = missionState.bonusReward * multiplier
         missionState.isBonusClaimed = true
         stall.coins += reward
         progress.totalEarned += reward
@@ -572,11 +687,11 @@ public final class GameStore: ObservableObject {
 
     /// Pays the reward fixed at roll time, once. nil when unknown, incomplete or already claimed.
     @discardableResult
-    public func claimMission(id: String) -> Double? {
+    public func claimMission(id: String, multiplier: Double = 1) -> Double? {
         guard let index = missionState.missions.firstIndex(where: { $0.id == id }),
               missionState.missions[index].isComplete,
               !missionState.missions[index].isClaimed else { return nil }
-        let reward = missionState.missions[index].reward
+        let reward = missionState.missions[index].reward * multiplier
         missionState.missions[index].isClaimed = true
         stall.coins += reward
         progress.totalEarned += reward
@@ -597,6 +712,12 @@ public final class GameStore: ObservableObject {
     public func debugCompleteAllMissions() {
         for i in missionState.missions.indices { missionState.missions[i].progress = missionState.missions[i].target }
     }
+
+    /// QA only: re-rolls today's missions from the current stall and earning rate (a seed changes both after init).
+    public func debugRerollMissions() {
+        missionState = MissionState()
+        refreshMissionsIfNeeded()
+    }
     #endif
 
     func replaceMissionsForTesting(_ state: MissionState) { missionState = state }
@@ -610,6 +731,14 @@ public final class GameStore: ObservableObject {
             bestSalePrice: EarningsSystem.salePrice(for: stall, menuIndex: stall.menuTier,
                                                     prestigeCount: progress.prestigeCount)))
         saveMissionsIfChanged()
+    }
+
+    // MARK: - Orders
+
+    /// The dish the next customer asks for: one the shop can actually serve (`EarningsSystem.orderableMenus`).
+    public func rollOrderedMenu() -> Int {
+        let menus = EarningsSystem.orderableMenus(for: stall)
+        return menus[min(Int(random() * Double(menus.count)), menus.count - 1)]
     }
 
     // MARK: - Warehouse
@@ -967,8 +1096,22 @@ public final class GameStore: ObservableObject {
         let elapsed = min(Date().timeIntervalSince(lastActive), Self.maxOfflineHours * 3600)
         let earned = rate * elapsed * Self.offlineEfficiency
         print("[Offline] lastActive=\(lastActive), elapsed=\(Int(elapsed))s, rate=\(String(format:"%.4f",rate))/s, earned=\(Int(earned))")
-        offlineEarnings = earned >= 1 ? earned : 0
+        guard earned >= 1 else { return }
+        let bestSale = EarningsSystem.salePrice(for: stall, menuIndex: stall.menuTier, prestigeCount: progress.prestigeCount)
+        if elapsed < Self.offlinePopupMinSeconds || earned < Self.offlinePopupMinSales * bestSale {
+            // Not worth a popup (or an ad offer): credit it quietly.
+            stall.coins += earned
+            progress.totalEarned += earned
+            progress.lastActiveDate = Date()
+            save()
+            return
+        }
+        offlineEarnings = earned
     }
+
+    /// The welcome-back popup needs at least this long away and this many sales of the best dish.
+    static let offlinePopupMinSeconds: Double = 60
+    static let offlinePopupMinSales: Double = 10
 
     /// Redeem the pre-calculated offline amount with a multiplier.
     public func collectOfflineEarnings(multiplier: Double = 1.0) {
@@ -987,7 +1130,8 @@ public final class GameStore: ObservableObject {
         let delta = (waitTime < 3.0 ? Self.ratingGainFast : Self.ratingGainSlow) * (isGourmet ? 2 : 1) * headroom
         progress.rating = min(5.0, progress.rating + delta)
         progress.bestRating = max(progress.bestRating, progress.rating)
-        FeverSystem.recordServed(&transients.fever, waitTime: waitTime)
+        FeverSystem.recordServed(&transients.fever, waitTime: waitTime,
+                                 baseCharge: FeverSystem.charge(perServeAtInterval: baseSpawnInterval))
         advanceMissions(.serveCustomers)
         if isGourmet {
             progress.totalGourmetServed += 1
@@ -1021,6 +1165,9 @@ public final class GameStore: ObservableObject {
 
     // MARK: - Upgrades
 
+    /// Free portions of a dish the moment its tier is bought.
+    static let newDishStartingStock = 3
+
     public func purchaseUpgrade(_ type: UpgradeType) {
         switch type {
         case .staff:
@@ -1033,6 +1180,9 @@ public final class GameStore: ObservableObject {
             guard stall.coins >= cost else { return }
             stall.coins -= cost
             stall.menuTier += 1
+            // The new dish starts with a few portions, so the first customers who ask for it are served.
+            let maxStock = EarningsSystem.maxStock(for: stall)
+            stall.menuStock[stall.menuTier] = min(maxStock, stall.menuStock[stall.menuTier] + Self.newDishStartingStock)
 
         case .stall:
             let nextTier = stall.stallTier + 1
@@ -1062,6 +1212,12 @@ public final class GameStore: ObservableObject {
         case .warehouse:
             expandWarehouse()   // saves itself
             return
+
+        case .recipe(let menuIndex):
+            guard let cost = RecipeSystem.nextCost(for: stall, menuIndex: menuIndex),
+                  stall.coins >= cost else { return }
+            stall.coins -= cost
+            stall.recipeLevels[menuIndex] += 1
 
         case .renovation:
             guard let cost = RenovationSystem.nextCost(for: stall), stall.coins >= cost else { return }

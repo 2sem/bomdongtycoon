@@ -259,12 +259,12 @@ final class FunPassTests: DotWorldTestCase {
         store.stall.stallTier = UpgradeDefinitions.stall.count - 1
     }
 
-    func test_renovation_costGrowsByHalf_roundedToTwoFigures() {
+    func test_renovation_costGrowsByThirtyPercent_roundedToTwoFigures() {
         XCTAssertEqual(RenovationSystem.cost(forLevel: 0), 50_000)
-        XCTAssertEqual(RenovationSystem.cost(forLevel: 1), 75_000)
-        XCTAssertEqual(RenovationSystem.cost(forLevel: 2), 110_000)   // 112,500
-        XCTAssertEqual(RenovationSystem.cost(forLevel: 3), 170_000)   // 168,750
-        XCTAssertEqual(RenovationSystem.cost(forLevel: 4), 250_000)   // 253,125
+        XCTAssertEqual(RenovationSystem.cost(forLevel: 1), 65_000)
+        XCTAssertEqual(RenovationSystem.cost(forLevel: 2), 85_000)    // 84,500
+        XCTAssertEqual(RenovationSystem.cost(forLevel: 3), 110_000)   // 109,850
+        XCTAssertEqual(RenovationSystem.cost(forLevel: 4), 140_000)   // 142,805
     }
 
     func test_renovation_unlocksAtTheFinalStallTier() {
@@ -283,7 +283,7 @@ final class FunPassTests: DotWorldTestCase {
         XCTAssertEqual(store.stall.renovationLevel, 1)
         XCTAssertEqual(store.stall.coins, 10_000, accuracy: 1e-9)
         store.purchaseUpgrade(.renovation)
-        XCTAssertEqual(store.stall.renovationLevel, 1, "75,000 is out of reach")
+        XCTAssertEqual(store.stall.renovationLevel, 1, "65,000 is out of reach")
     }
 
     func test_renovation_isFivePercentPerLevel_composedInThePricePerItem() {
@@ -304,15 +304,16 @@ final class FunPassTests: DotWorldTestCase {
         s.menuTier = UpgradeDefinitions.menu.count - 1
         s.stallTier = UpgradeDefinitions.stall.count - 1
         s.locationTier = UpgradeDefinitions.location.count - 1
+        s.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]
         XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .renovation)
         XCTAssertEqual(EarningsSystem.nextGoalUpgrade(for: s)?.coinCost, 50_000)
         XCTAssertEqual(EarningsSystem.nextGoalLabel(for: s), .renovation)
         XCTAssertTrue(EarningsSystem.isOnlyRenovationLeft(for: s), "the new-spring capsule keeps its priority")
         s.renovationLevel = 2
-        XCTAssertEqual(EarningsSystem.nextGoalUpgrade(for: s)?.coinCost, 110_000)
+        XCTAssertEqual(EarningsSystem.nextGoalUpgrade(for: s)?.coinCost, 85_000)
 
         s.locationTier = 1
-        XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .location, "an unbought location still comes first")
+        XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .renovation, "the cheapest purchase drives the goal")
         XCTAssertFalse(EarningsSystem.isOnlyRenovationLeft(for: s))
     }
 

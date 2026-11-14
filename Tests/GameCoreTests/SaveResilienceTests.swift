@@ -228,6 +228,6 @@ final class SaveResilienceTests: XCTestCase {
             "tier1IdleEnergies", "tier2IdleEnergies", "tier3IdleEnergies",
             "warehouse", "warehouseCapacity", "menuStock",
             "farmerCount", "farmerIdleEnergies", "veteranAlbaCount", "veteranAlbaIdleEnergies",
-            "renovationLevel"])
+            "renovationLevel", "recipeLevels"])
     }
 }

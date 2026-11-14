@@ -4,7 +4,7 @@ import Foundation
 public enum RenovationSystem {
     public static let priceBonusPerLevel: Double = 0.05
     public static let baseCost: Double = 50_000
-    public static let costGrowth: Double = 1.5
+    public static let costGrowth: Double = 1.3
 
     public static func isUnlocked(for stall: StallState) -> Bool {
         stall.stallTier >= UpgradeDefinitions.stall.count - 1
@@ -16,7 +16,7 @@ public enum RenovationSystem {
         1 + priceBonusPerLevel * Double(max(0, level))
     }
 
-    /// Two significant figures so the cost reads as a round number: 50,000, 75,000, 110,000, 170,000.
+    /// Two significant figures so the cost reads as a round number: 50,000, 65,000, 85,000, 110,000.
     public static func cost(forLevel level: Int) -> Double {
         Double(MissionSystem.cleanNumber(baseCost * pow(costGrowth, Double(max(0, level)))))
     }

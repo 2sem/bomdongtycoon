@@ -9,7 +9,16 @@ public struct FeverState: Equatable {
 }
 
 public enum FeverSystem {
+    /// Floor of the charge a serve adds (a 36-serve gauge at the fastest pace).
     public static let chargePerServe: Double = 1.0 / 36.0
+    /// The gauge is sized to pace: a serve adds `interval / paceSeconds`, so a steady player fills it in
+    /// about this many seconds at any rating, however slowly customers arrive.
+    public static let paceSeconds: Double = 90.0
+
+    /// `spawnInterval` is the non-fever customer interval at the current rating.
+    public static func charge(perServeAtInterval spawnInterval: Double) -> Double {
+        max(chargePerServe, spawnInterval / paceSeconds)
+    }
     /// Applied when the customer waited less than `fastServeWait`.
     public static let fastServeBonus: Double = 1.5
     public static let fastServeWait: Double = 2.0
@@ -32,10 +41,10 @@ public enum FeverSystem {
     }
 
     /// Charge does not accumulate while fever is active, but the sale still restarts the decay delay.
-    public static func recordServed(_ state: inout FeverState, waitTime: Double) {
+    public static func recordServed(_ state: inout FeverState, waitTime: Double, baseCharge: Double = chargePerServe) {
         state.secondsSinceSale = 0
         guard !isActive(state) else { return }
-        let gain = waitTime < fastServeWait ? chargePerServe * fastServeBonus : chargePerServe
+        let gain = waitTime < fastServeWait ? baseCharge * fastServeBonus : baseCharge
         state.charge = min(1, state.charge + gain)
     }
 

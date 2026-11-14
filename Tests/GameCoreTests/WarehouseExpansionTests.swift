@@ -73,12 +73,13 @@ final class WarehouseExpansionTests: XCTestCase {
     // MARK: Goal selection
 
     /// Menu/stall/staff maxed or locked would be noisy; instead zero coins and a
-    /// cheapest competitor (알바생, 500) so the 300 warehouse wins only when offered.
+    /// cheapest competitor (알바생, 300) so the 300 warehouse wins only when offered.
     private func goalName(warehouse: Int, capacity: Int = 10) -> String? {
         var stall = StallState()
         stall.warehouse = warehouse
         stall.warehouseCapacity = capacity
         stall.menuCooks = [1, 0, 0]
+        stall.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]
         return EarningsSystem.nextGoalUpgrade(for: stall)?.name
     }
 
@@ -110,6 +111,7 @@ final class WarehouseExpansionTests: XCTestCase {
             s.menuTier = UpgradeDefinitions.menu.count - 1
             s.stallTier = UpgradeDefinitions.stall.count - 1
             s.locationTier = UpgradeDefinitions.location.count - 1
+            s.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]
             return s
         }
         // With everything bought and no throttle, only the endless renovation is left.
@@ -136,6 +138,7 @@ final class WarehouseExpansionTests: XCTestCase {
         s.menuCooks = [1, 0, 0]
         s.warehouse = warehouse
         s.warehouseCapacity = capacity
+        s.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]
         return s
     }
 

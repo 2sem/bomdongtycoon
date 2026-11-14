@@ -56,10 +56,13 @@ public struct GoalProgressBar: View {
                     showUpgrades = true
                 }
             } label: {
+                let name = Self.text(for: label)
+                let amounts = "\(CoinFormat.string(store.stall.coins))/\(CoinFormat.string(next.coinCost))"
                 pill(
                     icon: ready ? "dot_ui_check" : (isStaff ? "dot_ui_staff" : "dot_ui_upgrade"),
                     ready: ready,
-                    text: Self.text(for: label)
+                    text: ready ? name : "\(name) \(amounts)",
+                    compactText: ready ? nil : amounts
                 )
             }
             .buttonStyle(.plain)
@@ -96,6 +99,7 @@ public struct GoalProgressBar: View {
         switch label {
         case .hire: String(localized: "고용하기")
         case .warehouse: String(localized: "창고 확장")
+        case .recipe: String(localized: "dot.goal.recipe")
         case .upgrade, .renovation, nil: String(localized: "업그레이드")
         }
     }

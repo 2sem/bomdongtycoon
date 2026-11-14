@@ -56,9 +56,9 @@ final class EarningsSystemTests: XCTestCase {
 
     func test_nextAffordableUpgrade_returnsLowestAffordable() {
         var stall = StallState()
-        stall.coins = 600
+        stall.coins = 400
         let next = EarningsSystem.nextAffordableUpgrade(for: stall)
-        XCTAssertEqual(next?.name, "알바생")  // costs 500
+        XCTAssertEqual(next?.name, "겉절이")  // recipe level 1 costs 150, the hire 300
     }
 
     func test_nextAffordableUpgrade_noneAffordable() {
@@ -70,7 +70,7 @@ final class EarningsSystemTests: XCTestCase {
         let stall = StallState()  // 0 coins — all unaffordable
         let goal = EarningsSystem.nextGoalUpgrade(for: stall)
         XCTAssertNotNil(goal)
-        XCTAssertEqual(goal?.name, "알바생")  // cheapest at 500
+        XCTAssertEqual(goal?.name, "겉절이")  // the 150-coin recipe level is the cheapest of everything
     }
 }
 
@@ -85,6 +85,7 @@ extension EarningsSystemTests {
         stall.menuTier = menuTier       // menu maxed so it never competes
         stall.locationTier = locationTier
         stall.coins = coins
+        stall.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]  // endless sinks never compete
         return EarningsSystem.nextGoalUpgrade(for: stall)?.name
     }
 
@@ -121,7 +122,7 @@ extension EarningsSystemTests {
 
     func test_firstHire_neverGated() {
         XCTAssertEqual(goal(stallTier: 0, staffTier: 0, coins: 0), "알바생")
-        XCTAssertEqual(goal(stallTier: 0, staffTier: 0, coins: 500), "알바생")
+        XCTAssertEqual(goal(stallTier: 0, staffTier: 0, coins: 300), "알바생")
     }
 
     func test_nextAffordableUpgrade_skipsLockedStaff() {
@@ -129,6 +130,7 @@ extension EarningsSystemTests {
         stall.staffTier = 1
         stall.menuTier = 2
         stall.coins = 4_000
+        stall.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]  // endless sinks never compete
         XCTAssertNil(EarningsSystem.nextAffordableUpgrade(for: stall))  // 이모님 locked, 식당 5,000
         stall.coins = 5_000
         XCTAssertEqual(EarningsSystem.nextAffordableUpgrade(for: stall)?.name, "봄동 식당")
@@ -140,6 +142,7 @@ extension EarningsSystemTests {
         stall.staffTier = 3
         stall.menuTier = 2
         stall.coins = 39_530
+        stall.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]  // endless sinks never compete
         let text = EarningsSystem.locationGoalText(for: stall)
         XCTAssertNotNil(text)
         XCTAssertTrue(text?.contains("39,530 / 40,000") == true, text ?? "nil")
@@ -151,6 +154,7 @@ extension EarningsSystemTests {
         stall.staffTier = 3
         stall.menuTier = 2
         stall.coins = 39_530
+        stall.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]  // endless sinks never compete
         let full = EarningsSystem.locationGoalText(for: stall) ?? ""
         let compact = EarningsSystem.locationGoalCompactText(for: stall)
         XCTAssertEqual(compact, "💰 39,530 / 40,000 · 시장")

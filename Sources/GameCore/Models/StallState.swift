@@ -51,6 +51,9 @@ public struct StallState: Codable {
     /// 가게 단장 levels bought; endless, each adds `RenovationSystem.priceBonusPerLevel` to every sale.
     public var renovationLevel: Int = 0
 
+    /// 레시피 강화 level per menu index (0...`RecipeSystem.maxLevel`); each adds 10% to that dish's price.
+    public var recipeLevels: [Int] = [0, 0, 0]
+
     private enum CodingKeys: String, CodingKey {
         case coins, menuTier, staffTier, stallTier, locationTier, pendingCoins
         case tier1Count, tier2Count, tier3Count
@@ -60,7 +63,7 @@ public struct StallState: Codable {
         case warehouse, warehouseCapacity, menuStock
         case farmerCount, farmerIdleEnergies
         case veteranAlbaCount, veteranAlbaIdleEnergies
-        case renovationLevel
+        case renovationLevel, recipeLevels
     }
 
     /// Every key is optional so older saves (which predate `locationTier`) keep loading.
@@ -93,12 +96,15 @@ public struct StallState: Codable {
         veteranAlbaCount = c.decodeOrDefault(.veteranAlbaCount, d.veteranAlbaCount)
         veteranAlbaIdleEnergies = c.decodeOrDefault(.veteranAlbaIdleEnergies, d.veteranAlbaIdleEnergies)
         renovationLevel = max(0, c.decodeOrDefault(.renovationLevel, d.renovationLevel))
+        recipeLevels = c.decodeOrDefault(.recipeLevels, d.recipeLevels)
 
         // GameStore indexes these three by menu index; a wrong length would trap there.
         let menuCount = UpgradeDefinitions.menu.count
         menuCooks      = Self.resized(menuCooks, to: menuCount, padding: 0)
         menuCookEnergy = Self.resized(menuCookEnergy, to: menuCount, padding: 1.0)
         menuStock      = Self.resized(menuStock, to: menuCount, padding: 0)
+        recipeLevels   = Self.resized(recipeLevels, to: menuCount, padding: 0)
+            .map { min(max($0, 0), RecipeSystem.maxLevel) }
     }
 
     private static func resized<T>(_ array: [T], to count: Int, padding: T) -> [T] {

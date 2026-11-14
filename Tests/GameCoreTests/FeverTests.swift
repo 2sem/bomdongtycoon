@@ -4,6 +4,12 @@ import XCTest
 @MainActor
 final class FeverTests: DotWorldTestCase {
 
+    /// From rating 4.0 the pace-sized charge falls to its floor of a thirty-sixth.
+    override func setUp() async throws {
+        try await super.setUp()
+        store.progress.rating = 4.6
+    }
+
     func test_serve_adds_a_thirtysixth() {
         store.recordServed(waitTime: 5)
         XCTAssertEqual(store.feverCharge, 1.0 / 36, accuracy: 1e-9)
