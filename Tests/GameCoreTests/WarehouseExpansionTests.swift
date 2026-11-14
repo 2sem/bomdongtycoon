@@ -78,6 +78,7 @@ final class WarehouseExpansionTests: XCTestCase {
         var stall = StallState()
         stall.warehouse = warehouse
         stall.warehouseCapacity = capacity
+        stall.menuCooks = [1, 0, 0]
         return EarningsSystem.nextGoalUpgrade(for: stall)?.name
     }
 
@@ -111,9 +112,19 @@ final class WarehouseExpansionTests: XCTestCase {
             s.locationTier = UpgradeDefinitions.location.count - 1
             return s
         }
-        XCTAssertNil(EarningsSystem.nextGoalType(for: only(warehouse: 15)))
+        // With everything bought and no throttle, only the endless renovation is left.
+        XCTAssertEqual(EarningsSystem.nextGoalType(for: only(warehouse: 15)), .renovation)
         XCTAssertEqual(EarningsSystem.nextGoalType(for: only(warehouse: 16)), .warehouse)
         XCTAssertEqual(EarningsSystem.nextGoalUpgrade(for: only(warehouse: 16))?.coinCost, 800)
+    }
+
+    func test_goal_fullWarehouse_withoutAMenuCook_isNotWarehouse() {
+        // Before a cook is assigned the cook is the bottleneck, not the warehouse.
+        var s = stall(warehouse: 10)
+        s.menuCooks = [0, 0, 0]
+        XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .staff)
+        s.menuCooks = [0, 2, 0]
+        XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .warehouse, "any menu's cook counts")
     }
 
     func test_goal_atMaxCap_neverWarehouse() {
@@ -122,6 +133,7 @@ final class WarehouseExpansionTests: XCTestCase {
 
     private func stall(warehouse: Int, capacity: Int = 10) -> StallState {
         var s = StallState()
+        s.menuCooks = [1, 0, 0]
         s.warehouse = warehouse
         s.warehouseCapacity = capacity
         return s

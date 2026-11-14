@@ -44,19 +44,36 @@ public struct Mission: Codable, Equatable, Identifiable {
 public struct MissionState: Codable, Equatable {
     public var dayKey: Int = 0
     public var missions: [Mission] = []
+    /// Paid once when every mission of the day is complete; fixed at roll time like a mission reward.
+    public var bonusReward: Double = 0
+    public var isBonusClaimed: Bool = false
 
     public init() {}
 
-    public init(dayKey: Int, missions: [Mission]) {
+    public init(dayKey: Int, missions: [Mission], bonusReward: Double? = nil, isBonusClaimed: Bool = false) {
         self.dayKey = dayKey
         self.missions = missions
+        self.bonusReward = bonusReward ?? Self.defaultBonus(for: missions)
+        self.isBonusClaimed = isBonusClaimed
     }
 
-    private enum CodingKeys: String, CodingKey { case dayKey, missions }
+    /// Every mission of a day shares one reward, so the bonus is two of them.
+    static func defaultBonus(for missions: [Mission]) -> Double {
+        (missions.map(\.reward).max() ?? 0) * MissionSystem.dailyBonusMultiplier
+    }
 
+    /// All of today's missions are done (claimed or not). Never true for an empty day.
+    public var isEverythingComplete: Bool { !missions.isEmpty && missions.allSatisfy(\.isComplete) }
+    public var isBonusReady: Bool { isEverythingComplete && !isBonusClaimed }
+
+    private enum CodingKeys: String, CodingKey { case dayKey, missions, bonusReward, isBonusClaimed }
+
+    /// Saves from before the bonus carry neither key: the bonus is derived from the missions then.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         dayKey   = c.decodeOrDefault(.dayKey, 0)
         missions = c.decodeLossyArray(Mission.self, forKey: .missions) ?? []
+        bonusReward = max(0, c.decodeOrDefault(.bonusReward, Self.defaultBonus(for: missions)))
+        isBonusClaimed = c.decodeOrDefault(.isBonusClaimed, false)
     }
 }

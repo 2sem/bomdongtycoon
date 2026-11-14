@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 public enum UpgradeType {
-    case staff, menu, stall, farm, location, warehouse
+    case staff, menu, stall, farm, location, warehouse, renovation
 }
 
 @MainActor
@@ -57,6 +57,10 @@ public final class GameStore: ObservableObject {
         var fever = FeverState()
         var weather = WeatherState()
         var missionCheckTimer: Double = 0                // day rollover is checked once a second
+        /// Seconds an uncollected golden plot has been ripe while the app was active, by plot index.
+        var goldenAge: [Int: Double] = [:]
+        /// Sale coins taken during the current or latest fever; reset when the next one starts.
+        var feverEarned: Double = 0
     }
     private var transients = RunTransients()
 
@@ -275,12 +279,15 @@ public final class GameStore: ObservableObject {
             farm.plots[i].growth = min(farm.plots[i].growth + growRate * boost * deltaTime, 1.0)
             if farm.plots[i].isReady, random() < Self.goldenChance { farm.plots[i].isGolden = true }
         }
+        advanceGoldenAges(deltaTime: deltaTime)
 
         // Farm workers (tier1 only) auto-harvest and replant
         for i in 0..<min(activePlots, farm.plots.count) {
             guard farm.plots[i].hasWorker else { continue }
             if farm.plots[i].isReady {
                 guard stall.warehouse < stall.warehouseCapacity else { continue }
+                // A golden crop waits for the player's finger; its bonus only pays on a manual harvest.
+                if farm.plots[i].isGolden, (transients.goldenAge[i] ?? 0) < Self.goldenWorkerGraceSeconds { continue }
                 stall.warehouse += FarmSystem.harvestYield
                 farm.plots[i].growth   = 0
                 farm.plots[i].isPlanted = false
@@ -328,10 +335,7 @@ public final class GameStore: ObservableObject {
             guard transients.manualCookProgress[menuIndex] ?? 0 >= 1.0 else { continue }
             transients.manualCookProgress[menuIndex] = nil
             guard canManualCook(menuIndex: menuIndex) else { continue }
-            stall.warehouse -= 1
-            stall.menuStock[menuIndex] += 1
-            advanceMissions(.cookDishes)
-            save()
+            completeManualCook(menuIndex: menuIndex)
         }
 
         // pendingCoins always pays out immediately, cashier or not: the tap-a-bubble
@@ -341,7 +345,7 @@ public final class GameStore: ObservableObject {
         }
 
         // Rating slowly decays — active serving easily overcomes it, idle play drifts down
-        progress.rating = max(1.0, progress.rating - 0.0002 * deltaTime)
+        progress.rating = max(1.0, progress.rating - Self.ratingDecayPerSecond * deltaTime)
 
         // Persist lastActiveDate + earningRate every 5 s
         if offlineEarnings == 0 {
@@ -363,6 +367,24 @@ public final class GameStore: ObservableObject {
                 save()
             }
         }
+    }
+
+    private func advanceGoldenAges(deltaTime: Double) {
+        for i in farm.plots.indices {
+            guard farm.plots[i].isReady, farm.plots[i].isGolden else {
+                transients.goldenAge[i] = nil
+                continue
+            }
+            // Only app-active time counts: a golden crop must not ripen and be taken while the player is away.
+            transients.goldenAge[i, default: 0] += isAppActive ? deltaTime : 0
+        }
+    }
+
+    private func completeManualCook(menuIndex: Int) {
+        stall.warehouse -= 1
+        stall.menuStock[menuIndex] += 1
+        advanceMissions(.cookDishes)
+        save()
     }
 
     /// True for `cashierBusyWindow` seconds after each sale, so the cashier figure keeps its
@@ -395,6 +417,7 @@ public final class GameStore: ObservableObject {
             transients.cashierBusyRemaining = Self.cashierBusyWindow
         }
         stall.pendingCoins += price
+        if isFeverActive { transients.feverEarned += price }
         // Fever and gourmet are active-play bonuses: offline earnings stay priced on the base economy.
         transients.earningWindowCoins += basePrice
         advanceMissions(.earnCoins, by: Int(price.rounded()))
@@ -422,6 +445,11 @@ public final class GameStore: ObservableObject {
 
     static let goldenChance: Double = 0.06
     static let goldenBonusSales: Double = 15
+    /// A golden crop is also worth this many seconds of live income, so it still matters once the
+    /// bank dwarfs 15 sales.
+    static let goldenBonusIncomeSeconds: Double = 45
+    /// How long a worker leaves a ripe golden plot for the player to tap.
+    public static let goldenWorkerGraceSeconds: Double = 20
 
     /// Manual harvest. nil when nothing was harvested. A golden plot pays `goldenBonusSales`
     /// sales of the best unlocked menu on top of the normal yield.
@@ -437,8 +465,7 @@ public final class GameStore: ObservableObject {
         farm.plots[plotIndex].isGolden  = false
         var bonus = 0.0
         if isGolden {
-            bonus = Self.goldenBonusSales * EarningsSystem.salePrice(
-                for: stall, menuIndex: stall.menuTier, prestigeCount: progress.prestigeCount)
+            bonus = Self.goldenBonus(stall: stall, progress: progress)
             stall.coins += bonus
             progress.totalEarned += bonus
             progress.totalGoldenHarvested += 1
@@ -449,17 +476,55 @@ public final class GameStore: ObservableObject {
         return HarvestResult(isGolden: isGolden, bonusCoins: bonus)
     }
 
+    /// max(15 best sales, 45 s of live income).
+    static func goldenBonus(stall: StallState, progress: PlayerProgress) -> Double {
+        max(goldenBonusSales * EarningsSystem.salePrice(
+                for: stall, menuIndex: stall.menuTier, prestigeCount: progress.prestigeCount),
+            goldenBonusIncomeSeconds * progress.earningRate)
+    }
+
+    // MARK: - Tips
+
+    static let tipChance: Double = 0.20
+    static let tipFeverChance: Double = 0.35
+    static let tipSaleShare: Double = 0.5
+    static let gourmetTipSaleShare: Double = 1.0
+
+    /// Whether a served customer leaves a tip coin on the street. Gourmets always do and consume no roll.
+    public func rollTip(isGourmet: Bool) -> Bool {
+        if isGourmet { return true }
+        return random() < (isFeverActive ? Self.tipFeverChance : Self.tipChance)
+    }
+
+    public static func tipAmount(forSale price: Double, isGourmet: Bool) -> Double {
+        price * (isGourmet ? gourmetTipSaleShare : tipSaleShare)
+    }
+
+    /// Pays a tapped tip. It is earned, but not part of `earningWindowCoins`: a tap bonus must not
+    /// inflate the offline rate.
+    public func collectTip(amount: Double) {
+        guard amount > 0 else { return }
+        stall.coins += amount
+        progress.totalEarned += amount
+        progress.totalTipsCollected += 1
+        advanceMissions(.earnCoins, by: Int(amount.rounded()))
+        save()
+    }
+
     // MARK: - Fever
 
     public var feverCharge: Double { transients.fever.charge }
     public var isFeverReady: Bool { FeverSystem.isReady(transients.fever) }
     public var isFeverActive: Bool { FeverSystem.isActive(transients.fever) }
     public var feverRemaining: Double { transients.fever.remaining }
+    /// Coins the current (or just-ended) fever's sales paid.
+    public var feverEarned: Double { transients.feverEarned }
 
     /// False, changing nothing, unless the gauge is full and fever is not already running.
     @discardableResult
     public func startFever() -> Bool {
         guard FeverSystem.start(&transients.fever) else { return false }
+        transients.feverEarned = 0
         progress.totalFevers += 1
         advanceMissions(.triggerFever)
         save()
@@ -485,7 +550,23 @@ public final class GameStore: ObservableObject {
     public var missions: [Mission] { missionState.missions }
 
     public var unclaimedCompletedMissionCount: Int {
-        missionState.missions.filter { $0.isComplete && !$0.isClaimed }.count
+        missionState.missions.filter { $0.isComplete && !$0.isClaimed }.count + (missionState.isBonusReady ? 1 : 0)
+    }
+
+    public var isDailyBonusReady: Bool { missionState.isBonusReady }
+    public var dailyBonusReward: Double { missionState.bonusReward }
+    public var isDailyBonusClaimed: Bool { missionState.isBonusClaimed }
+
+    /// Pays "오늘의 미션 완료" once, when every mission of the day is complete.
+    @discardableResult
+    public func claimDailyBonus() -> Double? {
+        guard missionState.isBonusReady else { return nil }
+        let reward = missionState.bonusReward
+        missionState.isBonusClaimed = true
+        stall.coins += reward
+        progress.totalEarned += reward
+        save()
+        return reward
     }
 
     /// Pays the reward fixed at roll time, once. nil when unknown, incomplete or already claimed.
@@ -603,6 +684,12 @@ public final class GameStore: ObservableObject {
     /// tapping again mid-cook is a no-op.
     @discardableResult
     public func startManualCook(menuIndex: Int) -> Bool {
+        // Fever: a tap is an instant portion, so the player can keep up with the rush.
+        if isFeverActive, canManualCook(menuIndex: menuIndex) {
+            transients.manualCookProgress[menuIndex] = nil
+            completeManualCook(menuIndex: menuIndex)
+            return true
+        }
         guard transients.manualCookProgress[menuIndex] == nil, canManualCook(menuIndex: menuIndex) else { return false }
         transients.manualCookProgress[menuIndex] = 0
         return true
@@ -640,11 +727,11 @@ public final class GameStore: ObservableObject {
         // tier3 (×7.0) → 0.49/s  ~2s per item
     }
 
-    /// Items per second a manual (tap) cook produces — one portion per
-    /// 10s. Deliberately below tier-1's auto-cook rate (0.14/s, ~7s/item):
-    /// staff has to buy both speed and automation, so tap-spamming a bowl
-    /// can never outpace hiring the cheapest cook.
-    private static let manualCookRate: Double = 0.10
+    /// Items per second a manual (tap) cook produces: one portion per 4 s. Customer patience is
+    /// 12 s, so a first-minute player who cooks by hand is not punished for it. A hired cook
+    /// (0.14/s) is slower per dish but works all three dishes with no taps, so hiring still buys
+    /// automation, not speed.
+    private static let manualCookRate: Double = 0.25
 
     // MARK: - Staff workers
 
@@ -888,7 +975,7 @@ public final class GameStore: ObservableObject {
 
     public func recordServed(waitTime: Double, isGourmet: Bool = false) {
         progress.totalServed += 1
-        let delta = (waitTime < 3.0 ? 0.03 : 0.01) * (isGourmet ? 2 : 1)
+        let delta = (waitTime < 3.0 ? Self.ratingGainFast : Self.ratingGainSlow) * (isGourmet ? 2 : 1)
         progress.rating = min(5.0, progress.rating + delta)
         progress.bestRating = max(progress.bestRating, progress.rating)
         FeverSystem.recordServed(&transients.fever, waitTime: waitTime)
@@ -901,6 +988,11 @@ public final class GameStore: ObservableObject {
     }
 
     static let gourmetChance: Double = 0.08
+    /// Rating falls this much per second while nothing is served and gains 0.02/0.01 a customer
+    /// (fast < 3 s / slow), so keeping a high rating takes steady service instead of a one-off climb.
+    static let ratingDecayPerSecond: Double = 0.0005
+    static let ratingGainFast: Double = 0.02
+    static let ratingGainSlow: Double = 0.01
 
     /// Whether the next customer is a gourmet. No roll is consumed below the rating floor.
     public func rollGourmet() -> Bool {
@@ -909,9 +1001,8 @@ public final class GameStore: ObservableObject {
 
     public func recordFailed(isGourmet: Bool = false) {
         progress.totalFailed += 1
-        // Grace until the first sale: the manual cook (10 s) is slower than
-        // customer patience (8 s), so a new player cannot avoid these. Per run: a new spring
-        // restarts the grace along with the manual-cook slowness it exists for.
+        // Grace until the first sale: the first customers arrive before any dish is cooked, so a new
+        // player cannot avoid these. Per run: a new spring restarts the grace with the empty shelf.
         if progress.runServed > 0 {
             progress.rating = max(1.0, progress.rating - (isGourmet ? 0.10 : 0.05))
         }
@@ -961,6 +1052,11 @@ public final class GameStore: ObservableObject {
         case .warehouse:
             expandWarehouse()   // saves itself
             return
+
+        case .renovation:
+            guard let cost = RenovationSystem.nextCost(for: stall), stall.coins >= cost else { return }
+            stall.coins -= cost
+            stall.renovationLevel += 1
         }
         save()
     }
@@ -1056,6 +1152,7 @@ public final class GameStore: ObservableObject {
         next.totalGourmetServed     = old.totalGourmetServed
         next.totalGoldenHarvested   = old.totalGoldenHarvested
         next.totalFevers            = old.totalFevers
+        next.totalTipsCollected     = old.totalTipsCollected
         // Changed on purpose.
         next.prestigeCount          = old.prestigeCount + 1
         next.fastestRunSeconds      = min(old.fastestRunSeconds ?? .infinity, old.runPlaySeconds)

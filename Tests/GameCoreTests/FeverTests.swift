@@ -66,15 +66,15 @@ final class FeverTests: DotWorldTestCase {
         XCTAssertEqual(store.progress.totalFevers, 0)
     }
 
-    func test_startFever_resetsCharge_runsTwelveSeconds_thenExpires() {
+    func test_startFever_resetsCharge_runsFifteenSeconds_thenExpires() {
         chargeFever()
         XCTAssertTrue(store.startFever())
         XCTAssertTrue(store.isFeverActive)
         XCTAssertEqual(store.feverCharge, 0)
-        XCTAssertEqual(store.feverRemaining, 12, accuracy: 1e-9)
+        XCTAssertEqual(store.feverRemaining, 15, accuracy: 1e-9)
         XCTAssertEqual(store.progress.totalFevers, 1)
 
-        store.tick(deltaTime: 11.9)
+        store.tick(deltaTime: 14.9)
         XCTAssertTrue(store.isFeverActive)
         store.tick(deltaTime: 0.2)
         XCTAssertFalse(store.isFeverActive)
@@ -93,17 +93,17 @@ final class FeverTests: DotWorldTestCase {
     func test_accumulationResumesAfterExpiry() {
         chargeFever()
         store.startFever()
-        store.tick(deltaTime: 12)
+        store.tick(deltaTime: 15)
         store.recordServed(waitTime: 5)
         XCTAssertEqual(store.feverCharge, 0.1, accuracy: 1e-9)
     }
 
-    func test_active_halvesSpawnInterval() {
+    func test_active_spawnsAtThirtyFivePercentOfTheInterval() {
         let base = store.customerSpawnInterval
         chargeFever()
         store.startFever()
-        XCTAssertEqual(store.customerSpawnInterval, base * 0.5, accuracy: 1e-9)
-        store.tick(deltaTime: 12)
+        XCTAssertEqual(store.customerSpawnInterval, base * 0.35, accuracy: 1e-9)
+        store.tick(deltaTime: 15)
         XCTAssertEqual(store.customerSpawnInterval, base, accuracy: 1e-9)
     }
 

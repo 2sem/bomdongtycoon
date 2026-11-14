@@ -30,6 +30,7 @@ public struct PlayerProgress: Codable {
     public var totalGourmetServed: Int = 0
     public var totalGoldenHarvested: Int = 0
     public var totalFevers: Int = 0
+    public var totalTipsCollected: Int = 0
 
     public init() {}
 
@@ -65,5 +66,6 @@ public struct PlayerProgress: Codable {
         totalGourmetServed     = max(0, c.decodeOrDefault(.totalGourmetServed, d.totalGourmetServed))
         totalGoldenHarvested   = max(0, c.decodeOrDefault(.totalGoldenHarvested, d.totalGoldenHarvested))
         totalFevers            = max(0, c.decodeOrDefault(.totalFevers, d.totalFevers))
+        totalTipsCollected     = max(0, c.decodeOrDefault(.totalTipsCollected, d.totalTipsCollected))
     }
 }

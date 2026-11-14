@@ -65,32 +65,33 @@ final class MissionTests: DotWorldTestCase {
         XCTAssertEqual(MissionSystem.target(for: .serveCustomers, stallTier: 9, earningRate: 0), 80)
     }
 
-    func test_earnTarget_is120Seconds_withBaseFloor_andCleanNumber() {
+    func test_earnTarget_is240SecondsOfIncome_withBaseFloor_andCleanNumber() {
         XCTAssertEqual(MissionSystem.target(for: .earnCoins, stallTier: 0, earningRate: 0), 360)
-        XCTAssertEqual(MissionSystem.target(for: .earnCoins, stallTier: 0, earningRate: 10.1), 1200)   // 1212 -> 1200
-        XCTAssertEqual(MissionSystem.target(for: .earnCoins, stallTier: 0, earningRate: 40.27), 4800)  // 4832 -> 4800
+        XCTAssertEqual(MissionSystem.target(for: .earnCoins, stallTier: 0, earningRate: 1.2), 360, "floor holds at early-game income")
+        XCTAssertEqual(MissionSystem.target(for: .earnCoins, stallTier: 0, earningRate: 10.1), 2400)   // 2424 -> 2400
+        XCTAssertEqual(MissionSystem.target(for: .earnCoins, stallTier: 0, earningRate: 40.27), 9700)  // 9664.8 -> 9700
     }
 
-    func test_reward_isNinetySecondsOfIncome_min100_andFixedAtRoll() {
+    func test_reward_isFiveMinutesOfIncome_min100_andFixedAtRoll() {
         XCTAssertEqual(MissionSystem.reward(earningRate: 0), 100)
-        XCTAssertEqual(MissionSystem.reward(earningRate: 2), 180 )
-        XCTAssertEqual(MissionSystem.reward(earningRate: 0.5), 100)
+        XCTAssertEqual(MissionSystem.reward(earningRate: 2), 600)
+        XCTAssertEqual(MissionSystem.reward(earningRate: 0.2), 100)
 
         store.progress.earningRate = 10
         clock.date = DotWorldTestSupport.date(2026, 11, 15)
         store.tick(deltaTime: 1)
-        XCTAssertTrue(store.missions.allSatisfy { $0.reward == 900 })
+        XCTAssertTrue(store.missions.allSatisfy { $0.reward == 3000 })
         store.progress.earningRate = 1000
-        XCTAssertTrue(store.missions.allSatisfy { $0.reward == 900 }, "does not float with the rate")
+        XCTAssertTrue(store.missions.allSatisfy { $0.reward == 3000 }, "does not float with the rate")
     }
 
     func test_rewardAndEarnTarget_floorOnBestSalePrice() {
         // A mid/late save whose measured rate lags (just moved or prestiged) must not roll 100 coins.
         XCTAssertEqual(MissionSystem.reward(earningRate: 0, bestSalePrice: 540), 5400)
-        XCTAssertEqual(MissionSystem.reward(earningRate: 100, bestSalePrice: 540), 9000, "rate still wins when higher")
+        XCTAssertEqual(MissionSystem.reward(earningRate: 100, bestSalePrice: 540), 30000, "rate still wins when higher")
         XCTAssertEqual(MissionSystem.reward(earningRate: 0, bestSalePrice: 3), 100, "minimum still applies")
         XCTAssertEqual(MissionSystem.target(for: .earnCoins, stallTier: 1, earningRate: 0, bestSalePrice: 540), 6500) // 6480
-        XCTAssertEqual(MissionSystem.target(for: .earnCoins, stallTier: 1, earningRate: 100, bestSalePrice: 5), 12000)
+        XCTAssertEqual(MissionSystem.target(for: .earnCoins, stallTier: 1, earningRate: 100, bestSalePrice: 5), 24000)
         let rolled = MissionSystem.roll(dayKey: 20261114, stallTier: 2, earningRate: 0, rating: 4, bestSalePrice: 540)
         XCTAssertTrue(rolled.allSatisfy { $0.reward == 5400 })
     }

@@ -15,9 +15,9 @@ public enum FeverSystem {
     public static let fastServeWait: Double = 2.0
     public static let decayDelay: Double = 6.0
     public static let decayPerSecond: Double = 1.0 / 60.0
-    public static let duration: Double = 12.0
+    public static let duration: Double = 15.0
     public static let priceMultiplier: Double = 2.0
-    public static let spawnIntervalMultiplier: Double = 0.5
+    public static let spawnIntervalMultiplier: Double = 0.35
 
     /// Ten serves sum to 0.9999999999999999 in floating point; "full" must tolerate that.
     private static let fullTolerance = 1e-9

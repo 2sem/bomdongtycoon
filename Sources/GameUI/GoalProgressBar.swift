@@ -17,7 +17,7 @@ public struct GoalProgressBar: View {
     }
 
     public var body: some View {
-        if store.isPrestigeAvailable, EarningsSystem.nextGoalUpgrade(for: store.stall) == nil {
+        if store.isPrestigeAvailable, EarningsSystem.isOnlyRenovationLeft(for: store.stall) {
             // Nothing left to buy toward: the goal becomes the new spring. Leftover plots are not
             // goals, so the sheet mentions them instead of this pill waiting on them.
             let text = String(
@@ -96,7 +96,7 @@ public struct GoalProgressBar: View {
         switch label {
         case .hire: String(localized: "고용하기")
         case .warehouse: String(localized: "창고 확장")
-        case .upgrade, nil: String(localized: "업그레이드")
+        case .upgrade, .renovation, nil: String(localized: "업그레이드")
         }
     }
 

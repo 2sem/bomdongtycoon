@@ -134,7 +134,7 @@ final class GameStoreTests: XCTestCase {
 
     // MARK: - Manual (tap) cook
 
-    func test_startManualCook_thenTick_landsOnePortionAfterTenSeconds() {
+    func test_startManualCook_thenTick_landsOnePortionAfterFourSeconds() {
         // The default save's plot 0 auto-harvests on its own (see
         // `FarmState.init`) and would add back to the warehouse mid-test,
         // masking the manual cook's own -1 — unassign it so this test
@@ -144,12 +144,12 @@ final class GameStoreTests: XCTestCase {
         let warehouseBefore = store.stall.warehouse
 
         XCTAssertTrue(store.startManualCook(menuIndex: 0))
-        store.tick(deltaTime: 5.0)
-        // Halfway through the 10s cook — nothing has landed yet
+        store.tick(deltaTime: 2.0)
+        // Halfway through the 4s cook — nothing has landed yet
         XCTAssertEqual(store.stall.menuStock[0], stockBefore)
         XCTAssertEqual(store.cookProgress(menuIndex: 0), 0.5, accuracy: 0.001)
 
-        store.tick(deltaTime: 5.0)
+        store.tick(deltaTime: 2.0)
         XCTAssertEqual(store.stall.menuStock[0], stockBefore + 1)
         XCTAssertEqual(store.stall.warehouse, warehouseBefore - 1)
         XCTAssertFalse(store.isManualCookRunning(menuIndex: 0))

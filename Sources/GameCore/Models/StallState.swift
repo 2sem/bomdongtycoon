@@ -48,6 +48,9 @@ public struct StallState: Codable {
     public var veteranAlbaCount: Int = 0
     public var veteranAlbaIdleEnergies: [Double] = []
 
+    /// 가게 단장 levels bought; endless, each adds `RenovationSystem.priceBonusPerLevel` to every sale.
+    public var renovationLevel: Int = 0
+
     private enum CodingKeys: String, CodingKey {
         case coins, menuTier, staffTier, stallTier, locationTier, pendingCoins
         case tier1Count, tier2Count, tier3Count
@@ -57,6 +60,7 @@ public struct StallState: Codable {
         case warehouse, warehouseCapacity, menuStock
         case farmerCount, farmerIdleEnergies
         case veteranAlbaCount, veteranAlbaIdleEnergies
+        case renovationLevel
     }
 
     /// Every key is optional so older saves (which predate `locationTier`) keep loading.
@@ -88,6 +92,7 @@ public struct StallState: Codable {
         farmerIdleEnergies = c.decodeOrDefault(.farmerIdleEnergies, d.farmerIdleEnergies)
         veteranAlbaCount = c.decodeOrDefault(.veteranAlbaCount, d.veteranAlbaCount)
         veteranAlbaIdleEnergies = c.decodeOrDefault(.veteranAlbaIdleEnergies, d.veteranAlbaIdleEnergies)
+        renovationLevel = max(0, c.decodeOrDefault(.renovationLevel, d.renovationLevel))
 
         // GameStore indexes these three by menu index; a wrong length would trap there.
         let menuCount = UpgradeDefinitions.menu.count

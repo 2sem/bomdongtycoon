@@ -1,10 +1,18 @@
 import Foundation
 
+public enum MissionBlock: Equatable {
+    case needsRating(Double)
+}
+
 public enum MissionSystem {
     public static let missionsPerDay = 3
     public static let minimumReward: Double = 100
-    public static let rewardSeconds: Double = 90
+    public static let rewardSeconds: Double = 300
+    /// Floor window for the earn target; the target also scales to `earnTargetRateSeconds` of live income.
     public static let earnTargetSeconds: Double = 120
+    public static let earnTargetRateSeconds: Double = 240
+    /// Paid for finishing all of a day's missions, in single rewards.
+    public static let dailyBonusMultiplier: Double = 2
     /// Floor for the earn target on a fresh save with no measured rate: about one base sale per 10 s.
     public static let baseEarnRate: Double = 3
     /// A mission pays at least this many sales of the best unlocked dish, so a save whose
@@ -39,8 +47,15 @@ public enum MissionSystem {
         case .cookDishes:     return cookTargets[tier]
         case .triggerFever:   return feverTargets[tier]
         case .serveGourmets:  return gourmetTargets[tier]
-        case .earnCoins:      return cleanNumber(max(earnTargetSeconds * max(earningRate, baseEarnRate), earnTargetSales * bestSalePrice))
+        case .earnCoins:      return cleanNumber(max(earnTargetSeconds * baseEarnRate, earnTargetSales * bestSalePrice,
+                                                    earnTargetRateSeconds * earningRate))
         }
+    }
+
+    /// Why a mission cannot move right now, or nil when it can. Only the gourmet mission can stall:
+    /// gourmets visit from `gourmetRatingFloor`, and the rating can fall under it after the roll.
+    public static func blockedReason(kind: MissionKind, rating: Double) -> MissionBlock? {
+        kind == .serveGourmets && rating < gourmetRatingFloor ? .needsRating(gourmetRatingFloor) : nil
     }
 
     /// Two significant figures: 363.2 -> 360, 4812 -> 4800.

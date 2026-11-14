@@ -103,6 +103,8 @@ final class GoldenGourmetTests: DotWorldTestCase {
         store.stall.warehouse = 0
         store.stall.coins = 0   // blocks the replant so coins stay observable
         store.tick(deltaTime: 0.1)
+        XCTAssertTrue(store.farm.plots[0].isGolden, "the player's window: the worker waits")
+        store.tick(deltaTime: GameStore.goldenWorkerGraceSeconds)
         XCTAssertFalse(store.farm.plots[0].isGolden)
         XCTAssertEqual(store.stall.coins, 0)
         XCTAssertEqual(store.stall.warehouse, FarmSystem.harvestYield)
@@ -164,10 +166,10 @@ final class GoldenGourmetTests: DotWorldTestCase {
     func test_gourmetServed_doublesRatingGain_andCounts() {
         store.progress.rating = 3.0
         store.recordServed(waitTime: 1, isGourmet: true)
-        XCTAssertEqual(store.progress.rating, 3.06, accuracy: 1e-9)
+        XCTAssertEqual(store.progress.rating, 3.04, accuracy: 1e-9)
         XCTAssertEqual(store.progress.totalGourmetServed, 1)
         store.recordServed(waitTime: 5, isGourmet: true)
-        XCTAssertEqual(store.progress.rating, 3.08, accuracy: 1e-9)
+        XCTAssertEqual(store.progress.rating, 3.06, accuracy: 1e-9)
     }
 
     func test_gourmetFailed_doublesLoss_afterFirstSaleGrace() {

@@ -49,7 +49,7 @@ public enum EarningsSystem {
     }
 
     /// What a sale actually pays: the one place every revenue multiplier composes
-    /// (menu x location x cashier x legacy). Costs are never scaled.
+    /// (menu x location x renovation x cashier x legacy). Costs are never scaled.
     /// Offline earnings use `progress.earningRate`, an EMA of these sale prices, so the
     /// cashier and legacy bonuses are already inside the rate and must not be applied again there.
     /// `prestigeCount` 0 multiplies by exactly 1.0, so a first-run player's prices are untouched.
@@ -67,12 +67,13 @@ public enum EarningsSystem {
 
     public static let gourmetMultiplier: Double = 3
 
-    /// Price for a specific menu slot (겉절이=30, 봄동김치=75, 봄동비빔밥=180) times the location multiplier
+    /// Price for a specific menu slot (겉절이=30, 봄동김치=75, 봄동비빔밥=180) times the location and renovation multipliers
     public static func pricePerItem(for stall: StallState, menuIndex: Int) -> Double {
         let menuMultiplier = menuIndex < UpgradeDefinitions.menu.count
             ? UpgradeDefinitions.menu[menuIndex].priceMultiplier
             : 1.0
         return basePricePerItem * menuMultiplier * locationMultiplier(for: stall)
+            * RenovationSystem.priceMultiplier(level: stall.renovationLevel)
     }
 
     /// Maximum stock the stall can hold at once
@@ -118,9 +119,16 @@ public enum EarningsSystem {
         switch nextGoalType(for: stall) {
         case .staff: .hire
         case .warehouse: .warehouse
+        case .renovation: .renovation
         case nil: nil
         default: .upgrade
         }
+    }
+
+    /// Nothing but the endless renovation (or nothing at all) left to buy: the point where the
+    /// goal capsule becomes the new-spring entry, since renovation never outranks it.
+    public static func isOnlyRenovationLeft(for stall: StallState) -> Bool {
+        nextGoalType(for: stall) == nil || nextGoalType(for: stall) == .renovation
     }
 
     // MARK: Location goal
@@ -198,18 +206,26 @@ public enum EarningsSystem {
             result.append(Goal(type: .location, definition: UpgradeDefinition(
                 name: next.name, coinCost: next.coinCost, description: next.description)))
         }
-        // Warehouse: only a goal once it is the real throttle (>= 80% full), so cheapest-first
-        // cannot let a 300-coin expansion displace a hire/menu/stall while there is still room.
+        // Warehouse: only a goal once it is the real throttle (>= 80% full) AND a menu cook is
+        // assigned. Before a cook exists the cook is the bottleneck, so cheapest-first must not let
+        // a 300-coin expansion displace a hire/menu/stall while there is still room.
         if WarehouseSystem.isThrottling(count: stall.warehouse, capacity: stall.warehouseCapacity),
+           stall.menuCooks.contains(where: { $0 > 0 }),
            let next = WarehouseSystem.nextExpansion(current: stall.warehouseCapacity) {
             result.append(Goal(type: .warehouse, definition: UpgradeDefinition(
                 name: "창고 확장", coinCost: next.cost,
                 description: "창고 \(stall.warehouseCapacity)칸 → \(next.capacity)칸")))
+        }
+        // Renovation is the endless sink: a goal only once nothing else is left to buy.
+        if result.isEmpty, let cost = RenovationSystem.nextCost(for: stall) {
+            result.append(Goal(type: .renovation, definition: UpgradeDefinition(
+                name: "가게 단장", coinCost: cost,
+                description: "판매가 +\(RenovationSystem.percentPerLevel)%")))
         }
         return result
     }
 }
 
 public enum GoalLabel: Equatable {
-    case hire, warehouse, upgrade
+    case hire, warehouse, upgrade, renovation
 }
