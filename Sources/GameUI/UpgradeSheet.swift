@@ -9,74 +9,68 @@ public struct UpgradeSheet: View {
     @State private var pendingWarehouseCapacity: Int?
     @State private var showPrestige = false
     @State private var showStats = false
+    @Environment(\.dotPlaySound) private var play
 
     public init(isPresented: Binding<Bool>) {
         self._isPresented = isPresented
     }
 
     public var body: some View {
-        NavigationStack {
-            List {
+        DotSheet(title: String(localized: "업그레이드"), onClose: { isPresented = false }) {
+            DotScroll {
                 upgradeSection(
-                    title: "메뉴 추가",
+                    title: String(localized: "dot.upgrade.menu"),
                     type: .menu,
                     definitions: UpgradeDefinitions.menu,
-                    currentTier: store.stall.menuTier + 1
+                    currentTier: store.stall.menuTier + 1,
+                    icons: ["dot_dish_geotjeori", "dot_dish_kimchi", "dot_dish_bibimbap"]
                 )
                 upgradeSection(
-                    title: "가게 업그레이드",
+                    title: String(localized: "dot.upgrade.stall"),
                     type: .stall,
                     definitions: UpgradeDefinitions.stall,
-                    currentTier: store.stall.stallTier + 1
+                    currentTier: store.stall.stallTier + 1,
+                    icons: ["dot_ui_upgrade", "dot_ui_upgrade", "dot_ui_upgrade"]
                 )
                 warehouseSection
                 locationSection
                 springSection
             }
-            .sheet(isPresented: $showPrestige) {
-                PrestigeSheet(isPresented: $showPrestige) {
-                    showPrestige = false
-                    isPresented = false
-                }
+        }
+        .sheet(isPresented: $showPrestige) {
+            PrestigeSheet(isPresented: $showPrestige) {
+                showPrestige = false
+                isPresented = false
+            }
+            .environmentObject(store)
+        }
+        .sheet(isPresented: $showStats) {
+            StatsSheet(isPresented: $showStats)
                 .environmentObject(store)
-            }
-            .sheet(isPresented: $showStats) {
-                StatsSheet(isPresented: $showStats)
-                    .environmentObject(store)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-            }
-            .alert(
-                String(localized: "창고를 넓힐까요?"),
-                isPresented: Binding(
-                    get: { pendingWarehouseCapacity != nil },
-                    set: { if !$0 { pendingWarehouseCapacity = nil } }
-                )
-            ) {
-                Button(String(localized: "넓히기")) { confirmWarehouseExpansion() }
-                Button(String(localized: "취소"), role: .cancel) {}
-            } message: {
-                Text(warehouseAlertMessage)
-            }
-            .navigationTitle(String(localized: "업그레이드"))
-            .navigationBarTitleDisplayMode(.inline)
-            .alert(
-                alertTitle,
-                isPresented: Binding(
-                    get: { pendingLocationTier != nil },
-                    set: { if !$0 { pendingLocationTier = nil } }
-                )
-            ) {
-                Button(String(localized: "이전하기")) { confirmLocationMove() }
-                Button(String(localized: "취소"), role: .cancel) {}
-            } message: {
-                Text(alertMessage)
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(String(localized: "닫기")) { isPresented = false }
-                }
-            }
+        }
+        .alert(
+            String(localized: "창고를 넓힐까요?"),
+            isPresented: Binding(
+                get: { pendingWarehouseCapacity != nil },
+                set: { if !$0 { pendingWarehouseCapacity = nil } }
+            )
+        ) {
+            Button(String(localized: "넓히기")) { confirmWarehouseExpansion() }
+            Button(String(localized: "취소"), role: .cancel) {}
+        } message: {
+            Text(warehouseAlertMessage)
+        }
+        .alert(
+            alertTitle,
+            isPresented: Binding(
+                get: { pendingLocationTier != nil },
+                set: { if !$0 { pendingLocationTier = nil } }
+            )
+        ) {
+            Button(String(localized: "이전하기")) { confirmLocationMove() }
+            Button(String(localized: "취소"), role: .cancel) {}
+        } message: {
+            Text(alertMessage)
         }
     }
 
@@ -85,20 +79,28 @@ public struct UpgradeSheet: View {
         title: String,
         type: UpgradeType,
         definitions: [UpgradeDefinition],
-        currentTier: Int
+        currentTier: Int,
+        icons: [String]
     ) -> some View {
         let coins = store.stall.coins
-        Section(title) {
-            ForEach(definitions.indices, id: \.self) { index in
-                UpgradeRowView(
-                    upgrade: definitions[index],
-                    isOwned: index < currentTier,
-                    isNext: index == currentTier,
-                    canAfford: coins >= definitions[index].coinCost,
-                    onPurchase: { store.purchaseUpgrade(type) }
-                )
-            }
+        DotSectionHeader(title)
+        ForEach(definitions.indices, id: \.self) { index in
+            UpgradeRowView(
+                upgrade: definitions[index],
+                icon: icons[index],
+                isOwned: index < currentTier,
+                isNext: index == currentTier,
+                canAfford: coins >= definitions[index].coinCost,
+                onPurchase: { purchase(type) }
+            )
         }
+    }
+
+    /// Plays the cue only when the purchase actually went through.
+    private func purchase(_ type: UpgradeType) {
+        let before = store.stall.coins
+        store.purchaseUpgrade(type)
+        play(store.stall.coins < before ? .purchase : .error)
     }
 
     // MARK: Location
@@ -107,7 +109,8 @@ public struct UpgradeSheet: View {
         let current = store.stall.locationTier
         let stallTier = store.stall.stallTier
         let coins = store.stall.coins
-        return Section {
+        return Group {
+            DotSectionHeader(String(localized: "위치"))
             ForEach(UpgradeDefinitions.location.indices, id: \.self) { index in
                 let def = UpgradeDefinitions.location[index]
                 LocationRowView(
@@ -119,10 +122,7 @@ public struct UpgradeSheet: View {
                     onPurchase: { pendingLocationTier = index }
                 )
             }
-        } header: {
-            Text("위치")
-        } footer: {
-            Text("이전해도 가게와 직원은 그대로 따라와요.")
+            DotFootnote(String(localized: "이전해도 가게와 직원은 그대로 따라와요."))
         }
     }
 
@@ -144,12 +144,13 @@ public struct UpgradeSheet: View {
 
     private var alertTitle: String {
         guard let def = pendingLocation else { return "" }
-        return "\(def.destination) 이전할까요?"
+        return String(format: String(localized: "dot.location.alert.title"), DotContent.loc(def.name))
     }
 
     private var alertMessage: String {
         guard let def = pendingLocation else { return "" }
-        return "💰 \(Self.formatted(def.coinCost))을 내고 이전하면 판매 수익이 \(Int(def.saleMultiplier))배가 돼요."
+        return String(format: String(localized: "dot.location.alert.message"),
+                      Self.formatted(def.coinCost), Int(def.saleMultiplier))
     }
 
     private func confirmLocationMove() {
@@ -159,6 +160,7 @@ public struct UpgradeSheet: View {
         guard tier == store.stall.locationTier + 1 else { return }
         store.purchaseUpgrade(.location)
         guard store.stall.locationTier == tier else { return }
+        play(.purchase)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         isPresented = false
     }
@@ -171,37 +173,39 @@ public struct UpgradeSheet: View {
         let available = store.isPrestigeAvailable
         let current = PrestigeSystem.legacyMultiplier(prestigeCount: store.progress.prestigeCount)
         let next = PrestigeSystem.legacyMultiplier(prestigeCount: store.progress.prestigeCount + 1)
-        return Section {
+        return Group {
+            DotSectionHeader(String(localized: "새봄"))
             Button { showPrestige = true } label: {
-                HStack {
+                HStack(spacing: 10) {
+                    DotImage("dot_ui_star", scale: 2)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("✨ " + String(localized: "prestige.title")).font(.headline)
+                        Text(String(localized: "prestige.title")).dotText(.bold)
                         Text(String(
                             format: String(localized: "prestige.row.detail"),
                             PrestigeSystem.multiplierNumber(current), PrestigeSystem.multiplierNumber(next)))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .dotText(.caption, color: DotPalette.textSecondary)
                     }
-                    Spacer()
-                    Image(systemName: available ? "chevron.right" : "lock.fill")
-                        .foregroundStyle(.tertiary)
+                    Spacer(minLength: 0)
+                    if !available { DotImage("dot_ui_lock", scale: 1) }
                 }
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
+                .dotPanel()
+                .opacity(available ? 1 : 0.6)
             }
+            .buttonStyle(.plain)
             .disabled(!available)
             Button { showStats = true } label: {
-                HStack {
-                    Text("기록 보기")
-                    Spacer()
-                    Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+                HStack(spacing: 10) {
+                    DotImage("dot_ui_stats", scale: 2)
+                    Text(String(localized: "기록 보기")).dotText(.bold)
+                    Spacer(minLength: 0)
                 }
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
+                .dotPanel()
             }
-        } header: {
-            Text("새봄")
-        } footer: {
+            .buttonStyle(.plain)
             if !available { springLockedFooter }
         }
     }
@@ -210,9 +214,9 @@ public struct UpgradeSheet: View {
         let location = PrestigeSystem.locationRequirement(for: store.stall)
         let stall = PrestigeSystem.stallRequirement(for: store.stall)
         return VStack(alignment: .leading, spacing: 2) {
-            Text(String(localized: "prestige.locked"))
-            Text(Self.progressLine(location, met: "prestige.progress.location.met", unmet: "prestige.progress.location"))
-            Text(Self.progressLine(stall, met: "prestige.progress.stall.met", unmet: "prestige.progress.stall"))
+            DotFootnote(String(localized: "prestige.locked"))
+            DotFootnote(Self.progressLine(location, met: "prestige.progress.location.met", unmet: "prestige.progress.location"))
+            DotFootnote(Self.progressLine(stall, met: "prestige.progress.stall.met", unmet: "prestige.progress.stall"))
         }
     }
 
@@ -222,8 +226,9 @@ public struct UpgradeSheet: View {
         unmet: String.LocalizationValue
     ) -> String {
         requirement.isMet
-            ? String(format: String(localized: met), requirement.requiredName)
-            : String(format: String(localized: unmet), requirement.currentName, requirement.requiredName)
+            ? String(format: String(localized: met), DotContent.loc(requirement.requiredName))
+            : String(format: String(localized: unmet), DotContent.loc(requirement.currentName),
+                   DotContent.loc(requirement.requiredName))
     }
 
     // MARK: Warehouse
@@ -236,14 +241,16 @@ public struct UpgradeSheet: View {
         } else {
             shortfall = 0
         }
-        return Section("창고") {
+        return Group {
+            DotSectionHeader(String(localized: "창고"))
             if let next = WarehouseSystem.nextExpansion(current: capacity) {
                 UpgradeRowView(
                     upgrade: UpgradeDefinition(
                         name: String(localized: "창고 확장"), coinCost: next.cost,
-                        description: String(localized: "\(capacity)칸 → \(next.capacity)칸")),
+                        description: String(format: String(localized: "dot.warehouse.slots"), capacity, next.capacity)),
+                    icon: "dot_farm_warehouse_crate_half",
                     displayEffect: shortfall > 0
-                        ? String(localized: "💰 \(Self.formatted(shortfall)) 더 필요해요")
+                        ? String(format: String(localized: "dot.warehouse.short"), Self.formatted(shortfall))
                         : String(localized: "농장 수확과 오프라인 보관량이 늘어나요"),
                     isOwned: false,
                     isNext: true,
@@ -254,7 +261,8 @@ public struct UpgradeSheet: View {
                 UpgradeRowView(
                     upgrade: UpgradeDefinition(
                         name: String(localized: "창고 최대"), coinCost: 0,
-                        description: String(localized: "\(capacity)칸 · 최대")),
+                        description: String(format: String(localized: "dot.warehouse.max"), capacity)),
+                    icon: "dot_farm_warehouse_crate_full",
                     isOwned: true, isNext: false, canAfford: false, onPurchase: {})
             }
         }
@@ -263,7 +271,8 @@ public struct UpgradeSheet: View {
     private var warehouseAlertMessage: String {
         guard let capacity = pendingWarehouseCapacity,
               let next = WarehouseSystem.nextExpansion(current: capacity) else { return "" }
-        return String(localized: "💰 \(Self.formatted(next.cost))을 내면 창고가 \(capacity)칸에서 \(next.capacity)칸으로 늘어나요.")
+        return String(format: String(localized: "dot.warehouse.alert.message"),
+                      Self.formatted(next.cost), capacity, next.capacity)
     }
 
     private func confirmWarehouseExpansion() {
@@ -273,9 +282,10 @@ public struct UpgradeSheet: View {
         guard store.stall.warehouseCapacity == capacity else { return }
         store.purchaseUpgrade(.warehouse)
         guard store.stall.warehouseCapacity > capacity else { return }
+        play(.purchase)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         AccessibilityNotification.Announcement(
-            String(localized: "창고가 \(store.stall.warehouseCapacity)칸으로 늘어났어요.")
+            String(format: String(localized: "dot.warehouse.expanded"), store.stall.warehouseCapacity)
         ).post()
     }
 
@@ -288,51 +298,49 @@ public struct UpgradeSheet: View {
 
 private struct UpgradeRowView: View {
     let upgrade: UpgradeDefinition
+    var icon: String? = nil
     var displayEffect: String? = nil
     let isOwned: Bool
     let isNext: Bool
     let canAfford: Bool
     let onPurchase: () -> Void
 
-    private var effectText: String { displayEffect ?? upgrade.displayEffect }
+    private var effectText: String { displayEffect ?? DotContent.effect(for: upgrade) }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
+            if let icon { DotImage(icon, scale: 2).opacity(isOwned || isNext ? 1 : 0.5) }
             VStack(alignment: .leading, spacing: 2) {
-                Text(upgrade.name).font(.headline)
-                Text(upgrade.description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(DotContent.loc(upgrade.name)).dotText(.bold)
+                Text(DotContent.loc(upgrade.description))
+                    .dotText(.caption, color: DotPalette.textSecondary)
                 if !effectText.isEmpty {
-                    Text(effectText)
-                        .font(.caption2)
-                        .foregroundStyle(.green)
+                    Text(effectText).dotText(.caption, color: DotPalette.leafDark)
                 }
                 if let unlocks = upgrade.unlocks {
-                    Text("🔓 \(unlocks)")
-                        .font(.caption2)
-                        .foregroundStyle(.blue)
+                    DotHint(icon: "dot_ui_check", text: DotContent.loc(unlocks), color: DotPalette.blue)
                 }
             }
-            Spacer()
+            .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
             trailingView
         }
-        .padding(.vertical, 2)
+        .dotPanel()
+        .accessibilityElement(children: .contain)
     }
 
     @ViewBuilder
     private var trailingView: some View {
         if isOwned {
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            DotImage("dot_ui_check", scale: 2).accessibilityLabel(String(localized: "dot.owned"))
         } else if isNext {
             Button { onPurchase() } label: {
-                Text("₩\(CoinFormat.string(upgrade.coinCost))").font(.subheadline.bold())
+                DotCostLabel(text: CoinFormat.string(upgrade.coinCost))
             }
-            .buttonStyle(.borderedProminent)
-            .tint(canAfford ? .orange : .gray)
+            .buttonStyle(.dotCompact)
             .disabled(!canAfford)
         } else {
-            Image(systemName: "lock.fill").foregroundStyle(.tertiary)
+            DotImage("dot_ui_lock", scale: 1).opacity(0.6).accessibilityLabel(String(localized: "잠김"))
         }
     }
 }
@@ -357,56 +365,47 @@ private struct LocationRowView: View {
     private var opacity: Double {
         switch state {
         case .past: 0.6
-        case .lockedPrerequisite, .lockedQueue: 0.5
+        case .lockedPrerequisite, .lockedQueue: 0.55
         default: 1
         }
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(definition.name).font(.headline)
-                    if state == .current {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                        Text("현재 위치")
-                            .font(.caption2.bold())
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(.green.opacity(0.2), in: Capsule())
-                            .foregroundStyle(.green)
-                    }
+                    Text(DotContent.loc(definition.name)).dotText(.bold)
+                    if state == .current { DotTag(text: String(localized: "현재 위치")) }
                 }
-                Text(definition.description)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Text(effectText)
-                    .font(.caption2)
-                    .foregroundStyle(.green)
+                Text(DotContent.loc(definition.description))
+                    .dotText(.caption, color: DotPalette.textSecondary)
+                Text(effectText).dotText(.caption, color: DotPalette.leafDark)
                 if let unlocks = definition.unlocks {
-                    Text("🔓 \(unlocks)").font(.caption2).foregroundStyle(.blue)
+                    DotHint(icon: "dot_ui_check", text: DotContent.loc(unlocks), color: DotPalette.blue)
                 }
                 if let lock = lockText {
-                    Text("🔒 \(lock)").font(.caption2).foregroundStyle(.orange)
+                    DotHint(icon: "dot_ui_lock", text: lock, color: DotPalette.orangeDark)
                 }
             }
+            .fixedSize(horizontal: false, vertical: true)
             .opacity(opacity)
-            Spacer()
+            Spacer(minLength: 0)
             trailingView
         }
-        .padding(.vertical, 2)
         .frame(minHeight: 44)
+        .dotPanel()
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(definition.name), \(definition.description)")
+        .accessibilityLabel("\(DotContent.loc(definition.name)), \(DotContent.loc(definition.description))")
         .accessibilityValue(accessibilityValue)
     }
 
     /// "시장 x2 · 유산 x1.4 = x2.8" once a spring has been welcomed; the plain effect before.
     private var effectText: String {
-        guard prestigeCount > 0 else { return definition.displayEffect }
+        guard prestigeCount > 0 else { return DotContent.effect(for: definition) }
         let legacy = PrestigeSystem.legacyMultiplier(prestigeCount: prestigeCount)
         return String(
             format: String(localized: "prestige.location.product"),
-            definition.name,
+            DotContent.loc(definition.name),
             PrestigeSystem.multiplierNumber(definition.saleMultiplier),
             PrestigeSystem.multiplierNumber(legacy),
             PrestigeSystem.multiplierNumber(definition.saleMultiplier * legacy))
@@ -414,20 +413,23 @@ private struct LocationRowView: View {
 
     private var lockText: String? {
         switch state {
-        case .lockedPrerequisite: definition.lockedReason
-        case .lockedQueue(let previous): "\(previous)에 먼저 이전하세요"
+        case .lockedPrerequisite: definition.lockedReason.map(DotContent.loc)
+        case .lockedQueue(let previous):
+            String(format: String(localized: "dot.location.queue"), DotContent.loc(previous))
         default: nil
         }
     }
 
     private var accessibilityValue: String {
         switch state {
-        case .current: "현재 위치"
-        case .past: "이전 위치"
+        case .current: String(localized: "현재 위치")
+        case .past: String(localized: "dot.location.past")
         case .affordable, .short:
-            "\(UpgradeSheet.formatted(definition.coinCost)) 코인" + (state == .affordable ? ", 이전 가능" : "")
-        case .lockedPrerequisite: "잠금, \(definition.lockedReason ?? "")"
-        case .lockedQueue(let previous): "잠금, \(previous)에 먼저 이전하세요"
+            String(format: String(localized: "dot.location.cost.accessibility"),
+                   UpgradeSheet.formatted(definition.coinCost))
+                + (state == .affordable ? ", " + String(localized: "dot.location.canMove") : "")
+        case .lockedPrerequisite, .lockedQueue:
+            String(localized: "잠김") + ", " + (lockText ?? "")
         }
     }
 
@@ -437,22 +439,20 @@ private struct LocationRowView: View {
         case .current:
             EmptyView()
         case .past:
-            Image(systemName: "checkmark").foregroundStyle(.secondary).opacity(opacity)
+            DotImage("dot_ui_check", scale: 2).opacity(opacity)
         case .affordable:
             Button(action: onPurchase) {
-                Text("💰 \(UpgradeSheet.formatted(definition.coinCost))").font(.subheadline.bold())
+                DotCostLabel(text: UpgradeSheet.formatted(definition.coinCost))
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.blue)
-            .frame(minWidth: 44, minHeight: 44)
+            .buttonStyle(.dotCompact)
         case .short:
-            Text("💰 \(UpgradeSheet.formatted(definition.coinCost))")
-                .font(.subheadline.bold())
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(.gray.opacity(0.2), in: Capsule())
+            Button(action: {}) {
+                DotCostLabel(text: UpgradeSheet.formatted(definition.coinCost))
+            }
+            .buttonStyle(.dotCompact)
+            .disabled(true)
         case .lockedPrerequisite, .lockedQueue:
-            Image(systemName: "lock.fill").foregroundStyle(.tertiary)
+            DotImage("dot_ui_lock", scale: 1).opacity(0.6)
         }
     }
 }

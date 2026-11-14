@@ -22,41 +22,33 @@ public struct PrestigeSheet: View {
     private var currentCount: Int { progress.prestigeCount }
 
     public var body: some View {
-        NavigationStack {
-            List {
-                rewardSection
-                losesSection
-                keepsSection
-                runSection
-                if PrestigeSystem.hasUnspentPlots(farm: store.farm) { unspentPlotsSection }
-            }
-            .listStyle(.insetGrouped)
-            .navigationTitle(String(localized: "prestige.title"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(String(localized: "닫기")) { isPresented = false }
+        DotSheet(title: String(localized: "prestige.title"), onClose: { isPresented = false }) {
+            VStack(spacing: 0) {
+                DotScroll {
+                    rewardSection
+                    losesSection
+                    keepsSection
+                    runSection
+                    if PrestigeSystem.hasUnspentPlots(farm: store.farm) { unspentPlotsSection }
                 }
+                ctaBar
             }
-            .safeAreaInset(edge: .bottom) { ctaBar }
-            .alert(
-                String(localized: "prestige.alert.title"),
-                isPresented: $isConfirming
-            ) {
-                Button(String(localized: "prestige.alert.confirm"), role: .destructive) { startNewRun() }
-                Button(String(localized: "prestige.alert.cancel"), role: .cancel) {}
-            } message: {
-                Text(String(format: String(localized: "prestige.alert.message"),
-                            CoinFormat.string(store.stall.coins)))
-            }
+        }
+        .alert(
+            String(localized: "prestige.alert.title"),
+            isPresented: $isConfirming
+        ) {
+            Button(String(localized: "prestige.alert.confirm"), role: .destructive) { startNewRun() }
+            Button(String(localized: "prestige.alert.cancel"), role: .cancel) {}
+        } message: {
+            Text(String(format: String(localized: "prestige.alert.message"),
+                        CoinFormat.string(store.stall.coins)))
         }
         .alert(String(localized: "prestige.title"), isPresented: $isRefused) {
             Button(String(localized: "확인"), role: .cancel) {}
         } message: {
             Text(String(localized: "prestige.pending"))
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
     }
 
     // MARK: Sections
@@ -65,55 +57,72 @@ public struct PrestigeSheet: View {
         let current = PrestigeSystem.legacyMultiplier(prestigeCount: currentCount)
         let next = PrestigeSystem.legacyMultiplier(prestigeCount: currentCount + 1)
         let line = String(
-            format: String(localized: "prestige.multiplier"),
+            format: String(localized: "dot.prestige.multiplier"),
             PrestigeSystem.multiplierNumber(current),
             PrestigeSystem.multiplierNumber(next),
             PrestigeSystem.multiplierNumber(next - current))
-        return Section {
+        return HStack(spacing: 10) {
+            DotImage("dot_ui_star", scale: 2)
             VStack(alignment: .leading, spacing: 4) {
-                Text(line)
-                    .font(.headline)
-                    .monospacedDigit()
-                Text(String(localized: "prestige.reward"))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Text(line).dotText(.bold).monospacedDigit()
+                Text(String(localized: "prestige.reward")).dotText(.caption, color: DotPalette.textSecondary)
             }
-            .padding(.vertical, 4)
-            .accessibilityElement(children: .combine)
+            .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
         }
+        .dotPanel()
+        .accessibilityElement(children: .combine)
     }
 
     private var losesSection: some View {
-        Section(String(localized: "prestige.loses")) {
-            Label(String(format: String(localized: "prestige.loses.coins"), CoinFormat.string(store.stall.coins)),
-                  systemImage: "wonsign.circle")
-            Label(String(localized: "prestige.loses.shop"), systemImage: "storefront")
-            Label(String(localized: "prestige.loses.rest"), systemImage: "person.2")
+        group(String(localized: "prestige.loses")) {
+            line("dot_ui_coin", String(format: String(localized: "prestige.loses.coins"), CoinFormat.string(store.stall.coins)))
+            line("dot_ui_upgrade", String(localized: "prestige.loses.shop"))
+            line("dot_ui_staff", String(localized: "prestige.loses.rest"))
         }
     }
 
     private var keepsSection: some View {
-        Section(String(localized: "prestige.keeps")) {
-            Label(String(localized: "prestige.keeps.items"), systemImage: "checkmark.seal")
+        group(String(localized: "prestige.keeps")) {
+            line("dot_ui_check", String(localized: "prestige.keeps.items"))
         }
     }
 
     private var runSection: some View {
-        Section(String(localized: "stats.section.run")) {
-            LabeledContent(String(localized: "stats.run.duration")) {
-                Text(StatsSheet.durationText(progress.runPlaySeconds)).monospacedDigit()
-            }
-            LabeledContent(String(localized: "stats.run.earned")) {
-                Text(CoinFormat.string(progress.runEarned)).monospacedDigit()
-            }
+        group(String(localized: "stats.section.run")) {
+            statLine(String(localized: "stats.run.duration"), StatsSheet.durationText(progress.runPlaySeconds))
+            statLine(String(localized: "stats.run.earned"), CoinFormat.string(progress.runEarned))
         }
     }
 
     private var unspentPlotsSection: some View {
-        Section {
-            Label(String(localized: "prestige.unspentPlots"), systemImage: "info.circle")
-                .foregroundStyle(.secondary)
+        DotHint(icon: "dot_ui_seed", text: String(localized: "prestige.unspentPlots"), color: DotPalette.soilDark)
+    }
+
+    private func group<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            DotSectionHeader(title)
+            VStack(alignment: .leading, spacing: 6, content: content)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .dotPanel()
         }
+    }
+
+    private func line(_ icon: String, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            DotImage(icon, scale: 1)
+            Text(text).dotText(.body).fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func statLine(_ title: String, _ value: String) -> some View {
+        HStack {
+            Text(title).dotText(.body)
+            Spacer(minLength: 4)
+            Text(value).dotText(.bold).monospacedDigit()
+        }
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: Commit
@@ -121,23 +130,18 @@ public struct PrestigeSheet: View {
     private var ctaBar: some View {
         VStack(spacing: 6) {
             Button { isConfirming = true } label: {
-                Text(String(localized: "prestige.cta"))
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, minHeight: 50)
+                Text(String(localized: "prestige.cta")).frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.orange)
+            .buttonStyle(.dot)
             .disabled(!store.canStartNewRun)
             if store.offlineEarnings > 0 {
                 Text(String(localized: "prestige.pending"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .dotText(.caption, color: DotPalette.soilDark)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 8)
-        .background(.bar)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(DotPalette.sand)
     }
 
     private func startNewRun() {

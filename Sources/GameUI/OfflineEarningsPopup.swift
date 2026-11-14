@@ -4,7 +4,7 @@ import GameCore
 public struct OfflineEarningsPopup: View {
     @EnvironmentObject var store: GameStore
 
-    /// Called when user taps the 2× button. App layer shows the rewarded ad,
+    /// Called when user taps the 2x button. App layer shows the rewarded ad,
     /// then calls the completion with `true` if reward was earned, `false` to skip.
     let onWatchAd: (@escaping (Bool) -> Void) -> Void
 
@@ -12,54 +12,39 @@ public struct OfflineEarningsPopup: View {
         self.onWatchAd = onWatchAd
     }
 
-    private func formattedEarnings(_ amount: Double) -> String {
-        let value = Int(amount)
-        if value >= 100_000_000 {
-            let uk = (value + 50_000_000) / 100_000_000
-            return "약 \(uk)억원"
-        } else if value >= 10_000 {
-            let man = (value + 5_000) / 10_000
-            return "약 \(man)만원"
-        } else {
-            return "₩\(value.formatted())원"
-        }
-    }
-
     public var body: some View {
-        ZStack {
-            Color.black.opacity(0.55).ignoresSafeArea()
-            VStack(spacing: 20) {
-                Text(String(localized: "🥬 돌아오셨군요!"))
-                    .font(.title2.bold())
+        DotOverlay {
+            VStack(spacing: 12) {
+                DotImage("dot_ui_logo", scale: 1)
+                Text(String(localized: "dot.offline.title"))
+                    .dotText(.title)
+                    .multilineTextAlignment(.center)
+                    .accessibilityAddTraits(.isHeader)
                 Text(String(localized: "가게를 비운 동안 번 돈:"))
-                    .foregroundStyle(.secondary)
-                Text(formattedEarnings(store.offlineEarnings))
-                    .font(.system(size: 48, weight: .bold))
-                    .foregroundStyle(.orange)
+                    .dotText(.body, color: DotPalette.textSecondary)
+                HStack(spacing: 6) {
+                    DotImage("dot_ui_coin", scale: 2)
+                    Text(CoinFormat.string(store.offlineEarnings))
+                        .dotText(.title, color: DotPalette.goldDark)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                }
+                .accessibilityElement(children: .combine)
 
                 Button {
                     onWatchAd { rewarded in
-                        let multiplier = rewarded ? 2.0 : 1.0
-                        store.collectOfflineEarnings(multiplier: multiplier)
+                        store.collectOfflineEarnings(multiplier: rewarded ? 2.0 : 1.0)
                     }
                 } label: {
-                    Label("광고 보고 2배 받기", systemImage: "play.circle.fill")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(.orange)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                    Text(String(localized: "광고 보고 2배 받기")).frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.dot)
 
-                Button(String(localized: "그냥 받기")) {
-                    store.collectOfflineEarnings(multiplier: 1.0)
+                Button { store.collectOfflineEarnings(multiplier: 1.0) } label: {
+                    Text(String(localized: "그냥 받기")).frame(maxWidth: .infinity)
                 }
-                .foregroundStyle(.secondary)
+                .buttonStyle(.dotQuiet)
             }
-            .padding(28)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24))
-            .padding(32)
         }
     }
 }

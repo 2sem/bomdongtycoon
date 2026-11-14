@@ -35,6 +35,7 @@ public enum StaffTab: Hashable {
 
 public struct StaffSheet: View {
     @EnvironmentObject var store: GameStore
+    @Environment(\.dotPlaySound) private var play
     @Binding public var isPresented: Bool
     @Binding public var tab: StaffTab
 
@@ -44,21 +45,12 @@ public struct StaffSheet: View {
     }
 
     public var body: some View {
-        NavigationStack {
+        DotSheet(title: String(localized: "직원 관리"), onClose: { isPresented = false }) {
             VStack(spacing: 0) {
                 tabBar
-                TabView(selection: $tab) {
-                    workerList.tag(StaffTab.assign)
-                    hireList.tag(StaffTab.hire)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.easeInOut(duration: 0.25), value: tab)
-            }
-            .navigationTitle(String(localized: "직원 관리"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(String(localized: "닫기")) { isPresented = false }
+                switch tab {
+                case .assign: workerList
+                case .hire: hireList
                 }
             }
         }
@@ -67,124 +59,102 @@ public struct StaffSheet: View {
     // MARK: - Tab bar
 
     private var tabBar: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 8) {
             tabButton(String(localized: "직원"), tag: .assign)
             tabButton(String(localized: "고용"), tag: .hire)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(Color(uiColor: .systemGroupedBackground))
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+    }
+
+    private func tabButton(_ title: String, tag: StaffTab) -> some View {
+        let selected = tab == tag
+        return Button { tab = tag } label: {
+            Text(title)
+                .dotText(.bold, color: selected ? DotPalette.paper : DotPalette.ink, shadow: selected)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background {
+                    DotNineSlice(name: selected ? "dot_ui_button" : "dot_ui_panel").padding(.vertical, 4)
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     // MARK: - Worker list
 
     private var workerList: some View {
         let workers = buildWorkers()
-        return List {
+        return DotScroll {
             if workers.isEmpty {
-                Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 8) {
-                            Image(systemName: "person.slash")
-                                .font(.system(size: 36))
-                                .foregroundStyle(.tertiary)
-                            Text(String(localized: "고용 탭에서 직원을 채용하세요"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.vertical, 24)
-                        Spacer()
-                    }
+                VStack(spacing: 8) {
+                    DotImage("dot_char_alba_tired", scale: 2).opacity(0.6)
+                    Text(String(localized: "고용 탭에서 직원을 채용하세요"))
+                        .dotText(.body, color: DotPalette.soilDark)
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
             } else {
-                Section {
-                    ForEach(workers) { worker in
-                        WorkerRow(
-                            worker: worker,
-                            menuTier: store.stall.menuTier,
-                            menuCooks: store.stall.menuCooks,
-                            cashierCount: store.stall.cashierCount,
-                            activeFarmPlots: FarmSystem.activePlotCount(for: store.farm),
-                            farmPlots: store.farm.plots,
-                            onReassign: { reassign(worker: worker, to: $0) }
-                        )
-                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                            if worker.assignment == .unassigned, worker.tier < 3 {
-                                let cost = UpgradeDefinitions.staff[safe: worker.tier]?.coinCost ?? 0
-                                Button {
-                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                    store.upgradeWorker(fromTier: worker.tier, preservingEnergy: worker.energy)
-                                } label: {
-                                    Label("업그레이드", systemImage: "arrow.up.circle.fill")
-                                }
-                                .tint(store.stall.coins >= cost ? .green : .gray)
-                                .disabled(store.stall.coins < cost)
-                            }
-                        }
-                    }
-                } header: {
-                    Text(String(localized: "직원 목록"))
+                DotSectionHeader(String(localized: "직원 목록"))
+                ForEach(workers) { worker in
+                    WorkerRow(
+                        worker: worker,
+                        menuTier: store.stall.menuTier,
+                        menuCooks: store.stall.menuCooks,
+                        cashierCount: store.stall.cashierCount,
+                        activeFarmPlots: FarmSystem.activePlotCount(for: store.farm),
+                        farmPlots: store.farm.plots,
+                        coins: store.stall.coins,
+                        onReassign: { reassign(worker: worker, to: $0) },
+                        onPromote: { promote(worker) }
+                    )
                 }
             }
         }
-        .listStyle(.insetGrouped)
+    }
+
+    /// Promotion used to be a leading swipe; a visible button is easier to find and to reach.
+    private func promote(_ worker: WorkerItem) {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        let before = store.stall.coins
+        store.upgradeWorker(fromTier: worker.tier, preservingEnergy: worker.energy)
+        play(store.stall.coins < before ? .purchase : .error)
     }
 
     // MARK: - Hire list
 
     private var hireList: some View {
-        List {
-            Section {
-                ForEach(1...3, id: \.self) { tier in
-                    HireTierRow(tier: tier, onHired: { withAnimation { tab = .assign } })
-                        .environmentObject(store)
-                }
-                HireFarmWorkerRow(
-                    assetName: "staff_farmer_veteran",
-                    def: UpgradeDefinitions.veteranAlba[0],
-                    count: store.stall.veteranAlbaCount,
-                    isUnlocked: store.farm.plots.count > 2,
-                    unlockHint: "텃밭 확장 필요",
-                    cashierHint: cashierHireHint(tier: 5),
-                    onHire: {
-                        store.hireVeteranAlba()
-                        withAnimation { tab = .assign }
-                    }
-                )
-                HireFarmWorkerRow(
-                    assetName: "staff_farmer",
-                    def: UpgradeDefinitions.farmer[0],
-                    count: store.stall.farmerCount,
-                    isUnlocked: store.stall.stallTier >= 1,
-                    unlockHint: "봄동 식당 업그레이드 필요",
-                    onHire: {
-                        store.hireFarmer()
-                        withAnimation { tab = .assign }
-                    }
-                )
-            } header: {
-                Text(String(localized: "직원 고용")).foregroundStyle(Color.staffAmber)
+        DotScroll {
+            DotSectionHeader(String(localized: "직원 고용"))
+            ForEach(1...3, id: \.self) { tier in
+                HireTierRow(tier: tier, onHired: { tab = .assign })
+                    .environmentObject(store)
             }
+            HireFarmWorkerRow(
+                tier: 5,
+                def: UpgradeDefinitions.veteranAlba[0],
+                count: store.stall.veteranAlbaCount,
+                isUnlocked: store.farm.plots.count > 2,
+                unlockHint: String(localized: "dot.staff.unlock.plots"),
+                cashierHint: cashierHireHint(tier: 5),
+                onHire: {
+                    store.hireVeteranAlba()
+                    tab = .assign
+                }
+            )
+            HireFarmWorkerRow(
+                tier: 4,
+                def: UpgradeDefinitions.farmer[0],
+                count: store.stall.farmerCount,
+                isUnlocked: store.stall.stallTier >= 1,
+                unlockHint: String(localized: "dot.staff.unlock.restaurant"),
+                onHire: {
+                    store.hireFarmer()
+                    tab = .assign
+                }
+            )
         }
-        .listStyle(.insetGrouped)
-    }
-
-    // MARK: - Tab button
-
-    private func tabButton(_ title: String, tag: StaffTab) -> some View {
-        Button { tab = tag } label: {
-            Text(title)
-                .font(.subheadline.bold())
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(
-                    tab == tag ? Color.staffAmber : Color.staffAmber.opacity(0.10),
-                    in: RoundedRectangle(cornerRadius: 8)
-                )
-                .foregroundStyle(tab == tag ? .white : Color.staffAmber)
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Build worker items from store state
@@ -419,31 +389,88 @@ public struct StaffSheet: View {
     }
 }
 
+// MARK: - Worker presentation
+
+/// Sprite family and tier colour for a staff tier (1 alba ... 5 veteran alba).
+private enum StaffLook {
+    static func sprite(tier: Int, tired: Bool = false) -> String {
+        let kind = ["alba", "alba", "imo", "chef", "farmer", "veteran_alba"][min(max(tier, 0), 5)]
+        return "dot_char_\(kind)_\(tired ? "tired" : "idle_down")"
+    }
+
+    static func color(tier: Int) -> Color {
+        switch tier {
+        case 1: DotPalette.gold
+        case 2: DotPalette.sky
+        case 3: DotPalette.orange
+        case 4: DotPalette.leaf
+        default: DotPalette.mauve
+        }
+    }
+
+    static func energyColor(_ e: Double) -> Color {
+        if e > 0.6 { return DotPalette.leaf }
+        if e > 0.3 { return DotPalette.gold }
+        return DotPalette.red
+    }
+}
+
+/// A figure on a small tinted plate, so tiers read at a glance.
+private struct StaffPortrait: View {
+    let tier: Int
+    var tired = false
+    var isUnlocked = true
+
+    var body: some View {
+        DotImage(StaffLook.sprite(tier: tier, tired: tired), scale: 2)
+            .opacity(isUnlocked ? 1 : 0.4)
+            .frame(width: 44, height: 52)
+            .background(StaffLook.color(tier: tier).opacity(isUnlocked ? 0.45 : 0.2))
+            .overlay { Rectangle().strokeBorder(DotPalette.ink, lineWidth: DotTheme.px) }
+    }
+}
+
+private struct DotCaret: View {
+    var body: some View {
+        // 5 x 3 px downward triangle, one row per step.
+        VStack(spacing: 0) {
+            Rectangle().frame(width: 10, height: 2)
+            Rectangle().frame(width: 6, height: 2)
+            Rectangle().frame(width: 2, height: 2)
+        }
+        .foregroundStyle(DotPalette.ink)
+        .accessibilityHidden(true)
+    }
+}
+
+private func staffName(_ tier: Int) -> String {
+    switch tier {
+    case 1: DotContent.loc("알바생")
+    case 2: DotContent.loc("이모님")
+    case 3: DotContent.loc("봄동 요리사")
+    case 4: DotContent.loc("농부")
+    default: DotContent.loc("고참 알바")
+    }
+}
+
 // MARK: - WorkerRow
 
 private struct WorkerRow: View {
-    let worker: WorkerItem;
-    let menuTier: Int;
-    let menuCooks: [Int];
-    let cashierCount: Int;
-    let activeFarmPlots: Int;
-    let farmPlots: [FarmPlot];
-    let onReassign: (WorkerItem.Assignment) -> Void;
+    let worker: WorkerItem
+    let menuTier: Int
+    let menuCooks: [Int]
+    let cashierCount: Int
+    let activeFarmPlots: Int
+    let farmPlots: [FarmPlot]
+    let coins: Double
+    let onReassign: (WorkerItem.Assignment) -> Void
+    let onPromote: () -> Void
 
-    private static let name  = ["", "알바생", "이모님", "봄동 요리사", "농부", "고참 알바"];
-
-    private static let tier1AssetNames = ["person_adult", "person_kid_boy", "person_kid_girl", "person_man", "person_woman", "person_adult"]
-    private static let tier3AssetNames = ["staff_chef_man", "staff_chef_woman"]
-
-    private func workerAssetName(tier: Int, indexInTier: Int) -> String {
-        switch tier {
-        case 1:  Self.tier1AssetNames[indexInTier % Self.tier1AssetNames.count]
-        case 2:  "person_elder_woman"
-        case 3:  Self.tier3AssetNames[indexInTier % Self.tier3AssetNames.count]
-        case 4:  "staff_farmer"
-        case 5:  "staff_farmer_veteran"
-        default: "person_adult"
-        }
+    private var isTired: Bool { worker.energy < 0.2 }
+    private var isEmpty: Bool { worker.energy < 0.05 && worker.assignment != .unassigned }
+    private var promoteCost: Double? {
+        guard worker.assignment == .unassigned, worker.tier < 3 else { return nil }
+        return UpgradeDefinitions.staff[safe: worker.tier]?.coinCost
     }
 
     private var options: [(WorkerItem.Assignment, Bool)] {
@@ -484,97 +511,86 @@ private struct WorkerRow: View {
     }
 
     private func assignmentLabel(_ a: WorkerItem.Assignment, energy: Double = 1.0) -> String {
-        if case .unassigned = a, energy < 0.2 { return "😴 휴식" }
-        let prefix = energy < 0.05 ? "⚠️ " : ""
+        if case .unassigned = a, energy < 0.2 { return String(localized: "dot.staff.rest") }
         switch a {
         case .cashier:
             let percent = EarningsSystem.cashierSaleBonusPercent(tier: worker.tier)
-            return prefix + String(format: String(localized: "cashier_assignment_format"), percent)
-        case .menu(let i): return prefix + (UpgradeDefinitions.menu[safe: i]?.name ?? "메뉴 \(i + 1)")
-        default:           return prefix + a.label
+            return String(format: String(localized: "cashier_assignment_format"), percent)
+        case .menu(let i):
+            return DotContent.loc(UpgradeDefinitions.menu[safe: i]?.name ?? "")
+        case .farm: return String(localized: "dot.staff.farm")
+        case .unassigned: return String(localized: "dot.staff.unassigned")
         }
-    }
-
-    private func energyColor(_ e: Double) -> Color {
-        if e > 0.6 { return Color(red: 0.2, green: 0.8, blue: 0.3) }
-        if e > 0.3 { return Color(red: 0.95, green: 0.75, blue: 0.1) }
-        return Color(red: 0.9, green: 0.25, blue: 0.2);
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(tierColor(worker.tier))
-                    .frame(width: 40, height: 40)
-                Image(workerAssetName(tier: worker.tier, indexInTier: worker.indexInTier))
-                    .resizable()
-                    .frame(width: 22, height: 22)
-            }
-            .overlay(alignment: .topTrailing) {
-                if worker.energy < 0.05, worker.assignment != .unassigned {
-                    Image("warning_badge")
-                        .resizable()
-                        .frame(width: 11, height: 11)
-                        .offset(x: 6, y: -6)
-                        .transition(.scale.combined(with: .opacity))
+        HStack(spacing: 10) {
+            StaffPortrait(tier: worker.tier, tired: isTired)
+                .overlay(alignment: .topTrailing) {
+                    if isEmpty {
+                        DotImage("dot_fx_zzz", scale: 1).offset(x: 4, y: -4)
+                    }
                 }
-            }
-            .animation(.spring(duration: 0.25), value: worker.energy < 0.05)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(Self.name[worker.tier]).font(.headline)
-                Text(assignmentLabel(worker.assignment, energy: worker.energy))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.gray.opacity(0.2))
-                    .overlay(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(energyColor(worker.energy))
-                            .scaleEffect(x: CGFloat(worker.energy), anchor: .leading)
-                    }
-                    .frame(height: 4)
-                    .clipped()
-            }
-
-            Spacer()
-
-            Menu {
-                    ForEach(options, id: \.0) { option, available in
-                        Button {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            onReassign(option)
-                        } label: {
-                            if worker.assignment == option {
-                                Label(assignmentLabel(option), systemImage: "checkmark")
-                            } else {
-                                Text(assignmentLabel(option))
-                            }
-                        }
-                        .disabled(!available)
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(assignmentLabel(worker.assignment, energy: worker.energy)).font(.caption.bold())
-                        Image(systemName: "chevron.up.chevron.down").font(.caption2)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.staffAmber.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
-                    .foregroundStyle(Color.staffAmber)
+                HStack(spacing: 6) {
+                    Text(staffName(worker.tier)).dotText(.bold).lineLimit(1)
+                    DotTag(text: String(format: String(localized: "dot.staff.level"), worker.tier),
+                           fill: StaffLook.color(tier: worker.tier), textColor: DotPalette.ink)
                 }
+                DotMiniBar(value: worker.energy, color: StaffLook.energyColor(worker.energy))
+                    .accessibilityLabel(String(localized: "dot.staff.energy"))
+                    .accessibilityValue("\(Int((worker.energy * 100).rounded()))%")
+                assignmentMenu
+                if let cost = promoteCost { promoteButton(cost: cost) }
+            }
         }
-        .padding(.vertical, 2)
+        .dotPanel()
+        .accessibilityElement(children: .contain)
     }
 
-    private func tierColor(_ tier: Int) -> Color {
-        switch tier {
-        case 1:  Color(red: 0.93, green: 0.70, blue: 0.18)
-        case 2:  Color(red: 0.62, green: 0.80, blue: 0.95)
-        case 3:  Color(red: 0.96, green: 0.76, blue: 0.38)
-        default: Color.gray.opacity(0.3)
+    private var assignmentMenu: some View {
+        Menu {
+            ForEach(options, id: \.0) { option, available in
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    onReassign(option)
+                } label: {
+                    if worker.assignment == option {
+                        Label(assignmentLabel(option), systemImage: "checkmark")
+                    } else {
+                        Text(assignmentLabel(option))
+                    }
+                }
+                .disabled(!available)
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text(assignmentLabel(worker.assignment, energy: worker.energy))
+                    .dotText(.bold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 0)
+                DotCaret()
+            }
+            .padding(.horizontal, 8)
+            .frame(minHeight: 44)
+            .background { DotNineSlice(name: "dot_ui_panel").padding(.vertical, 6) }
+            .contentShape(Rectangle())
         }
+        .accessibilityLabel(String(localized: "dot.staff.assignment"))
+        .accessibilityValue(assignmentLabel(worker.assignment, energy: worker.energy))
+    }
+
+    private func promoteButton(cost: Double) -> some View {
+        Button(action: onPromote) {
+            HStack(spacing: 4) {
+                Text(String(localized: "업그레이드"))
+                DotCostLabel(text: CoinFormat.string(cost))
+            }
+        }
+        .buttonStyle(.dotCompact)
+        .disabled(coins < cost)
     }
 }
 
@@ -582,6 +598,7 @@ private struct WorkerRow: View {
 
 private struct HireTierRow: View {
     @EnvironmentObject var store: GameStore
+    @Environment(\.dotPlaySound) private var play
     let tier: Int
     let onHired: () -> Void
 
@@ -596,70 +613,38 @@ private struct HireTierRow: View {
         }
     }
 
-    private var isAtCap: Bool { false }
-
     private var isUnlocked: Bool {
         UpgradeDefinitions.isStaffTierUnlocked(tier, stallTier: store.stall.stallTier)
     }
 
     private var unlockHint: String {
         switch tier {
-        case 2: return "봄동 식당 업그레이드 필요"
-        case 3: return "봄동 전문점 업그레이드 필요"
-        default: return ""
+        case 2: String(localized: "dot.staff.unlock.restaurant")
+        case 3: String(localized: "dot.staff.unlock.specialty")
+        default: ""
         }
     }
 
-    private static let hireAssetNames = ["", "person_adult", "person_elder_woman", "staff_chef_man"]
-
     var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isUnlocked ? Color.staffAmber.opacity(0.8) : Color.gray.opacity(0.2))
-                    .frame(width: 40, height: 40)
-                Image(Self.hireAssetNames[tier])
-                    .resizable()
-                    .frame(width: 22, height: 22)
-            }
+        HireRowLayout(tier: tier, name: staffName(tier), isUnlocked: isUnlocked, unlockHint: unlockHint,
+                      lines: lines, cost: def.coinCost, coins: store.stall.coins, onHire: hire)
+    }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(def.name).font(.headline)
-                    .foregroundStyle(isUnlocked ? .primary : .secondary)
-                if isUnlocked {
-                    Text(def.description).font(.caption).foregroundStyle(.secondary)
-                    if tier <= 2 {
-                        Text(cashierHireHint(tier: tier)).font(.caption2).foregroundStyle(.blue)
-                    }
-                    Text(String(format: String(localized: "staff_current_count"), count)).font(.caption2).foregroundStyle(Color.staffAmber)
-                } else {
-                    Text(unlockHint).font(.caption).foregroundStyle(.secondary)
-                }
-            }
+    private var lines: [HireLine] {
+        var result = [HireLine(DotContent.loc(def.description), color: DotPalette.textSecondary)]
+        if tier <= 2 { result.append(HireLine(cashierHireHint(tier: tier), color: DotPalette.blue)) }
+        result.append(HireLine(String(format: String(localized: "staff_current_count"), count),
+                               color: DotPalette.soilDark))
+        return result
+    }
 
-            Spacer()
-
-            if isUnlocked {
-                if isAtCap {
-                    Text(String(localized: "최대")).font(.caption).foregroundStyle(.tertiary)
-                } else {
-                    Button {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        store.hireWorker(tier: tier)
-                        onHired()
-                    } label: {
-                        HireCostLabel(cost: def.coinCost, coins: store.stall.coins)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(store.stall.coins >= def.coinCost ? Color.staffAmber : .gray)
-                    .disabled(store.stall.coins < def.coinCost)
-                    .controlSize(.small)
-                }
-            } else {
-                Image(systemName: "lock.fill").foregroundStyle(.tertiary)
-            }
-        }
-        .padding(.vertical, 4)
+    private func hire() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        let before = store.stall.coins
+        store.hireWorker(tier: tier)
+        guard store.stall.coins < before else { return play(.error) }
+        play(.purchase)
+        onHired()
     }
 }
 
@@ -667,7 +652,7 @@ private struct HireTierRow: View {
 
 /// What the counter pays off, as the hire lists show it; alba/이모님 and the veteran differ only in percent.
 private func cashierHireHint(tier: Int) -> String {
-    String(format: String(localized: "cashier_hire_hint_format"),
+    String(format: String(localized: "dot.staff.cashierHint"),
            EarningsSystem.cashierSaleBonusPercent(tier: tier))
 }
 
@@ -675,7 +660,8 @@ private func cashierHireHint(tier: Int) -> String {
 
 private struct HireFarmWorkerRow: View {
     @EnvironmentObject var store: GameStore
-    let assetName: String
+    @Environment(\.dotPlaySound) private var play
+    let tier: Int
     let def: UpgradeDefinition
     let count: Int
     let isUnlocked: Bool
@@ -684,51 +670,70 @@ private struct HireFarmWorkerRow: View {
     let onHire: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isUnlocked ? Color.staffAmber.opacity(0.8) : Color.gray.opacity(0.2))
-                    .frame(width: 40, height: 40)
-                Image(assetName)
-                    .resizable()
-                    .frame(width: 22, height: 22)
-            }
+        HireRowLayout(tier: tier, name: staffName(tier), isUnlocked: isUnlocked, unlockHint: unlockHint,
+                      lines: lines, cost: def.coinCost, coins: store.stall.coins, onHire: hire)
+    }
 
+    private var lines: [HireLine] {
+        var result = [
+            HireLine(DotContent.loc(def.description), color: DotPalette.textSecondary),
+            HireLine(String(format: String(localized: "growth_speed_format"),
+                            String(format: "%.1f", def.productionMultiplier)), color: DotPalette.leafDark)
+        ]
+        if let cashierHint { result.append(HireLine(cashierHint, color: DotPalette.blue)) }
+        result.append(HireLine(String(format: String(localized: "staff_current_count"), count),
+                               color: DotPalette.soilDark))
+        return result
+    }
+
+    private func hire() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        let before = store.stall.coins
+        onHire()
+        play(store.stall.coins < before ? .purchase : .error)
+    }
+}
+
+// MARK: - Shared hire layout
+
+private struct HireLine: Identifiable {
+    let id = UUID()
+    let text: String
+    let color: Color
+    init(_ text: String, color: Color) { self.text = text; self.color = color }
+}
+
+private struct HireRowLayout: View {
+    let tier: Int
+    let name: String
+    let isUnlocked: Bool
+    let unlockHint: String
+    let lines: [HireLine]
+    let cost: Double
+    let coins: Double
+    let onHire: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            StaffPortrait(tier: tier, isUnlocked: isUnlocked)
             VStack(alignment: .leading, spacing: 2) {
-                Text(def.name).font(.headline)
-                    .foregroundStyle(isUnlocked ? .primary : .secondary)
+                Text(name).dotText(.bold, color: isUnlocked ? DotPalette.ink : DotPalette.textSecondary)
                 if isUnlocked {
-                    Text(def.description).font(.caption).foregroundStyle(.secondary)
-                    Text(String(format: String(localized: "growth_speed_format"), String(format: "%.1f", def.productionMultiplier)))
-                        .font(.caption2).foregroundStyle(.green)
-                    if let hint = cashierHint {
-                        Text(hint)
-                            .font(.caption2).foregroundStyle(.blue)
-                    }
-                    Text(String(format: String(localized: "staff_current_count"), count)).font(.caption2).foregroundStyle(Color.staffAmber)
+                    ForEach(lines) { Text($0.text).dotText(.caption, color: $0.color) }
                 } else {
-                    Text(unlockHint).font(.caption).foregroundStyle(.secondary)
+                    DotHint(icon: "dot_ui_lock", text: unlockHint, color: DotPalette.orangeDark)
                 }
             }
-
-            Spacer()
-
+            .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
             if isUnlocked {
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    onHire()
-                } label: {
-                    HireCostLabel(cost: def.coinCost, coins: store.stall.coins)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(store.stall.coins >= def.coinCost ? Color.staffAmber : .gray)
-                .disabled(store.stall.coins < def.coinCost)
-                .controlSize(.small)
-            } else {
-                Image(systemName: "lock.fill").foregroundStyle(.tertiary)
+                Button(action: onHire) { HireCostLabel(cost: cost, coins: coins) }
+                    .buttonStyle(.dotCompact)
+                    .disabled(coins < cost)
             }
         }
-        .padding(.vertical, 4)
+        .dotPanel()
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -741,19 +746,14 @@ private struct HireCostLabel: View {
 
     var body: some View {
         if coins >= cost {
-            Text("₩\(CoinFormat.string(cost))").font(.caption.bold())
+            DotCostLabel(text: CoinFormat.string(cost))
         } else {
             Text(String(format: String(localized: "%@ 코인 부족"), CoinFormat.string(ceil(cost - coins))))
-                .font(.caption.bold())
         }
     }
 }
 
 // MARK: - Helpers
-
-private extension Color {
-    static let staffAmber = Color(red: 0.72, green: 0.40, blue: 0.10)
-}
 
 private extension Array {
     subscript(safe index: Int) -> Element? {
