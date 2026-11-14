@@ -713,6 +713,9 @@ public final class GameStore: ObservableObject {
         for i in missionState.missions.indices { missionState.missions[i].progress = missionState.missions[i].target }
     }
 
+    /// QA only (`-dotGift`): puts a crate in the yard now.
+    public func debugSpawnGift() { transients.giftRemaining = GiftSystem.lifetime }
+
     /// QA only: re-rolls today's missions from the current stall and earning rate (a seed changes both after init).
     public func debugRerollMissions() {
         missionState = MissionState()

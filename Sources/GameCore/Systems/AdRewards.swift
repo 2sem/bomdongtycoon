@@ -1,7 +1,7 @@
 import Foundation
 
 /// One rewarded ad surface. Each has its own ad unit so reporting is per placement.
-public enum AdPlacement: String, CaseIterable, Codable {
+public enum AdPlacement: String, CaseIterable, Codable, Sendable {
     case offline, fever, mission, boost, gift
 
     /// Production rewarded unit per placement; the one table the App reads. Debug builds use Google's test unit.

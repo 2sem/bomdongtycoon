@@ -12,12 +12,12 @@ final class RecipeAndPacingTests: DotWorldTestCase {
 
     func test_recipeCost_isBaseTimesGrowth_toTwoSignificantFigures() {
         XCTAssertEqual(RecipeSystem.cost(menuIndex: 0, level: 0), 150)
-        XCTAssertEqual(RecipeSystem.cost(menuIndex: 0, level: 1), 230)   // 232.5
-        XCTAssertEqual(RecipeSystem.cost(menuIndex: 0, level: 2), 360)   // 360.4
+        XCTAssertEqual(RecipeSystem.cost(menuIndex: 0, level: 1), 230)   // 225
+        XCTAssertEqual(RecipeSystem.cost(menuIndex: 0, level: 2), 340)   // 337.5
         XCTAssertEqual(RecipeSystem.cost(menuIndex: 1, level: 0), 600)
-        XCTAssertEqual(RecipeSystem.cost(menuIndex: 1, level: 1), 930)
+        XCTAssertEqual(RecipeSystem.cost(menuIndex: 1, level: 1), 900)
         XCTAssertEqual(RecipeSystem.cost(menuIndex: 2, level: 0), 2_500)
-        XCTAssertEqual(RecipeSystem.cost(menuIndex: 2, level: 1), 3_900)  // 3,875
+        XCTAssertEqual(RecipeSystem.cost(menuIndex: 2, level: 1), 3_800)  // 3,750
         XCTAssertNil(RecipeSystem.cost(menuIndex: 0, level: RecipeSystem.maxLevel))
         XCTAssertNil(RecipeSystem.cost(menuIndex: 3, level: 0))
     }
@@ -94,7 +94,7 @@ final class RecipeAndPacingTests: DotWorldTestCase {
 
     func test_goal_recipeCostsClimbPastTheStructuralPurchases() {
         var s = StallState()
-        s.recipeLevels = [8, 0, 0]   // 150 x 1.55^8 = 4,968
+        s.recipeLevels = [8, 0, 0]   // 150 x 1.5^8 = 3,844
         XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .staff, "the 300 hire is now cheaper than another 겉절이 level")
     }
 
