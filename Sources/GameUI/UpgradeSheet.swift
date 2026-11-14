@@ -33,6 +33,7 @@ public struct UpgradeSheet: View {
                     icons: ["dot_ui_upgrade", "dot_ui_upgrade", "dot_ui_upgrade"]
                 )
                 warehouseSection
+                renovationSection
                 locationSection
                 springSection
             }
@@ -264,6 +265,35 @@ public struct UpgradeSheet: View {
                         description: String(format: String(localized: "dot.warehouse.max"), capacity)),
                     icon: "dot_farm_warehouse_crate_full",
                     isOwned: true, isNext: false, canAfford: false, onPurchase: {})
+            }
+        }
+    }
+
+    // MARK: Renovation
+
+    /// The endless late-game sink. Listed from the start as a locked row so the goal is discoverable,
+    /// like the new-spring entry.
+    private var renovationSection: some View {
+        let stall = store.stall
+        let level = stall.renovationLevel
+        let unlocked = RenovationSystem.isUnlocked(for: stall)
+        let cost = RenovationSystem.cost(forLevel: level)
+        let bonus = Int((RenovationSystem.priceMultiplier(level: level) - 1) * 100 + 0.5)
+        return Group {
+            DotSectionHeader(String(localized: "dot.renovation.title"))
+            UpgradeRowView(
+                upgrade: UpgradeDefinition(
+                    name: String(localized: "dot.renovation.title"), coinCost: cost,
+                    description: String(format: String(localized: "dot.renovation.level"), level)),
+                icon: "dot_ui_upgrade",
+                displayEffect: String(format: String(localized: "dot.renovation.effect"),
+                                      RenovationSystem.percentPerLevel, bonus),
+                isOwned: false,
+                isNext: unlocked,
+                canAfford: unlocked && stall.coins >= cost,
+                onPurchase: { purchase(.renovation) })
+            if !unlocked {
+                DotFootnote(DotContent.loc(UpgradeDefinitions.location[2].lockedReason ?? ""))
             }
         }
     }

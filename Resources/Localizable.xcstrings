@@ -2785,13 +2785,13 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "접시를 누르면 요리를 시작해요.\n손님은 카운터에 줄을 서서\n음식을 기다려요."
+            "value" : "접시를 누르면 요리를 시작해요.\n손님이 떨어뜨린 동전을 누르면\n팁을 받아요!"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap a dish to start cooking.\nCustomers queue at the counter\nand wait for their food."
+            "value" : "Tap a dish to start cooking.\nTap the coins customers drop\nto collect tips!"
           }
         }
       }
@@ -2817,13 +2817,13 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "손님을 빨리 대접할수록 게이지가 차요.\n가득 차면 피버 버튼을 눌러\n12초 동안 수익 2배!"
+            "value" : "손님을 빨리 대접하면 게이지가 차요.\n가득 차면 피버! 15초 동안 2배 수익,\n요리는 탭하면 바로 완성돼요."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Serve customers fast to charge it.\nWhen it is full, tap FEVER\nfor 12 seconds of double earnings!"
+            "value" : "Serve customers fast to charge it.\nWhen it is full, FEVER! 15 seconds of\ndouble earnings and instant cooking."
           }
         }
       }
@@ -3486,6 +3486,166 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Clear, rain in %dm %ds"
+          }
+        }
+      }
+    },
+    "dot.renovation.title" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "가게 단장"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shop Renovation"
+          }
+        }
+      }
+    },
+    "dot.renovation.level" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lv.%d"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lv.%d"
+          }
+        }
+      }
+    },
+    "dot.renovation.effect" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+%d%% 판매가 (현재 +%d%%)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+%d%% sale price (now +%d%%)"
+          }
+        }
+      }
+    },
+    "dot.mission.gourmetLocked" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "평점 %@부터 미식가가 찾아와요"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gourmets visit from rating %@"
+          }
+        }
+      }
+    },
+    "dot.mission.bonus.title" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오늘의 미션 완료"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Missions Done"
+          }
+        }
+      }
+    },
+    "dot.stats.tips" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "팁 받은 횟수"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tips collected"
+          }
+        }
+      }
+    },
+    "dot.stats.renovation" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "가게 단장 단계"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renovation level"
+          }
+        }
+      }
+    },
+    "dot.fever.firstReady" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "피버 준비 완료! 눌러서 %d초 동안 2배로 팔아요"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fever ready! Tap it to sell at double for %d seconds"
+          }
+        }
+      }
+    },
+    "dot.toast.golden" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "황금 봄동이 열렸어요!"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A golden cabbage has ripened!"
+          }
+        }
+      }
+    },
+    "dot.fever.tally" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "피버 수익 +%@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fever earned +%@"
           }
         }
       }

@@ -16,7 +16,19 @@ public struct MissionsSheet: View {
         DotSheet(title: String(localized: "dot.mission.title"), onClose: { isPresented = false }) {
             DotScroll {
                 ForEach(store.missions) { mission in
-                    MissionRow(mission: mission) { claim(mission) }
+                    MissionRow(mission: mission,
+                               blockedReason: MissionSystem.blockedReason(kind: mission.kind, rating: store.progress.rating)) {
+                        claim(mission)
+                    }
+                }
+                if !store.missions.isEmpty {
+                    BonusRow(reward: store.dailyBonusReward, isReady: store.isDailyBonusReady,
+                             isClaimed: store.isDailyBonusClaimed,
+                             done: store.missions.filter(\.isComplete).count, total: store.missions.count) {
+                        guard store.claimDailyBonus() != nil else { return }
+                        play(.missionDone)
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    }
                 }
                 MissionCountdown()
                     .frame(maxWidth: .infinity)
@@ -36,6 +48,7 @@ public struct MissionsSheet: View {
 
 private struct MissionRow: View {
     let mission: Mission
+    var blockedReason: MissionBlock?
     let onClaim: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -56,6 +69,9 @@ private struct MissionRow: View {
                 HStack(spacing: 4) {
                     DotImage("dot_ui_coin", scale: 1)
                     Text(CoinFormat.string(mission.reward)).dotText(.bold, color: DotPalette.goldDark)
+                }
+                if let reason = blockedReason, !mission.isComplete {
+                    DotHint(icon: "dot_ui_lock", text: Self.text(for: reason), color: DotPalette.orangeDark)
                 }
             }
             trailing
@@ -104,6 +120,13 @@ private struct MissionRow: View {
         return "\(mission.progress)/\(mission.target)"
     }
 
+    static func text(for block: MissionBlock) -> String {
+        switch block {
+        case .needsRating(let rating):
+            String(format: String(localized: "dot.mission.gourmetLocked"), String(format: "%.1f", rating))
+        }
+    }
+
     static func icon(_ kind: MissionKind) -> String {
         switch kind {
         case .serveCustomers: "dot_ui_staff"
@@ -125,6 +148,50 @@ private struct MissionRow: View {
         case .triggerFever: return String(format: String(localized: "dot.mission.fever"), n)
         case .serveGourmets: return String(format: String(localized: "dot.mission.gourmet"), n)
         }
+    }
+}
+
+// MARK: - Daily bonus
+
+/// The fourth row: finish all of today's missions for twice a single reward.
+private struct BonusRow: View {
+    let reward: Double
+    let isReady: Bool
+    let isClaimed: Bool
+    let done: Int
+    let total: Int
+    let onClaim: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            DotImage("dot_ui_mission", scale: 2)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(String(localized: "dot.mission.bonus.title")).dotText(.bold)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 6) {
+                    DotProgressBar(value: Double(done) / Double(max(total, 1)), tint: isReady || isClaimed ? .gold : .leaf)
+                    Text("\(done)/\(total)").dotText(.caption, color: DotPalette.textSecondary).fixedSize()
+                }
+                HStack(spacing: 4) {
+                    DotImage("dot_ui_coin", scale: 1)
+                    Text(CoinFormat.string(reward)).dotText(.bold, color: DotPalette.goldDark)
+                }
+            }
+            if isClaimed {
+                VStack(spacing: 2) {
+                    DotImage("dot_ui_check", scale: 2)
+                    Text(String(localized: "dot.mission.claimed")).dotText(.caption, color: DotPalette.leafDark)
+                }
+            } else if isReady {
+                Button(action: onClaim) { Text(String(localized: "dot.mission.claim")) }
+                    .buttonStyle(.dot)
+            } else {
+                DotImage("dot_ui_lock", scale: 1).opacity(0.5).accessibilityHidden(true)
+            }
+        }
+        .dotPanel(.light, padding: EdgeInsets(top: 10, leading: 10, bottom: 10, trailing: 10))
+        .opacity(isClaimed ? 0.6 : 1)
+        .accessibilityElement(children: .combine)
     }
 }
 

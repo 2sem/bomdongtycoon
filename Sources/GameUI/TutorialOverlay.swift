@@ -19,7 +19,7 @@ public struct TutorialOverlay: View {
             Page(sprites: ["dot_dish_geotjeori", "dot_char_man_idle_down", "dot_char_woman_idle_down"],
                  title: String(localized: "dot.tutorial.cook.title"),
                  subtitle: String(localized: "dot.tutorial.cook.subtitle")),
-            Page(sprites: ["dot_ui_fever", "dot_farm_plot_golden_0"],
+            Page(sprites: ["dot_ui_fever", "dot_dish_bibimbap", "dot_char_woman_idle_down"],
                  title: String(localized: "dot.tutorial.fever.title"),
                  subtitle: String(localized: "dot.tutorial.fever.subtitle")),
             Page(sprites: ["dot_ui_mission", "dot_char_alba_idle_down", "dot_ui_coin"],

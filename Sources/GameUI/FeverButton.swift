@@ -7,6 +7,9 @@ public struct FeverButton: View {
     @EnvironmentObject var store: GameStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// Tall enough for the tallest of the three forms, so the bar above the tab bar never changes height.
+    public static let slotHeight: CGFloat = 60
+
     public init() {}
 
     public var body: some View {
