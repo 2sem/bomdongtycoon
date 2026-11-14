@@ -55,6 +55,7 @@ let project = Project(
                 "CFBundleShortVersionString": "$(MARKETING_VERSION)",
                 "CFBundleVersion": "$(CURRENT_PROJECT_VERSION)",
                 "UILaunchStoryboardName": "LaunchScreen",
+                "UIAppFonts": ["Galmuri11.ttf", "Galmuri11-Bold.ttf", "Galmuri9.ttf"],
                 "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
                 "NSUserNotificationUsageDescription": "봄동 가게 알림을 보내드려요 🥬",
                 "NSUserTrackingUsageDescription": "맞춤형 광고 제공 및 광고 성과 측정을 위해 추적 권한이 필요해요.",
