@@ -7,11 +7,20 @@ import GameCore
 ///   -dotRain            keep it raining
 ///   -dotDemo            tap a ripe plot, an empty plot and a dish in turn
 ///   -dotPhase morning|noon|dusk|night   freeze the time of day
+///   -dotSheet upgrades|staff|hire|missions|stats|prestige|tutorial|name|offline   open that screen at launch
 enum DotDebug {
     static var dayProgress: Double? {
         #if DEBUG
         let table = ["morning": 0.0, "noon": 0.25, "dusk": 0.5, "night": 0.8]
         return value(after: "-dotPhase").flatMap { table[$0] }
+        #else
+        return nil
+        #endif
+    }
+
+    static var sheet: String? {
+        #if DEBUG
+        return value(after: "-dotSheet")
         #else
         return nil
         #endif
@@ -82,6 +91,18 @@ enum DotDebug {
             return plot
         }
         store.farm = farm
+
+        switch value(after: "-dotSheet") {
+        case "tutorial":
+            progress.isFirstLaunch = true
+            store.progress = progress
+        case "name":
+            progress.isShopNameSet = false
+            store.progress = progress
+        case "offline":
+            store.offlineEarnings = 1_234_567
+        default: break
+        }
         #endif
     }
 
@@ -89,7 +110,9 @@ enum DotDebug {
     @MainActor
     static func keepAlive(_ store: GameStore) {
         #if DEBUG
-        if arguments.contains("-dotSeed"), store.offlineEarnings > 0 { store.offlineEarnings = 0 }
+        if arguments.contains("-dotSeed"), value(after: "-dotSheet") != "offline", store.offlineEarnings > 0 {
+            store.offlineEarnings = 0
+        }
         if wantsFever, !store.isFeverActive {
             for _ in 0..<10 { store.recordServed(waitTime: 0) }
             store.startFever()

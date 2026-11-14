@@ -9,15 +9,16 @@ struct GameRootView: View {
     @State private var showStaff = false
     @State private var showStats = false
     @State private var showPrestige = false
+    @State private var showMissions = false
     @State private var staffTab: StaffTab = .assign
+    @State private var coinTarget: CGPoint?
     @State private var locationToast: String?
     @State private var toastTask: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
-            GameSceneView()
-            staffButton
+            GameSceneView(bottomReserve: 0, coinTarget: coinTarget)
             if store.progress.isFirstLaunch {
                 TutorialOverlay()
             } else if !store.progress.isShopNameSet {
@@ -29,23 +30,26 @@ struct GameRootView: View {
                 }
             }
         }
-        .safeAreaInset(edge: .top) {
-            VStack(alignment: .leading, spacing: 8) {
-                // Rating sits in the row, not overlaid on it: a centred overlay covered
-                // the goal pill's text once the pill got long (39,530 / 40,000 at 440pt).
-                // The pill is the only flexible item, so it is what truncates.
-                HStack(alignment: .center, spacing: 8) {
-                    CoinBadge().fixedSize()
-                    ratingButton
-                    Spacer(minLength: 0)
-                    GoalProgressBar(showUpgrades: $showUpgrades, showStaff: $showStaff, staffTab: $staffTab,
-                                    showPrestige: $showPrestige)
-                }
-                ShopStatusStrip()
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 4)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HUDView(showUpgrades: $showUpgrades, showStaff: $showStaff, staffTab: $staffTab,
+                    showPrestige: $showPrestige, showStats: $showStats) { coinTarget = $0 }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                HStack {
+                    Spacer()
+                    FeverButton()
+                }
+                .padding(.horizontal, 8)
+                .padding(.bottom, 4)
+                DotTabBar(
+                    onUpgrades: { showUpgrades = true },
+                    onStaff: { staffTab = .assign; showStaff = true },
+                    onMissions: { showMissions = true },
+                    onStats: { showStats = true })
+            }
+        }
+        .environment(\.dotPlaySound, { DotSound.shared.play($0.effect) })
         .sheet(isPresented: $showUpgrades) {
             UpgradeSheet(isPresented: $showUpgrades)
                 .environmentObject(store)
@@ -57,19 +61,19 @@ struct GameRootView: View {
         .sheet(isPresented: $showStats) {
             StatsSheet(isPresented: $showStats)
                 .environmentObject(store)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showMissions) {
+            MissionsSheet(isPresented: $showMissions)
+                .environmentObject(store)
         }
         .sheet(isPresented: $showStaff) {
             StaffSheet(isPresented: $showStaff, tab: $staffTab)
                 .environmentObject(store)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(24)
         }
         .onAppear {
             store.isSimulationPaused = isIntroOverlayUp
             if store.progress.isShopNameSet { NotificationManager.requestPermissionIfUndetermined() }
+            openDebugSheet()
         }
         .onChange(of: isIntroOverlayUp) { _, isUp in
             store.isSimulationPaused = isUp
@@ -81,8 +85,8 @@ struct GameRootView: View {
         .modifier(ExpandWarehouseConfirmation())
         .overlay(alignment: .top) {
             if let toast = locationToast {
-                LocationToast(text: toast)
-                    .padding(.top, 56)
+                DotToast(text: toast)
+                    .padding(.top, 96)
                     .padding(.horizontal, 16)
                     .transition(reduceMotion
                         ? .opacity
@@ -98,44 +102,21 @@ struct GameRootView: View {
         }
     }
 
+    /// `-dotSheet` (DEBUG): opens one screen straight away so it can be screenshot.
+    private func openDebugSheet() {
+        switch DotDebug.sheet {
+        case "upgrades": showUpgrades = true
+        case "staff": showStaff = true
+        case "hire": staffTab = .hire; showStaff = true
+        case "missions": showMissions = true
+        case "stats": showStats = true
+        case "prestige": showPrestige = true
+        default: break
+        }
+    }
+
     private var isIntroOverlayUp: Bool {
         store.progress.isFirstLaunch || !store.progress.isShopNameSet
-    }
-
-    /// The rating badge opens the records sheet. The 44pt frame is the tap target only: the row
-    /// is already 44pt tall (goal pill), so it adds no height.
-    private var ratingButton: some View {
-        Button { showStats = true } label: {
-            RatingBadge()
-                .frame(minWidth: 44, minHeight: 44)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .fixedSize()
-        .accessibilityLabel(String(format: String(localized: "stats.rating.accessibility"),
-                                   String(format: "%.1f", store.progress.rating)))
-        .accessibilityHint(String(localized: "stats.rating.hint"))
-    }
-
-    private var staffButton: some View {
-        VStack {
-            Spacer()
-            HStack {
-                Spacer()
-                Button {
-                    staffTab = .assign
-                    showStaff = true
-                } label: {
-                    Image(systemName: "person.2.fill")
-                        .font(.title3)
-                        .frame(width: 44, height: 44)
-                        .background(.regularMaterial, in: Circle())
-                }
-                .accessibilityLabel(String(localized: "직원 관리"))
-            }
-            .padding(.trailing, 16)
-            .padding(.bottom, 12)
-        }
     }
 
     /// Shown once the scene has faded back in (see
@@ -145,10 +126,10 @@ struct GameRootView: View {
         guard UpgradeDefinitions.location.indices.contains(tier) else { return }
         let location = UpgradeDefinitions.location[tier]
         let multiplier = Int(location.saleMultiplier)
-        let emoji = tier == 1 ? "🏪" : "🌆"
         showToast(
-            "\(emoji) \(location.destination) 이전했어요! 판매 수익 x\(multiplier)",
-            announcement: "\(location.destination) 이전했습니다. 판매 수익 \(multiplier)배.")
+            String(format: String(localized: "dot.toast.moved"), location.destination, multiplier),
+            announcement: String(format: String(localized: "dot.toast.moved.accessibility"),
+                                 location.destination, multiplier))
     }
 
     /// The spring has been committed and the scene has faded back in: the success haptic, the toast
@@ -176,16 +157,26 @@ struct GameRootView: View {
     }
 }
 
-private struct LocationToast: View {
+private struct DotToast: View {
     let text: String
 
     var body: some View {
         Text(text)
-            .font(.subheadline.bold())
+            .dotText(.bold, color: DotPalette.paper, shadow: true)
             .multilineTextAlignment(.center)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(.regularMaterial, in: Capsule())
+            .dotPanel(.dark, padding: EdgeInsets(top: 10, leading: 14, bottom: 10, trailing: 14))
             .accessibilityHidden(true) // announced separately on appearance
+    }
+}
+
+private extension DotSoundEffect {
+    var effect: DotSound.Effect {
+        switch self {
+        case .tap: .tap
+        case .purchase: .purchase
+        case .error: .error
+        case .missionDone: .missionDone
+        case .feverStart: .feverStart
+        }
     }
 }
