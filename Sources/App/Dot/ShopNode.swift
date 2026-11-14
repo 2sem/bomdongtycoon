@@ -33,7 +33,7 @@ final class ShopNode: BandNode {
         let count: PixelLabel
         let cook = StaffFigure()
         var dishName = ""
-        init(scale: CGFloat) { count = PixelLabel(style: .small, scale: scale, alignment: .left) }
+        init(scale: CGFloat) { count = PixelLabel(style: .tiny, scale: scale, alignment: .left) }
     }
 
     private let scale: CGFloat
@@ -45,7 +45,8 @@ final class ShopNode: BandNode {
     private var last: Snapshot?
     private var lastStock: [Int]?
 
-    init(layout: DotWorldLayout) {
+    /// `labelLayer` sits above the day tint so stock counts do not darken at night.
+    init(layout: DotWorldLayout, labelLayer: SKNode) {
         scale = layout.scale
         super.init(top: layout.shopTop)
         zPosition = 100
@@ -78,7 +79,7 @@ final class ShopNode: BandNode {
             slot.barFill.position = CGPoint(x: 2, y: -2)
             slot.barFill.zPosition = 0.1
             slot.barFrame.addChild(slot.barFill)
-            slot.count.position = artPoint(x + 12, 61)
+            slot.count.position = rootPoint(x + 13, 61)
             slot.cook.position = feetPoint(Self.cookX[i], 49)
 
             staffLayer.addChild(slot.cook)
@@ -86,7 +87,7 @@ final class ShopNode: BandNode {
             dishLayer.addChild(slot.pot)
             dishLayer.addChild(slot.lock)
             barLayer.addChild(slot.barFrame)
-            barLayer.addChild(slot.count)
+            labelLayer.addChild(slot.count)
             slots.append(slot)
         }
 

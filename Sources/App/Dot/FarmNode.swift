@@ -2,7 +2,7 @@ import SpriteKit
 import GameCore
 
 /// Farm band: a 5-column grid of 24x24 plots at x = 12 + 24c, y = 2 + 24r (band-local), the
-/// add-plot sign in the cell after the last plot, and worker figures in a lane beneath the beds.
+/// add-plot sign in the cell after the last plot, and one worker figure on the lower-right corner of the plot it tends.
 @MainActor
 final class FarmNode: BandNode {
 
@@ -75,9 +75,6 @@ final class FarmNode: BandNode {
     func apply(farm: FarmState, canAddPlot: Bool, reduceMotion: Bool) {
         let count = farm.plots.count
         if count != lastCount { rebuild(count: count) }
-        let rows = (count + (canAddPlot ? 1 : 0) + Self.columns - 1) / Self.columns
-        let laneRow = CGFloat(min(2 + 24 * rows + 21, Int(DotWorldLayout.farmHeight) - 1))
-
         for (i, plot) in farm.plots.enumerated() {
             let view = views[i]
             let (key, growth) = Self.key(for: plot)
@@ -96,9 +93,6 @@ final class FarmNode: BandNode {
             let kind = Self.workerKind(plot.workerType)
             let tired = plot.workerEnergy < ShopStaffPresence.lowEnergyThreshold
             let pose: StaffFigure.Pose = plot.isPlanted && !tired ? .work : (tired ? .tired : .idle)
-            let origin = Self.cellOrigin(i)
-            let row = i / Self.columns
-            view.worker.position = feetPoint(origin.x + 12 + CGFloat(row * 10 - 5), laneRow)
             view.worker.configure(kind: kind, pose: pose, isTired: tired && kind != nil,
                                   bobs: !reduceMotion, fast: false)
         }
@@ -125,6 +119,8 @@ final class FarmNode: BandNode {
             view.barFill.position = CGPoint(x: 1, y: -1)
             view.barBack.addChild(view.barFill)
             view.sprite.zPosition = 0
+            // Each worker stands on its plot's lower-right corner, above the beds.
+            view.worker.position = feetPoint(o.x + 20, o.y + 24)
             plotLayer.addChild(view.sprite)
             plotLayer.addChild(view.barBack)
             workerLayer.addChild(view.worker)

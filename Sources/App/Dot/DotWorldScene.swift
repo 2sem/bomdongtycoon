@@ -108,9 +108,11 @@ final class DotWorldScene: SKScene {
         let backdrop = BackdropNode(layout: layout, locationTier: tier)
         let ground = GroundBaker.makeNode(layout: layout, locationTier: tier)
         ground.zPosition = 20
-        let shop = ShopNode(layout: layout)
+        let labels = SKNode()
+        labels.zPosition = 5050
+        let shop = ShopNode(layout: layout, labelLayer: labels)
         let street = StreetNode(layout: layout)
-        let yard = YardNode(layout: layout)
+        let yard = YardNode(layout: layout, labelLayer: labels)
         let farm = FarmNode(layout: layout)
         let decor = GrassDecorNode(layout: layout)
         let director = CustomerDirector(street: street, layout: layout)
@@ -134,7 +136,7 @@ final class DotWorldScene: SKScene {
         glow.zPosition = 5001
         glow.alpha = 0
 
-        for node in [backdrop, ground, shop, street, yard, farm, decor, rain, tint, glow, fx] as [SKNode] { root.addChild(node) }
+        for node in [backdrop, ground, shop, street, yard, farm, decor, rain, tint, glow, labels, fx] as [SKNode] { root.addChild(node) }
         self.fx = fx; self.backdrop = backdrop; groundNode = ground; self.shop = shop
         self.yard = yard; self.farm = farm; self.director = director; self.rain = rain
         self.tint = tint; feverGlow = glow

@@ -10,15 +10,15 @@ final class YardNode: BandNode {
     private let crateRow: CGFloat
     private var lastKey = ""
 
-    init(layout: DotWorldLayout) {
+    init(layout: DotWorldLayout, labelLayer: SKNode) {
         crateRow = CGFloat(layout.yardHeight - 3)
-        label = PixelLabel(style: .small, scale: layout.scale, alignment: .left)
+        label = PixelLabel(style: .tiny, scale: layout.scale, alignment: .left)
         super.init(top: layout.yardTop)
         zPosition = 300
         crate.position = feetPoint(22, crateRow)
         addChild(crate)
-        label.position = artPoint(42, crateRow - 8)
-        addChild(label)
+        label.position = rootPoint(40, crateRow - 8)
+        labelLayer.addChild(label)
 
         let bushes: [(CGFloat, CGFloat)] = [(130, CGFloat(layout.yardHeight) - 12), (112, CGFloat(layout.yardHeight) - 2)]
         for (x, y) in bushes {

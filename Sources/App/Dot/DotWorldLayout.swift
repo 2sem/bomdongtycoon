@@ -52,7 +52,11 @@ struct DotWorldLayout: Equatable {
         }
         let maxShopTop = usableBottom - stack(Self.fullYardHeight)
         let desiredShopTop = topInset + CGFloat(Self.backdropHeight) * scale
-        var shopScreenTop = min(desiredShopTop, maxShopTop)
+        // Spare height is split between sky above the skyline and lawn below the farm, so the
+        // stack reads as centred between the HUD and the tab bar instead of hugging the HUD.
+        var shopScreenTop = maxShopTop >= desiredShopTop
+            ? desiredShopTop + (maxShopTop - desiredShopTop) / 2
+            : maxShopTop
         var yard = Self.fullYardHeight
         if maxShopTop < topInset {
             let deficit = Int(((topInset - maxShopTop) / scale).rounded(.up))
