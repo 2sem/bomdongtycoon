@@ -251,7 +251,8 @@ final class NewSpringTests: XCTestCase {
             "isFirstLaunch", "isShopNameSet", "shopName", "totalEarned", "totalServed", "totalFailed",
             "totalPlaySeconds", "bestRating", "hasSeenPrestigeIntro", "prestigeCount",
             "fastestRunSeconds", "runBaselinePlaySeconds", "runBaselineEarned", "runBaselineServed",
-            "runBaselineFailed", "lastActiveDate"]
+            "runBaselineFailed", "lastActiveDate",
+            "totalGourmetServed", "totalGoldenHarvested", "totalFevers"]
         let progressReset: Set<String> = ["earningRate", "rating"]
 
         let store = makeReadyStore()
@@ -413,7 +414,8 @@ final class NewSpringTests: XCTestCase {
             "isFirstLaunch", "isShopNameSet", "shopName", "lastActiveDate", "totalEarned", "earningRate",
             "rating", "totalServed", "totalFailed", "prestigeCount", "totalPlaySeconds",
             "runBaselinePlaySeconds", "runBaselineEarned", "runBaselineServed", "runBaselineFailed",
-            "bestRating", "fastestRunSeconds", "hasSeenPrestigeIntro"]
+            "bestRating", "fastestRunSeconds", "hasSeenPrestigeIntro",
+            "totalGourmetServed", "totalGoldenHarvested", "totalFevers"]
         XCTAssertTrue(Set(object.keys).isSubset(of: previous), "\(Set(object.keys).subtracting(previous))")
 
         let back = try JSONDecoder().decode(PlayerProgress.self, from: data)

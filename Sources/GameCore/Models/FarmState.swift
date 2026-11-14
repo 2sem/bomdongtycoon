@@ -9,6 +9,8 @@ public struct FarmPlot: Codable {
     public var isPlanted: Bool = false
     public var workerType: FarmWorkerType = .none
     public var workerEnergy: Double = 1.0
+    /// Rolled when the plot ripens; only a manual harvest pays the bonus.
+    public var isGolden: Bool = false
 
     public var hasWorker: Bool { workerType != .none }
     public var isReady: Bool { isPlanted && growth >= 1.0 }
@@ -22,7 +24,7 @@ public struct FarmPlot: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case growth, isPlanted, workerType, workerEnergy
+        case growth, isPlanted, workerType, workerEnergy, isGolden
         case hasWorker  // legacy read-only key for migration
     }
 
@@ -34,6 +36,7 @@ public struct FarmPlot: Codable {
         try c.encode(isPlanted,    forKey: .isPlanted)
         try c.encode(workerType,   forKey: .workerType)
         try c.encode(workerEnergy, forKey: .workerEnergy)
+        try c.encode(isGolden,     forKey: .isGolden)
     }
 
     public init(from decoder: Decoder) throws {
@@ -41,6 +44,7 @@ public struct FarmPlot: Codable {
         growth       = c.decodeOrDefault(.growth, 0.0)
         isPlanted    = c.decodeOrDefault(.isPlanted, false)
         workerEnergy = c.decodeOrDefault(.workerEnergy, 1.0)
+        isGolden     = c.decodeOrDefault(.isGolden, false)
         if let wt = c.decodeOrNil(FarmWorkerType.self, forKey: .workerType) {
             workerType = wt
         } else {

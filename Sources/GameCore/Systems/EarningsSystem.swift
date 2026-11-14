@@ -54,11 +54,18 @@ public enum EarningsSystem {
     /// cashier and legacy bonuses are already inside the rate and must not be applied again there.
     /// `prestigeCount` 0 multiplies by exactly 1.0, so a first-run player's prices are untouched.
     /// Required, not defaulted: a caller that forgot it would silently price a prestiged save at x1.
-    public static func salePrice(for stall: StallState, menuIndex: Int, prestigeCount: Int) -> Double {
+    /// `feverMultiplier` and `gourmetMultiplier` are active-play bonuses: only `sellItem` passes
+    /// them, so `coinsPerSecond`, the golden bonus and offline earnings stay on the base economy.
+    public static func salePrice(for stall: StallState, menuIndex: Int, prestigeCount: Int,
+                                 feverMultiplier: Double = 1, gourmetMultiplier: Double = 1) -> Double {
         pricePerItem(for: stall, menuIndex: menuIndex)
             * cashierSaleMultiplier(for: stall)
             * PrestigeSystem.legacyMultiplier(prestigeCount: prestigeCount)
+            * feverMultiplier
+            * gourmetMultiplier
     }
+
+    public static let gourmetMultiplier: Double = 3
 
     /// Price for a specific menu slot (겉절이=30, 봄동김치=75, 봄동비빔밥=180) times the location multiplier
     public static func pricePerItem(for stall: StallState, menuIndex: Int) -> Double {

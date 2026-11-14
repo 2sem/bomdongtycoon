@@ -26,6 +26,10 @@ public struct PlayerProgress: Codable {
     public var bestRating: Double = 0
     public var fastestRunSeconds: TimeInterval? = nil
     public var hasSeenPrestigeIntro: Bool = false
+    // Lifetime stats, kept across a new spring.
+    public var totalGourmetServed: Int = 0
+    public var totalGoldenHarvested: Int = 0
+    public var totalFevers: Int = 0
 
     public init() {}
 
@@ -58,5 +62,8 @@ public struct PlayerProgress: Codable {
         bestRating             = c.decodeOrDefault(.bestRating, d.bestRating)
         fastestRunSeconds      = c.decodeOrNil(TimeInterval.self, forKey: .fastestRunSeconds)
         hasSeenPrestigeIntro   = c.decodeOrDefault(.hasSeenPrestigeIntro, d.hasSeenPrestigeIntro)
+        totalGourmetServed     = max(0, c.decodeOrDefault(.totalGourmetServed, d.totalGourmetServed))
+        totalGoldenHarvested   = max(0, c.decodeOrDefault(.totalGoldenHarvested, d.totalGoldenHarvested))
+        totalFevers            = max(0, c.decodeOrDefault(.totalFevers, d.totalFevers))
     }
 }
