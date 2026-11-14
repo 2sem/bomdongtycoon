@@ -110,15 +110,19 @@ public struct AdOfferDialog: View {
     }
 }
 
-/// "AD 충전" beside the fever gauge: fills it from an ad. Hops one pixel only while it owns the
-/// screen's single pulse.
+/// "AD 충전" beside the fever gauge: opens the offer dialog that fills it from an ad. Hops one pixel
+/// only while it owns the screen's single pulse.
 public struct FeverAdButton: View {
     @EnvironmentObject var store: GameStore
     @EnvironmentObject var ads: RewardedAds
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let isPulsing: Bool
+    let onTap: () -> Void
 
-    public init(isPulsing: Bool) { self.isPulsing = isPulsing }
+    public init(isPulsing: Bool, onTap: @escaping () -> Void) {
+        self.isPulsing = isPulsing
+        self.onTap = onTap
+    }
 
     public var body: some View {
         if store.isFeverAdAvailable {
@@ -126,11 +130,7 @@ public struct FeverAdButton: View {
             TimelineView(.periodic(from: .now, by: 0.35)) { context in
                 let hop = isPulsing && isReady && !reduceMotion
                     && Int(context.date.timeIntervalSinceReferenceDate / 0.35) % 2 == 0
-                Button {
-                    ads.watch(.fever) {
-                        if store.claimFeverAdCharge() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
-                    }
-                } label: {
+                Button(action: onTap) {
                     if isReady {
                         DotAdLabel(text: String(localized: "dot.ad.fever.charge"))
                     } else {

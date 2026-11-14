@@ -44,7 +44,13 @@ public final class GameStore: ObservableObject {
     public var isAppActive = true
 
     /// A gift dialog is open: the crate must not leave while the player decides or an ad plays.
-    public var isGiftHeld = false
+    /// While held, the crate's payout is frozen at the amount the dialog shows.
+    public var isGiftHeld = false {
+        didSet {
+            guard isGiftHeld != oldValue else { return }
+            transients.giftOfferAmount = isGiftHeld ? liveGiftAmount : nil
+        }
+    }
 
     private let defaults: UserDefaults
     static let adStateKey = "gameStore.adRewards"
@@ -75,6 +81,7 @@ public final class GameStore: ObservableObject {
         /// Interval the clock must reach, rolled the first time a crate is allowed.
         var giftDue: Double?
         var giftRemaining: Double = 0
+        var giftOfferAmount: Double?
     }
     private var transients = RunTransients()
 
@@ -546,6 +553,10 @@ public final class GameStore: ObservableObject {
     @discardableResult
     public func startFever() -> Bool {
         guard FeverSystem.start(&transients.fever) else { return false }
+        let maxStock = EarningsSystem.maxStock(for: stall)
+        for i in stall.menuStock.indices where RecipeSystem.isUnlocked(menuIndex: i, stall: stall) {
+            stall.menuStock[i] = min(maxStock, stall.menuStock[i] + FeverSystem.startingPortions)
+        }
         transients.feverEarned = 0
         progress.totalFevers += 1
         advanceMissions(.triggerFever)
@@ -557,10 +568,16 @@ public final class GameStore: ObservableObject {
 
     private var hasPassedAdGrace: Bool { progress.totalPlaySeconds >= AdBoostSystem.graceSeconds }
 
-    /// The fever recharge is offered while the gauge is neither full nor running, off cooldown, and
-    /// after the install's first minutes.
+    /// The fever recharge is offered while the gauge is under `AdBoostSystem.feverAdMaxCharge` and fever
+    /// is not running, off cooldown, and after the install's first minutes.
     public var isFeverAdAvailable: Bool {
-        hasPassedAdGrace && !isFeverActive && !isFeverReady && transients.adFeverCooldown <= 0
+        hasPassedAdGrace && !isFeverActive && transients.fever.charge < AdBoostSystem.feverAdMaxCharge
+            && transients.adFeverCooldown <= 0
+    }
+
+    /// The player closed the offer without watching: the button stays away for a while.
+    public func declineFeverAd() {
+        transients.adFeverCooldown = max(transients.adFeverCooldown, AdBoostSystem.feverDeclineCooldown)
     }
 
     public var adFeverCooldownRemaining: Double { transients.adFeverCooldown }
@@ -605,7 +622,9 @@ public final class GameStore: ObservableObject {
     public var giftRemaining: Double { transients.giftRemaining }
 
     /// Coins the crate pays right now.
-    public var giftAmount: Double {
+    public var giftAmount: Double { transients.giftOfferAmount ?? liveGiftAmount }
+
+    private var liveGiftAmount: Double {
         GiftSystem.amount(
             bestSalePrice: EarningsSystem.salePrice(for: stall, menuIndex: stall.menuTier,
                                                     prestigeCount: progress.prestigeCount),
@@ -1153,7 +1172,7 @@ public final class GameStore: ObservableObject {
 
     /// Whether the next customer is a gourmet. No roll is consumed below the rating floor.
     public func rollGourmet() -> Bool {
-        progress.rating >= MissionSystem.gourmetRatingFloor && random() < Self.gourmetChance
+        MissionSystem.displayedRating(progress.rating) >= MissionSystem.gourmetRatingFloor && random() < Self.gourmetChance
     }
 
     public func recordFailed(isGourmet: Bool = false) {

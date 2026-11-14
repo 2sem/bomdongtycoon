@@ -151,6 +151,41 @@ final class FeverTests: DotWorldTestCase {
         XCTAssertEqual(store.progress.totalFevers, 1, "lifetime stat is kept")
     }
 
+    func test_feverStart_addsFourPortionsToEveryUnlockedDish_cappedAtMaxStock() {
+        store.stall.menuTier = 1
+        store.stall.menuStock = [3, 13, 0]
+        let cap = EarningsSystem.maxStock(for: store.stall)
+        XCTAssertEqual(cap, 15)
+        chargeFever()
+        XCTAssertTrue(store.startFever())
+        XCTAssertEqual(store.stall.menuStock, [7, 15, 0], "capped at max stock; the locked dish gets nothing")
+    }
+
+    func test_feverStart_viaAdCharge_alsoStocksTheCounter() {
+        store.progress.totalPlaySeconds = 400
+        store.stall.menuStock = [0, 0, 0]
+        XCTAssertTrue(store.claimFeverAdCharge())
+        XCTAssertEqual(store.stall.menuStock, [0, 0, 0], "the ad only fills the gauge")
+        XCTAssertTrue(store.startFever())
+        XCTAssertEqual(store.stall.menuStock, [4, 0, 0])
+    }
+
+    func test_newGame_opensWithFivePortionsOfTheFirstDish_oldSavesAreUntouched() throws {
+        XCTAssertEqual(StallState().menuStock, [5, 0, 0])
+        let old = try JSONDecoder().decode(StallState.self, from: Data(#"{"coins":5}"#.utf8))
+        XCTAssertEqual(old.menuStock, [0, 0, 0])
+        XCTAssertEqual(UpgradeDefinitions.stall[1].coinCost, 2_500)
+    }
+
+    func test_recipeCost_growsByHalfToLevelTwelve_thenByThirtyFivePercent() {
+        XCTAssertEqual(RecipeSystem.maxLevel, 30)
+        XCTAssertEqual(RecipeSystem.cost(menuIndex: 0, level: 12), 19_000)   // 150 * 1.5^12 = 19,460
+        XCTAssertEqual(RecipeSystem.cost(menuIndex: 0, level: 13), 26_000)   // x1.35 = 26,271
+        XCTAssertEqual(RecipeSystem.cost(menuIndex: 0, level: 14), 35_000)   // 35,466
+        XCTAssertNotNil(RecipeSystem.cost(menuIndex: 0, level: 29))
+        XCTAssertNil(RecipeSystem.cost(menuIndex: 0, level: 30))
+    }
+
     func test_feverSystem_isPure() {
         var state = FeverState()
         FeverSystem.recordServed(&state, waitTime: 0)

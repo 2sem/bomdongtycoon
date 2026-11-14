@@ -24,7 +24,7 @@ struct AddFarmPlotConfirmation: ViewModifier {
                 pendingPlotCount = store.farm.plots.count
             }
             .alert(
-                String(localized: "밭을 넓힐까요?"),
+                canAfford ? String(localized: "밭을 넓힐까요?") : String(localized: "dot.coins.short.title"),
                 isPresented: Binding(
                     get: { pendingPlotCount != nil },
                     set: { if !$0 { pendingPlotCount = nil } }

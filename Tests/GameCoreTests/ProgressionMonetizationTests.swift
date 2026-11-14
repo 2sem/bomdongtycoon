@@ -115,7 +115,7 @@ final class RecipeAndPacingTests: DotWorldTestCase {
         store.stall.coins = 10_000
         store.purchaseUpgrade(.menu)
         XCTAssertEqual(store.stall.menuTier, 1)
-        XCTAssertEqual(store.stall.menuStock, [0, 3, 0])
+        XCTAssertEqual(store.stall.menuStock, [5, 3, 0], "a new game opens with 5 겉절이")
 
         store.stall.menuStock[2] = 14
         store.stall.coins = 10_000
@@ -125,6 +125,7 @@ final class RecipeAndPacingTests: DotWorldTestCase {
 
     func test_orders_onlyDishesTheShopCanMake() {
         store.stall.menuTier = 2
+        store.stall.menuStock = [0, 0, 0]
         XCTAssertEqual(EarningsSystem.orderableMenus(for: store.stall), [0, 1, 2], "nothing stocked: any unlocked dish")
         store.stall.menuStock = [0, 4, 0]
         XCTAssertEqual(EarningsSystem.orderableMenus(for: store.stall), [1])
@@ -241,19 +242,52 @@ final class AdPlacementTests: DotWorldTestCase {
         XCTAssertTrue(store.isFeverAdAvailable)
     }
 
-    func test_feverAd_fillsTheGauge_thenCoolsDownForThreeMinutes() {
+    func test_feverAd_fillsTheGauge_thenCoolsDownForFiveMinutes() {
         store.progress.totalPlaySeconds = 400
         XCTAssertTrue(store.claimFeverAdCharge())
         XCTAssertTrue(store.isFeverReady)
-        XCTAssertEqual(store.adFeverCooldownRemaining, 180)
+        XCTAssertEqual(store.adFeverCooldownRemaining, 300)
         XCTAssertFalse(store.isFeverAdAvailable, "a full gauge needs no recharge")
         XCTAssertTrue(store.startFever())
         store.tick(deltaTime: 15)
         XCTAssertFalse(store.isFeverAdAvailable, "cooling down")
         XCTAssertFalse(store.claimFeverAdCharge())
-        store.tick(deltaTime: 165)
+        store.tick(deltaTime: 285)
         XCTAssertEqual(store.adFeverCooldownRemaining, 0, accuracy: 1e-9)
         XCTAssertTrue(store.isFeverAdAvailable)
+    }
+
+    func test_feverAd_onlyBelowSeventyPercent() {
+        store.progress.totalPlaySeconds = 400
+        store.progress.rating = 4.6
+        store.recordServed(waitTime: 5, isGourmet: false)
+        XCTAssertTrue(store.isFeverAdAvailable)
+        serve(24)   // 25/36 = 69%
+        XCTAssertLessThan(store.feverCharge, 0.7)
+        XCTAssertTrue(store.isFeverAdAvailable)
+        serve(1)    // 26/36 = 72%
+        XCTAssertGreaterThanOrEqual(store.feverCharge, 0.7)
+        XCTAssertFalse(store.isFeverAdAvailable)
+        XCTAssertFalse(store.claimFeverAdCharge())
+    }
+
+    func test_feverAd_closingTheOffer_hidesTheButtonForThreeMinutes() {
+        store.progress.totalPlaySeconds = 400
+        XCTAssertTrue(store.isFeverAdAvailable)
+        store.declineFeverAd()
+        XCTAssertFalse(store.isFeverAdAvailable)
+        XCTAssertEqual(store.adFeverCooldownRemaining, 180)
+        store.tick(deltaTime: 179)
+        XCTAssertFalse(store.isFeverAdAvailable)
+        store.tick(deltaTime: 1.5)
+        XCTAssertTrue(store.isFeverAdAvailable)
+    }
+
+    func test_feverAd_declineNeverShortensALongerCooldown() {
+        store.progress.totalPlaySeconds = 400
+        XCTAssertTrue(store.claimFeverAdCharge())
+        store.declineFeverAd()
+        XCTAssertEqual(store.adFeverCooldownRemaining, 300)
     }
 
     func test_feverAd_notOfferedWhileFeverRuns() {
@@ -417,6 +451,23 @@ final class AdPlacementTests: DotWorldTestCase {
         XCTAssertEqual(store.stall.coins, expected)
         XCTAssertFalse(store.isGiftPresent)
         XCTAssertNil(store.claimGift())
+    }
+
+    func test_gift_amountIsFrozenWhileTheDialogIsOpen_andIsWhatThePlayerGets() {
+        readyForGift()
+        tickSeconds(361)
+        store.stall.coins = 0
+        store.progress.earningRate = 10
+        store.isGiftHeld = true
+        let shown = store.giftAmount
+        XCTAssertEqual(shown, 1_500)
+        store.progress.earningRate = 100
+        XCTAssertEqual(store.giftAmount, shown, "the text must keep matching the payout")
+        XCTAssertEqual(store.claimGift(), shown)
+        XCTAssertEqual(store.stall.coins, shown)
+        store.isGiftHeld = false
+        store.progress.earningRate = 100
+        XCTAssertEqual(store.giftAmount, 15_000, "released: back to the live amount")
     }
 
     // MARK: Surfaces and gates

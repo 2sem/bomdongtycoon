@@ -2,9 +2,12 @@ import Foundation
 
 /// 레시피 강화: the continuous sink that opens with each dish. Every level adds 10% to that dish's price.
 public enum RecipeSystem {
-    public static let maxLevel = 20
+    public static let maxLevel = 30
     public static let priceBonusPerLevel: Double = 0.10
     public static let costGrowth: Double = 1.5
+    /// Per level beyond `lateGrowthLevel`, so the sink thins out slower once the early curve has done its work.
+    public static let lateCostGrowth: Double = 1.35
+    public static let lateGrowthLevel = 12
     /// Level-0 cost per menu index: 겉절이, 봄동김치, 봄동비빔밥.
     public static let baseCosts: [Double] = [150, 600, 2_500]
 
@@ -25,7 +28,8 @@ public enum RecipeSystem {
     /// Two significant figures, like the renovation: 150, 230, 340, 510, 760.
     public static func cost(menuIndex: Int, level: Int) -> Double? {
         guard baseCosts.indices.contains(menuIndex), level >= 0, level < maxLevel else { return nil }
-        return Double(MissionSystem.cleanNumber(baseCosts[menuIndex] * pow(costGrowth, Double(level))))
+        return Double(MissionSystem.cleanNumber(baseCosts[menuIndex] * pow(costGrowth, Double(min(level, lateGrowthLevel)))
+            * pow(lateCostGrowth, Double(max(0, level - lateGrowthLevel)))))
     }
 
     /// nil when the dish is locked or already at `maxLevel`.

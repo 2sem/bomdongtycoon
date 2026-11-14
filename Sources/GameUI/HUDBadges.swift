@@ -111,7 +111,7 @@ public struct RatingBadge: View {
     }
 }
 
-/// Always-on weather chip. Clear: the time until the next rain, as m:ss (hidden until it is known).
+/// Always-on weather chip. Clear: the rain icon and the time until the next rain, as m:ss (hidden until it is known).
 /// Raining: seconds left and the growth bonus.
 public struct WeatherChip: View {
     @EnvironmentObject var store: GameStore
@@ -130,7 +130,7 @@ public struct WeatherChip: View {
         } else {
             let seconds = Int(store.secondsUntilRain.rounded(.up))
             if seconds > 0 {
-                chip(icon: "dot_ui_clock", tint: DotPalette.paper) {
+                chip(icon: "dot_ui_rain", tint: DotPalette.paper) {
                     Text(String(format: "%d:%02d", seconds / 60, seconds % 60)).monospacedDigit()
                 }
                 .accessibilityLabel(String(format: String(localized: "dot.weather.clear.accessibility"),

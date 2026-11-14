@@ -3479,13 +3479,13 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "맑음, %d분 %d초 뒤에 비가 와요"
+            "value" : "다음 비까지 %d분 %d초"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Clear, rain in %dm %ds"
+            "value" : "Rain in %dm %ds"
           }
         }
       }
@@ -4030,6 +4030,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Unlock the dish first"
+          }
+        }
+      }
+    },
+    "dot.fever.offer.title" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "피버 충전"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fever Recharge"
+          }
+        }
+      }
+    },
+    "dot.fever.offer.message" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "광고를 보면 피버 게이지가 가득 차요"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch an ad to fill the fever gauge"
+          }
+        }
+      }
+    },
+    "dot.fever.offer.action" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AD 보기"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AD Watch"
+          }
+        }
+      }
+    },
+    "dot.coins.short.title" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "코인이 부족해요"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough coins"
           }
         }
       }

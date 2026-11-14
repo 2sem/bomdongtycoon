@@ -129,10 +129,10 @@ extension EarningsSystemTests {
         var stall = StallState()
         stall.staffTier = 1
         stall.menuTier = 2
-        stall.coins = 4_000
+        stall.coins = 2_000
         stall.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]  // endless sinks never compete
-        XCTAssertNil(EarningsSystem.nextAffordableUpgrade(for: stall))  // 이모님 locked, 식당 5,000
-        stall.coins = 5_000
+        XCTAssertNil(EarningsSystem.nextAffordableUpgrade(for: stall))  // 이모님 locked, 식당 2,500
+        stall.coins = 2_500
         XCTAssertEqual(EarningsSystem.nextAffordableUpgrade(for: stall)?.name, "봄동 식당")
     }
 

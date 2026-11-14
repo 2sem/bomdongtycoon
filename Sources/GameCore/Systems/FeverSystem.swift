@@ -31,6 +31,9 @@ public enum FeverSystem {
     /// warehouse in about seven seconds; without this the last half of the rush has nothing to tap.
     public static let growthMultiplier: Double = 3
 
+    /// Free portions every unlocked dish gets when a fever starts, so the rush does not starve the counter.
+    public static let startingPortions: Int = 4
+
     /// Ten serves sum to 0.9999999999999999 in floating point; "full" must tolerate that.
     private static let fullTolerance = 1e-9
 

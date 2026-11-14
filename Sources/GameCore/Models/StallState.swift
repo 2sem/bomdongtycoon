@@ -90,7 +90,7 @@ public struct StallState: Codable {
         tier3IdleEnergies = c.decodeOrDefault(.tier3IdleEnergies, d.tier3IdleEnergies)
         warehouse = c.decodeOrDefault(.warehouse, d.warehouse)
         warehouseCapacity = c.decodeOrDefault(.warehouseCapacity, d.warehouseCapacity)
-        menuStock = c.decodeOrDefault(.menuStock, d.menuStock)
+        menuStock = c.decodeOrDefault(.menuStock, [0, 0, 0])
         farmerCount = c.decodeOrDefault(.farmerCount, d.farmerCount)
         farmerIdleEnergies = c.decodeOrDefault(.farmerIdleEnergies, d.farmerIdleEnergies)
         veteranAlbaCount = c.decodeOrDefault(.veteranAlbaCount, d.veteranAlbaCount)
@@ -113,8 +113,12 @@ public struct StallState: Codable {
             : array + Array(repeating: padding, count: count - array.count)
     }
 
+    /// Portions of the first dish a new game opens with, so minute one has something to sell.
+    static let startingStock = 5
+
     public init() {
         // Start with one 알바생 assigned to farm — auto-harvests and is more useful than slow cooking for newbies
         tier1Count = 1
+        menuStock = [Self.startingStock, 0, 0]
     }
 }

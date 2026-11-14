@@ -16,7 +16,7 @@ struct ExpandWarehouseConfirmation: ViewModifier {
                 pendingCapacity = store.stall.warehouseCapacity
             }
             .alert(
-                String(localized: "warehouse.expand.title"),
+                shortOfCoins ? String(localized: "dot.coins.short.title") : String(localized: "warehouse.expand.title"),
                 isPresented: Binding(
                     get: { pendingCapacity != nil },
                     set: { if !$0 { pendingCapacity = nil } }
@@ -41,6 +41,9 @@ struct ExpandWarehouseConfirmation: ViewModifier {
         guard let next else { return false }
         return store.stall.coins >= next.cost
     }
+
+    /// Not the max-size case: that one reads fine under the question title.
+    private var shortOfCoins: Bool { next != nil && !canConfirm }
 
     private var message: String {
         guard let next, let current = pendingCapacity else { return String(localized: "warehouse.expand.max") }

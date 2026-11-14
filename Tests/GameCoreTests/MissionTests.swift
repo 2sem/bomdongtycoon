@@ -40,10 +40,20 @@ final class MissionTests: DotWorldTestCase {
         }
     }
 
+    func test_gourmetMission_usesTheRatingTheHUDShows() {
+        XCTAssertNil(MissionSystem.blockedReason(kind: .serveGourmets, rating: 2.96), "2.96 reads 3.0")
+        XCTAssertNotNil(MissionSystem.blockedReason(kind: .serveGourmets, rating: 2.94))
+        let offered = (1...60).contains {
+            MissionSystem.roll(dayKey: 20260100 + $0, stallTier: 0, earningRate: 0, rating: 2.96)
+                .contains { $0.kind == .serveGourmets }
+        }
+        XCTAssertTrue(offered)
+    }
+
     func test_gourmetMission_onlyWhenRatingAtLeastThree() {
         for day in 1...60 {
             let key = 20260100 + day
-            let low = MissionSystem.roll(dayKey: key, stallTier: 0, earningRate: 0, rating: 2.99)
+            let low = MissionSystem.roll(dayKey: key, stallTier: 0, earningRate: 0, rating: 2.94)
             XCTAssertFalse(low.contains { $0.kind == .serveGourmets })
             XCTAssertEqual(low.count, 3)
         }

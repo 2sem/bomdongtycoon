@@ -128,11 +128,17 @@ final class GoldenGourmetTests: DotWorldTestCase {
     }
 
     func test_rollGourmet_needsRatingThree_andConsumesNoRoll() {
-        store.progress.rating = 2.99
+        store.progress.rating = 2.94
         script.values = [0.0]
         XCTAssertFalse(store.rollGourmet())
         XCTAssertEqual(script.calls, 0)
         store.progress.rating = 3.0
+        XCTAssertTrue(store.rollGourmet())
+    }
+
+    func test_rollGourmet_usesTheRatingTheHUDShows() {
+        store.progress.rating = 2.96   // the HUD prints 3.0
+        script.values = [0.0]
         XCTAssertTrue(store.rollGourmet())
     }
 

@@ -20,6 +20,7 @@ struct GameRootView: View {
     @State private var isAlertUp = false
     @State private var showBoostOffer = false
     @State private var showGiftOffer = false
+    @State private var showFeverOffer = false
     @State private var showMissionPointer = false
     @State private var missionToastGate = CooldownGate(interval: 30)
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -50,7 +51,7 @@ struct GameRootView: View {
             VStack(spacing: 0) {
                 HStack(spacing: 6) {
                     Spacer()
-                    if !isIntroOverlayUp { FeverAdButton(isPulsing: pulsingSurface == .fever) }
+                    if !isIntroOverlayUp { FeverAdButton(isPulsing: pulsingSurface == .fever) { showFeverOffer = true } }
                     FeverButton()
                         .overlay(alignment: .top) {
                             if showFeverPointer { HintArrowView().offset(y: -32) }
@@ -125,6 +126,9 @@ struct GameRootView: View {
         .onChange(of: store.isFeverReady) { _, isReady in
             if !isReady { showFeverPointer = false }
         }
+        .onChange(of: store.isFeverAdAvailable) { _, isAvailable in
+            if !isAvailable { showFeverOffer = false }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .goldenPlotRipened)) { _ in
             showGoldenToast()
         }
@@ -184,7 +188,7 @@ struct GameRootView: View {
 
     private var isStorefrontHeld: Bool {
         showUpgrades || showStaff || showStats || showPrestige || showMissions || isAlertUp
-            || showBoostOffer || showGiftOffer
+            || showBoostOffer || showGiftOffer || showFeverOffer
     }
 
     // MARK: Rewarded offers
@@ -192,7 +196,7 @@ struct GameRootView: View {
     /// The one rewarded prompt allowed to animate: the crate first (it animates in the scene), then the
     /// boost chip, then the fever recharge.
     private var pulsingSurface: AdPromptSurface? {
-        guard !isIntroOverlayUp, !showBoostOffer, !showGiftOffer else { return nil }
+        guard !isIntroOverlayUp, !showBoostOffer, !showGiftOffer, !showFeverOffer else { return nil }
         return AdPromptSurface.active(
             giftPresent: store.isGiftPresent,
             boostAvailable: store.isBoostAvailable && ads.isReady(.boost),
@@ -215,6 +219,24 @@ struct GameRootView: View {
                 },
                 onClose: { showBoostOffer = false })
                 .onAppear { ads.prepare(.boost) }
+        }
+        if showFeverOffer, store.isFeverAdAvailable {
+            AdOfferDialog(
+                title: String(localized: "dot.fever.offer.title"),
+                message: String(localized: "dot.fever.offer.message"),
+                actionTitle: String(localized: "dot.fever.offer.action"),
+                isReady: ads.isReady(.fever),
+                onWatch: {
+                    ads.watch(.fever) {
+                        if store.claimFeverAdCharge() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+                        showFeverOffer = false
+                    }
+                },
+                onClose: {
+                    store.declineFeverAd()
+                    showFeverOffer = false
+                })
+                .onAppear { ads.prepare(.fever) }
         }
         if showGiftOffer {
             AdOfferDialog(

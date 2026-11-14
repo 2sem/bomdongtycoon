@@ -55,8 +55,11 @@ public enum MissionSystem {
     /// Why a mission cannot move right now, or nil when it can. Only the gourmet mission can stall:
     /// gourmets visit from `gourmetRatingFloor`, and the rating can fall under it after the roll.
     public static func blockedReason(kind: MissionKind, rating: Double) -> MissionBlock? {
-        kind == .serveGourmets && rating < gourmetRatingFloor ? .needsRating(gourmetRatingFloor) : nil
+        kind == .serveGourmets && displayedRating(rating) < gourmetRatingFloor ? .needsRating(gourmetRatingFloor) : nil
     }
+
+    /// The rating as the HUD prints it (one decimal): 2.96 reads 3.0, so it must unlock what 3.0 unlocks.
+    public static func displayedRating(_ rating: Double) -> Double { (rating * 10).rounded() / 10 }
 
     /// Two significant figures: 363.2 -> 360, 4812 -> 4800.
     static func cleanNumber(_ value: Double) -> Int {
@@ -69,7 +72,7 @@ public enum MissionSystem {
     public static func roll(dayKey: Int, stallTier: Int, earningRate: Double, rating: Double,
                             bestSalePrice: Double = 0) -> [Mission] {
         var pool = MissionKind.allCases
-        if rating < gourmetRatingFloor { pool.removeAll { $0 == .serveGourmets } }
+        if displayedRating(rating) < gourmetRatingFloor { pool.removeAll { $0 == .serveGourmets } }
 
         var rng = SplitMix64(seed: UInt64(truncatingIfNeeded: dayKey))
         // Own Fisher-Yates: `shuffled(using:)` makes no cross-release promise about its order.
