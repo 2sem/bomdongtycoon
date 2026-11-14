@@ -55,6 +55,8 @@ final class DotWorldScene: SKScene {
     private var rain: RainNode?
     private var tint: SKSpriteNode?
     private var feverGlow: SKSpriteNode?
+    private var hintArrow: HintArrowNode?
+    private var lastDishFeedback: [Int: TimeInterval] = [:]
 
     private var appliedLocation: Int?
     private var lastPrestige: Int?
@@ -136,7 +138,10 @@ final class DotWorldScene: SKScene {
         glow.zPosition = 5001
         glow.alpha = 0
 
-        for node in [backdrop, ground, shop, street, yard, farm, decor, rain, tint, glow, labels, fx] as [SKNode] { root.addChild(node) }
+        let hint = HintArrowNode()
+        hint.zPosition = 5900
+        for node in [backdrop, ground, shop, street, yard, farm, decor, rain, tint, glow, labels, hint, fx] as [SKNode] { root.addChild(node) }
+        hintArrow = hint
         self.fx = fx; self.backdrop = backdrop; groundNode = ground; self.shop = shop
         self.yard = yard; self.farm = farm; self.director = director; self.rain = rain
         self.tint = tint; feverGlow = glow
@@ -213,7 +218,38 @@ final class DotWorldScene: SKScene {
             sound.play(.cookDone)
         }
         yard.apply(count: store.stall.warehouse, capacity: store.stall.warehouseCapacity)
-        farm.apply(farm: store.farm, canAddPlot: canAddPlot(store), reduceMotion: reduce)
+        let starved = isWarehouseStarved(store)
+        yard.setAlert(starved, reduceMotion: reduce)
+        farm.apply(farm: store.farm, canAddPlot: canAddPlot(store), pulseRipe: starved, reduceMotion: reduce)
+        updateHint(store, shop: shop, farm: farm)
+    }
+
+    /// Nothing to cook with while a dish the player could sell is out of stock.
+    private func isWarehouseStarved(_ store: GameStore) -> Bool {
+        store.stall.warehouse == 0
+            && (0...min(store.stall.menuTier, 2)).contains { store.stall.menuStock[$0] == 0 }
+    }
+
+    // MARK: First-run pointer
+
+    /// One pointer at a time: harvest, then plant, then cook; only once both intro overlays are gone.
+    private func updateHint(_ store: GameStore, shop: ShopNode, farm: FarmNode) {
+        guard let arrow = hintArrow else { return }
+        var tip: CGPoint?
+        if !store.progress.isFirstLaunch, store.progress.isShopNameSet, !isRunTransitionActive {
+            let plots = store.farm.plots
+            if !FirstRunHint.harvest.isDone, let i = plots.firstIndex(where: \.isReady) {
+                tip = farm.hintTip(i)
+            } else if !FirstRunHint.plant.isDone,
+                      let i = plots.firstIndex(where: { $0.stage == .empty && $0.workerType == .none })
+                        ?? plots.firstIndex(where: { $0.stage == .empty }) {
+                tip = farm.hintTip(i)
+            } else if !FirstRunHint.cook.isDone, store.stall.warehouse > 0, store.stall.menuStock[0] == 0,
+                      !store.isCooking(menuIndex: 0) {
+                tip = shop.hintTip(0)
+            }
+        }
+        arrow.show(tip: tip, animated: !reduceMotion)
     }
 
     private func partyEffects(delta: TimeInterval, fx: FXLayer) {
@@ -235,8 +271,9 @@ final class DotWorldScene: SKScene {
     private func customerServed(_ event: CustomerDirector.ServeEvent) {
         guard let fx, let shop, let layout else { return }
         fx.reaction("dot_fx_heart", at: event.headPoint)
-        fx.pop("+\(CoinFormat.string(event.price))", at: CGPoint(x: event.headPoint.x, y: event.headPoint.y + 4),
-               color: SKColor(hex: event.isGourmet ? 0xffe680 : 0xf4b93a))
+        // Low and short-lived: higher, a fever pop climbs over the counter's padlocks.
+        fx.pop("+\(CoinFormat.string(event.price))", at: CGPoint(x: event.headPoint.x, y: event.headPoint.y - 2),
+               color: SKColor(hex: event.isGourmet ? 0xffe680 : 0xf4b93a), rise: 6)
         fx.flyCoins(from: shop.tillRootPoint, to: layout.rootPoint(fromScene: coinTargetScenePoint),
                     count: event.isGourmet ? 6 : 3)
         sound.play(.coin)
@@ -336,14 +373,20 @@ final class DotWorldScene: SKScene {
             return
         }
         if store.startManualCook(menuIndex: menu) {
+            if menu == 0 { FirstRunHint.cook.markDone() }
             shop.pulse(menu: menu, reduceMotion: reduceMotion)
             fx.puff(at: shop.dishPoint(menu))
             fx.lightHaptic()
             sound.play(.tap)
-        } else if store.stall.warehouse == 0 {
-            shop.pulse(menu: menu, reduceMotion: false)
-            sound.play(.error)
+            return
         }
+        // A tap that starts nothing still answers: a shake, and a sound limited so mashing stays calm.
+        shop.shakeDish(menu: menu, reduceMotion: reduceMotion)
+        let now = CACurrentMediaTime()
+        let isCooking = store.isCooking(menuIndex: menu)
+        guard now - (lastDishFeedback[menu] ?? 0) > (isCooking ? 0.8 : 0.3) else { return }
+        lastDishFeedback[menu] = now
+        sound.play(isCooking ? .tap : .error)
     }
 
     private func handleFarmTap(_ hit: FarmNode.Hit, store: GameStore) {
@@ -359,6 +402,7 @@ final class DotWorldScene: SKScene {
             case .empty:
                 store.plantSeed(plotIndex: index)
                 if store.farm.plots[index].isPlanted {
+                    FirstRunHint.plant.markDone()
                     farm.apply(farm: store.farm, canAddPlot: canAddPlot(store), reduceMotion: reduceMotion)
                     farm.bump(plot: index, reduceMotion: reduceMotion)
                     fx.puff(at: farm.plotCenter(index))
@@ -384,6 +428,7 @@ final class DotWorldScene: SKScene {
             sound.play(.error)
             return
         }
+        FirstRunHint.harvest.markDone()
         farm.apply(farm: store.farm, canAddPlot: canAddPlot(store), reduceMotion: reduceMotion)
         let from = farm.plotCenter(index)
         fx.puff(at: from)

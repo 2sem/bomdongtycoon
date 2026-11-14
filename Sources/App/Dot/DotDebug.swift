@@ -2,7 +2,9 @@ import Foundation
 import GameCore
 
 /// QA launch arguments, compiled out of release builds.
-///   -dotSeed mid|late   start from a seeded mid- or late-game save (in memory, skips the intro)
+///   -dotSeed early|mid|late   start from a seeded save (in memory, skips the intro); early = 골목, tier-1 stall,
+///                       coins for the 시장 move and a hire
+///   -dotResetHints      replay the first-run pointers
 ///   -dotFever           keep fever running
 ///   -dotRain            keep it raining
 ///   -dotFeverReady      keep the fever gauge full (the FEVER! button) without starting it
@@ -51,44 +53,46 @@ enum DotDebug {
     @MainActor
     static func seed(_ store: GameStore) {
         #if DEBUG
+        if arguments.contains("-dotResetHints") { FirstRunHint.resetForDebug() }
         guard let kind = value(after: "-dotSeed") else { return }
         let late = kind == "late"
+        let early = kind == "early"
         var progress = store.progress
         progress.isFirstLaunch = false
         progress.isShopNameSet = true
         progress.lastActiveDate = Date()
-        progress.rating = late ? 4.7 : 3.8
+        progress.rating = late ? 4.7 : (early ? 2.5 : 3.8)
         progress.prestigeCount = late ? 1 : 0
         store.progress = progress
 
         var stall = StallState()
-        stall.coins = late ? 50_000_000 : 25_000
+        stall.coins = late ? 50_000_000 : (early ? 60_000 : 25_000)
         stall.menuTier = late ? 2 : 1
         stall.stallTier = late ? 2 : 1
-        stall.locationTier = late ? 2 : 1
-        stall.tier1Count = 4
-        stall.tier2Count = 2
+        stall.locationTier = late ? 2 : (early ? 0 : 1)
+        stall.tier1Count = early ? 0 : 4
+        stall.tier2Count = early ? 0 : 2
         stall.tier3Count = late ? 3 : 0
-        stall.cashierCount = 1
+        stall.cashierCount = early ? 0 : 1
         stall.cashierTier = late ? 3 : 1
-        stall.menuCooks = late ? [3, 3, 2] : [1, 2, 0]
+        stall.menuCooks = late ? [3, 3, 2] : (early ? [0, 0, 0] : [1, 2, 0])
         stall.menuCookEnergy = late ? [1, 0.15, 1] : [1, 1, 1]
         stall.warehouseCapacity = late ? 50 : 30
-        stall.warehouse = late ? 46 : 12
-        stall.menuStock = late ? [9, 12, 0] : [3, 0, 0]
+        stall.warehouse = late ? 46 : (early ? 6 : 12)
+        stall.menuStock = late ? [9, 12, 0] : (early ? [0, 0, 0] : [3, 0, 0])
         stall.farmerCount = late ? 2 : 0
         stall.veteranAlbaCount = late ? 2 : 0
         store.stall = stall
 
         var farm = FarmState()
-        let count = late ? 10 : 6
+        let count = late ? 10 : (early ? 3 : 6)
         farm.plots = (0..<count).map { i in
             var plot = FarmPlot()
             plot.isPlanted = i % 5 != 4
             plot.growth = [1, 0.05, 0.6, 1, 0, 0.25, 1, 0.8, 1, 0][i % 10]
             plot.isGolden = i == 3
             if late { plot.workerType = [.alba, .farmer, .veteranAlba, .none][i % 4] }
-            else if i < 2 { plot.workerType = .alba }
+            else if i < (early ? 0 : 2) { plot.workerType = .alba }
             plot.workerEnergy = i == 1 ? 0.1 : 1
             return plot
         }

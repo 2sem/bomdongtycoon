@@ -147,7 +147,11 @@ final class FXLayer: SKNode {
     static func shake(_ node: SKNode, reduceMotion: Bool) {
         guard !reduceMotion else { return }
         node.removeAction(forKey: "shake")
-        let x = node.position.x
+        // Rest position is remembered once: a shake cut short by another would otherwise leave the node off-centre.
+        let x = (node.userData?["restX"] as? CGFloat) ?? node.position.x
+        if node.userData == nil { node.userData = [:] }
+        node.userData?["restX"] = x
+        node.position.x = x
         node.run(.sequence([
             .moveTo(x: x - 1, duration: 0.04), .moveTo(x: x + 1, duration: 0.04),
             .moveTo(x: x - 1, duration: 0.04), .moveTo(x: x, duration: 0.04),
