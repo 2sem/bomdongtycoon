@@ -76,6 +76,17 @@ final class FarmNode: BandNode {
         return nil
     }
 
+    /// Head height of plot `i`'s worker, for the heart that rises when they are woken.
+    func workerHead(_ i: Int) -> CGPoint {
+        let o = Self.cellOrigin(i)
+        return rootPoint(o.x + 16, o.y - 12)
+    }
+
+    func bumpWorker(plot i: Int, reduceMotion: Bool) {
+        guard views.indices.contains(i) else { return }
+        FXLayer.squash(views[i].worker, reduceMotion: reduceMotion)
+    }
+
     func bump(plot i: Int, reduceMotion: Bool) {
         guard views.indices.contains(i) else { return }
         FXLayer.squash(views[i].sprite, reduceMotion: reduceMotion)

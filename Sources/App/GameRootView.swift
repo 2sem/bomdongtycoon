@@ -106,11 +106,6 @@ struct GameRootView: View {
         .onChange(of: isIntroOverlayUp) { _, isUp in
             store.isSimulationPaused = isUp
         }
-        // The system prompt waits for something the player has done: the first hire (any worker),
-        // or the first return from the background (see `BomDongTycoonApp`).
-        .onChange(of: headcount) { old, new in
-            if new > old { NotificationManager.requestPermissionIfUndetermined() }
-        }
         .onChange(of: store.unclaimedCompletedMissionCount) { old, new in
             guard new > old, !isIntroOverlayUp else { return }
             announceMissionDone()
@@ -131,6 +126,10 @@ struct GameRootView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .goldenPlotRipened)) { _ in
             showGoldenToast()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .requestHUDToast)) { note in
+            guard !isIntroOverlayUp, let text = note.userInfo?["text"] as? String else { return }
+            showToast(text, announcement: (note.userInfo?["announce"] as? String) ?? text)
         }
         .onReceive(NotificationCenter.default.publisher(for: .requestGiftOffer)) { _ in
             guard store.isGiftPresent, !isIntroOverlayUp else { return }
@@ -170,10 +169,6 @@ struct GameRootView: View {
         case "prestige": showPrestige = true
         default: break
         }
-    }
-
-    private var headcount: Int {
-        store.stall.staffCount + store.stall.farmerCount + store.stall.veteranAlbaCount
     }
 
     private static let goldenToastCooldown: TimeInterval = 45
@@ -316,18 +311,6 @@ struct GameRootView: View {
             guard !Task.isCancelled else { return }
             withAnimation(animation) { locationToast = nil }
         }
-    }
-}
-
-private struct DotToast: View {
-    let text: String
-
-    var body: some View {
-        Text(text)
-            .dotText(.bold, color: DotPalette.paper, shadow: true)
-            .multilineTextAlignment(.center)
-            .dotPanel(.dark, padding: EdgeInsets(top: 10, leading: 14, bottom: 10, trailing: 14))
-            .accessibilityHidden(true) // announced separately on appearance
     }
 }
 

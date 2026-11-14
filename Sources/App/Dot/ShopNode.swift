@@ -127,6 +127,31 @@ final class ShopNode: BandNode {
         return Self.dishX.firstIndex { abs(p.x - $0) <= 15 }
     }
 
+    /// The post a tap at `p` (band-local art px) lands on: a cook's or the cashier's figure. The caller
+    /// decides whether that worker is tired enough for the tap to wake them.
+    func workerTarget(atLocal p: CGPoint) -> GameStore.WorkerTarget? {
+        guard p.y >= 24, p.y < 52 else { return nil }
+        if abs(p.x - Self.cashierSlot.x) <= 9 { return .cashier }
+        guard let i = Self.cookX.firstIndex(where: { abs(p.x - $0) <= 9 }) else { return nil }
+        return .cook(menuIndex: i)
+    }
+
+    /// Head height of a worker's figure, for the heart that rises when they are woken.
+    func headPoint(of target: GameStore.WorkerTarget) -> CGPoint {
+        switch target {
+        case .cook(let i): return rootPoint(Self.cookX[i], Self.cashierSlot.y - 26)
+        case .cashier, .farm: return rootPoint(Self.cashierSlot.x, Self.cashierSlot.y - 26)
+        }
+    }
+
+    func bump(worker target: GameStore.WorkerTarget, reduceMotion: Bool) {
+        switch target {
+        case .cook(let i): FXLayer.squash(slots[i].cook, reduceMotion: reduceMotion)
+        case .cashier: FXLayer.squash(cashier, reduceMotion: reduceMotion)
+        case .farm: break
+        }
+    }
+
     func pulse(menu: Int, reduceMotion: Bool) {
         FXLayer.squash(slots[menu].dish, reduceMotion: reduceMotion)
         FXLayer.squash(slots[menu].pot, reduceMotion: reduceMotion)

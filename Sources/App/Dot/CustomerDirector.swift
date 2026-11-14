@@ -139,6 +139,8 @@ final class CustomerDirector {
                 s.node.showFront()
                 onFailed?(headPoint(s))
                 startReaction(s)
+            } else {
+                store.requestSelfServe(menuIndex: s.menu)
             }
         case .reacting:
             s.reactTimer -= delta
@@ -164,6 +166,7 @@ final class CustomerDirector {
             finishServed(s, price: price)
         } else {
             s.phase = .waiting
+            store.requestSelfServe(menuIndex: s.menu)
         }
     }
 

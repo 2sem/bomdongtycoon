@@ -13,10 +13,15 @@ final class YardNode: BandNode {
     private var lastKey = ""
     private let gift = GiftNode()
     private static let giftX: CGFloat = 99
+    private let labelLayer: SKNode
+    private var notice: SKNode?
+    private let noticeLines: [PixelLabel]
 
     init(layout: DotWorldLayout, labelLayer: SKNode) {
         crateRow = CGFloat(layout.yardHeight - 3)
+        self.labelLayer = labelLayer
         label = PixelLabel(style: .tiny, scale: layout.scale, alignment: .left)
+        noticeLines = (0..<2).map { _ in PixelLabel(style: .tiny, scale: layout.scale, color: SKColor(hex: 0x2b1b2e), shadowColor: nil) }
         alertRest = feetPoint(76, CGFloat(layout.yardHeight - 3) - 3)
         super.init(top: layout.yardTop)
         zPosition = 300
@@ -89,6 +94,50 @@ final class YardNode: BandNode {
     }
 
     func bump(reduceMotion: Bool) { FXLayer.squash(crate, reduceMotion: reduceMotion) }
+
+    func shake(reduceMotion: Bool) { FXLayer.shake(crate, reduceMotion: reduceMotion) }
+
+    /// A speech plate beside the crate saying why a harvest bounced. Two short lines, ink-edged like
+    /// the rest of the UI, gone after a couple of seconds; showing it again restarts the timer.
+    func showNotice(_ lines: [String], duration: TimeInterval = 2.4, reduceMotion: Bool) {
+        let node = notice ?? makeNotice()
+        for (label, text) in zip(noticeLines, lines) { label.text = text }
+        let width = (noticeLines.map(\.contentWidth).max() ?? 0).rounded(.up) + 8
+        let height: CGFloat = 24
+        let origin = rootPoint(38, crateRow - 11)
+        node.position = CGPoint(x: origin.x.rounded(), y: origin.y.rounded())
+        guard let ink = node.childNode(withName: "ink") as? SKSpriteNode,
+              let paper = node.childNode(withName: "paper") as? SKSpriteNode else { return }
+        ink.size = CGSize(width: width + 2, height: height + 2)
+        paper.size = CGSize(width: width, height: height)
+        paper.position = CGPoint(x: 1, y: 1)
+        for (i, label) in noticeLines.enumerated() {
+            label.position = CGPoint(x: 1 + (width / 2).rounded(.down), y: CGFloat(i == 0 ? 14 : 5) + 1)
+        }
+        node.removeAllActions()
+        node.alpha = 1
+        node.isHidden = false
+        node.run(.sequence([.wait(forDuration: duration),
+                            .fadeOut(withDuration: reduceMotion ? 0.05 : 0.25),
+                            .hide()]))
+    }
+
+    private func makeNotice() -> SKNode {
+        let node = SKNode()
+        node.zPosition = 20
+        let ink = SKSpriteNode(color: SKColor(hex: 0x2b1b2e), size: .zero)
+        ink.name = "ink"
+        ink.anchorPoint = .zero
+        let paper = SKSpriteNode(color: SKColor(hex: 0xfffaf0), size: .zero)
+        paper.name = "paper"
+        paper.anchorPoint = .zero
+        node.addChild(ink)
+        node.addChild(paper)
+        for label in noticeLines { node.addChild(label); label.zPosition = 1 }
+        labelLayer.addChild(node)
+        notice = node
+        return node
+    }
 
     func apply(count: Int, capacity: Int) {
         let variant: String

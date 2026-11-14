@@ -38,6 +38,9 @@ public struct StaffSheet: View {
     @Environment(\.dotPlaySound) private var play
     @Binding public var isPresented: Bool
     @Binding public var tab: StaffTab
+    @State private var placementToast: String?
+    @State private var toastTask: Task<Void, Never>?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(isPresented: Binding<Bool>, tab: Binding<StaffTab>) {
         self._isPresented = isPresented
@@ -53,6 +56,29 @@ public struct StaffSheet: View {
                 case .hire: hireList
                 }
             }
+        }
+        .overlay(alignment: .top) {
+            if let placementToast {
+                DotToast(text: placementToast)
+                    .padding(.top, 110)
+                    .padding(.horizontal, 16)
+                    .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+            }
+        }
+    }
+
+    /// "알바생을 겉절이 주방에 배치했어요": says where the new hire went, so a hire is never left
+    /// idle without the player knowing. Nothing is shown for a hire that stayed unassigned.
+    private func announce(_ result: GameStore.HireResult?) {
+        guard let result, let text = HirePlacementText.text(for: result) else { return }
+        AccessibilityNotification.Announcement(text).post()
+        toastTask?.cancel()
+        let animation: Animation = reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.4)
+        withAnimation(animation) { placementToast = text }
+        toastTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.5))
+            guard !Task.isCancelled else { return }
+            withAnimation(animation) { placementToast = nil }
         }
     }
 
@@ -128,7 +154,7 @@ public struct StaffSheet: View {
         DotScroll {
             DotSectionHeader(String(localized: "직원 고용"))
             ForEach(1...3, id: \.self) { tier in
-                HireTierRow(tier: tier, onHired: { tab = .assign })
+                HireTierRow(tier: tier, onHired: { result in tab = .assign; announce(result) })
                     .environmentObject(store)
             }
             HireFarmWorkerRow(
@@ -141,8 +167,9 @@ public struct StaffSheet: View {
                 unlockHint: String(localized: "dot.staff.unlock.plots"),
                 cashierHint: cashierHireHint(tier: 5),
                 onHire: {
-                    store.hireVeteranAlba()
+                    let result = store.hireVeteranAlba()
                     tab = .assign
+                    announce(result)
                 }
             )
             HireFarmWorkerRow(
@@ -152,8 +179,9 @@ public struct StaffSheet: View {
                 isUnlocked: store.stall.stallTier >= 1,
                 unlockHint: String(localized: "dot.staff.unlock.restaurant"),
                 onHire: {
-                    store.hireFarmer()
+                    let result = store.hireFarmer()
                     tab = .assign
+                    announce(result)
                 }
             )
         }
@@ -602,7 +630,7 @@ private struct HireTierRow: View {
     @EnvironmentObject var store: GameStore
     @Environment(\.dotPlaySound) private var play
     let tier: Int
-    let onHired: () -> Void
+    let onHired: (GameStore.HireResult?) -> Void
 
     private var def: UpgradeDefinition { UpgradeDefinitions.staff[tier - 1] }
 
@@ -642,11 +670,30 @@ private struct HireTierRow: View {
 
     private func hire() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        let before = store.stall.coins
-        store.hireWorker(tier: tier)
-        guard store.stall.coins < before else { return play(.error) }
+        guard let result = store.hireWorker(tier: tier) else { return play(.error) }
         play(.purchase)
-        onHired()
+        onHired(result)
+    }
+}
+
+// MARK: - Placement copy
+
+enum HirePlacementText {
+    /// nil for a hire that stayed unassigned.
+    static func text(for result: GameStore.HireResult) -> String? {
+        let key = "dot.hire.obj.\(result.tier)"
+        let who = String(localized: String.LocalizationValue(key))
+        switch result.placement {
+        case .cook(let menu):
+            let dish = DotContent.loc(UpgradeDefinitions.menu[menu].name)
+            return String(format: String(localized: "dot.hire.placed.cook"), who, dish)
+        case .cashier:
+            return String(format: String(localized: "dot.hire.placed.cashier"), who)
+        case .farm:
+            return String(format: String(localized: "dot.hire.placed.farm"), who)
+        case .unassigned:
+            return nil
+        }
     }
 }
 

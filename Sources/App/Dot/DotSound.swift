@@ -40,13 +40,15 @@ final class DotSound {
     }
 
     /// `volume` below 1 is for cues that should not startle, like the golden-crop chime that
-    /// plays on its own rather than from a tap.
-    func play(_ effect: Effect, volume: Float = 1) {
+    /// plays on its own rather than from a tap. `rate` shifts pitch and speed together (1 = as
+    /// recorded): a run of taps climbs it so the player hears the hurry building.
+    func play(_ effect: Effect, volume: Float = 1, rate: Float = 1) {
         guard isEnabled else { return }
         let pool = pools[effect] ?? makePool(effect)
         guard let player = pool.first(where: { !$0.isPlaying }) ?? pool.first else { return }
         player.currentTime = 0
         player.volume = volume
+        player.rate = rate
         player.play()
     }
 
@@ -57,6 +59,7 @@ final class DotSound {
         }
         let players = (0..<Self.voicesPerEffect).compactMap { _ -> AVAudioPlayer? in
             let player = try? AVAudioPlayer(contentsOf: url)
+            player?.enableRate = true
             player?.prepareToPlay()
             return player
         }
