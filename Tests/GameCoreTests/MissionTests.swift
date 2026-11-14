@@ -84,6 +84,28 @@ final class MissionTests: DotWorldTestCase {
         XCTAssertTrue(store.missions.allSatisfy { $0.reward == 900 }, "does not float with the rate")
     }
 
+    func test_rewardAndEarnTarget_floorOnBestSalePrice() {
+        // A mid/late save whose measured rate lags (just moved or prestiged) must not roll 100 coins.
+        XCTAssertEqual(MissionSystem.reward(earningRate: 0, bestSalePrice: 540), 5400)
+        XCTAssertEqual(MissionSystem.reward(earningRate: 100, bestSalePrice: 540), 9000, "rate still wins when higher")
+        XCTAssertEqual(MissionSystem.reward(earningRate: 0, bestSalePrice: 3), 100, "minimum still applies")
+        XCTAssertEqual(MissionSystem.target(for: .earnCoins, stallTier: 1, earningRate: 0, bestSalePrice: 540), 6500) // 6480
+        XCTAssertEqual(MissionSystem.target(for: .earnCoins, stallTier: 1, earningRate: 100, bestSalePrice: 5), 12000)
+        let rolled = MissionSystem.roll(dayKey: 20261114, stallTier: 2, earningRate: 0, rating: 4, bestSalePrice: 540)
+        XCTAssertTrue(rolled.allSatisfy { $0.reward == 5400 })
+    }
+
+    func test_roll_usesBestUnlockedMenuPrice_atRollTime() {
+        store.stall.menuTier = 2
+        store.stall.locationTier = 1
+        store.progress.earningRate = 0
+        let price = EarningsSystem.salePrice(for: store.stall, menuIndex: 2, prestigeCount: store.progress.prestigeCount)
+        clock.date = DotWorldTestSupport.date(2026, 11, 15)
+        store.tick(deltaTime: 1)
+        XCTAssertTrue(store.missions.allSatisfy { $0.reward == max(100, 10 * price) })
+        XCTAssertGreaterThan(store.missions[0].reward, 100)
+    }
+
     // MARK: Rollover
 
     func test_sameDay_keepsMissionsAndProgress() {

@@ -7,6 +7,10 @@ public enum MissionSystem {
     public static let earnTargetSeconds: Double = 120
     /// Floor for the earn target on a fresh save with no measured rate: about one base sale per 10 s.
     public static let baseEarnRate: Double = 3
+    /// A mission pays at least this many sales of the best unlocked dish, so a save whose
+    /// `earningRate` has not caught up (just moved, just prestiged) never rolls a 100-coin mission.
+    public static let rewardSales: Double = 10
+    public static let earnTargetSales: Double = 12
     public static let gourmetRatingFloor: Double = 3.0
 
     private static let serveTargets   = [20, 40, 80]
@@ -21,11 +25,13 @@ public enum MissionSystem {
         return (c.year ?? 0) * 10_000 + (c.month ?? 0) * 100 + (c.day ?? 0)
     }
 
-    public static func reward(earningRate: Double) -> Double {
-        max(minimumReward, rewardSeconds * earningRate)
+    /// `bestSalePrice` is what one sale of the best unlocked menu pays right now; 0 ignores the floor.
+    public static func reward(earningRate: Double, bestSalePrice: Double = 0) -> Double {
+        max(minimumReward, rewardSeconds * earningRate, rewardSales * bestSalePrice)
     }
 
-    public static func target(for kind: MissionKind, stallTier: Int, earningRate: Double) -> Int {
+    public static func target(for kind: MissionKind, stallTier: Int, earningRate: Double,
+                              bestSalePrice: Double = 0) -> Int {
         let tier = min(max(stallTier, 0), 2)
         switch kind {
         case .serveCustomers: return serveTargets[tier]
@@ -33,7 +39,7 @@ public enum MissionSystem {
         case .cookDishes:     return cookTargets[tier]
         case .triggerFever:   return feverTargets[tier]
         case .serveGourmets:  return gourmetTargets[tier]
-        case .earnCoins:      return cleanNumber(earnTargetSeconds * max(earningRate, baseEarnRate))
+        case .earnCoins:      return cleanNumber(max(earnTargetSeconds * max(earningRate, baseEarnRate), earnTargetSales * bestSalePrice))
         }
     }
 
@@ -45,7 +51,8 @@ public enum MissionSystem {
     }
 
     /// Same day key and inputs always give the same missions.
-    public static func roll(dayKey: Int, stallTier: Int, earningRate: Double, rating: Double) -> [Mission] {
+    public static func roll(dayKey: Int, stallTier: Int, earningRate: Double, rating: Double,
+                            bestSalePrice: Double = 0) -> [Mission] {
         var pool = MissionKind.allCases
         if rating < gourmetRatingFloor { pool.removeAll { $0 == .serveGourmets } }
 
@@ -54,10 +61,11 @@ public enum MissionSystem {
         for i in stride(from: pool.count - 1, to: 0, by: -1) {
             pool.swapAt(i, Int(rng.next() % UInt64(i + 1)))
         }
-        let reward = reward(earningRate: earningRate)
+        let reward = reward(earningRate: earningRate, bestSalePrice: bestSalePrice)
         return pool.prefix(missionsPerDay).map { kind in
             Mission(id: "\(dayKey)-\(kind.rawValue)", kind: kind,
-                    target: target(for: kind, stallTier: stallTier, earningRate: earningRate),
+                    target: target(for: kind, stallTier: stallTier, earningRate: earningRate,
+                                   bestSalePrice: bestSalePrice),
                     reward: reward)
         }
     }

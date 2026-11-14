@@ -517,7 +517,9 @@ public final class GameStore: ObservableObject {
         guard key != missionState.dayKey || missionState.missions.isEmpty else { return }
         missionState = MissionState(dayKey: key, missions: MissionSystem.roll(
             dayKey: key, stallTier: stall.stallTier,
-            earningRate: progress.earningRate, rating: progress.rating))
+            earningRate: progress.earningRate, rating: progress.rating,
+            bestSalePrice: EarningsSystem.salePrice(for: stall, menuIndex: stall.menuTier,
+                                                    prestigeCount: progress.prestigeCount)))
         saveMissionsIfChanged()
     }
 
