@@ -134,7 +134,7 @@ final class TolerantSaveDecodingTests: XCTestCase {
 
     func test_emptyFarmState_keepsStartingPlots() throws {
         let farm = try decode(FarmState.self, [:])
-        XCTAssertEqual(farm.plots.count, 2)
+        XCTAssertEqual(farm.plots.count, FarmSystem.startingPlots)
         XCTAssertEqual(farm.plots[0].workerType, .alba)
     }
 

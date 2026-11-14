@@ -323,7 +323,7 @@ final class NewSpringTests: XCTestCase {
         XCTAssertEqual(oldRun.locationTier, 2)
         let oldProgress = try JSONDecoder().decode(PlayerProgress.self, from: first.progress)
         XCTAssertEqual(oldProgress.prestigeCount, 0)
-        XCTAssertEqual(try JSONDecoder().decode(FarmState.self, from: first.farm).plots.count, 5)
+        XCTAssertEqual(try JSONDecoder().decode(FarmState.self, from: first.farm).plots.count, FarmSystem.startingPlots + 3)
 
         // A second spring replaces it: latest only, one key.
         store.stall.locationTier = 2
@@ -345,7 +345,7 @@ final class NewSpringTests: XCTestCase {
         XCTAssertEqual(relaunched.progress.prestigeCount, 1)
         XCTAssertEqual(relaunched.stall.coins, 50)
         XCTAssertEqual(relaunched.stall.locationTier, 0)
-        XCTAssertEqual(relaunched.farm.plots.count, 2)
+        XCTAssertEqual(relaunched.farm.plots.count, FarmSystem.startingPlots)
         XCTAssertEqual(relaunched.progress.totalEarned, 500_000)
         XCTAssertEqual(relaunched.progress.runEarned, 0)
         XCTAssertEqual(relaunched.progress.shopName, "내 봄동 가게")
@@ -456,5 +456,25 @@ final class NewSpringTests: XCTestCase {
         // Cost table ends before maxPlots; the helper follows the table, not the constant.
         XCTAssertEqual(PrestigeSystem.hasUnspentPlots(farm: farm),
                        FarmSystem.costForNextPlot(currentCount: farm.plots.count) != nil)
+    }
+
+    func test_plotPrices_newGamePaysFromTheFourth_andOldTwoPlotSavesStillPayFiveHundred() {
+        XCTAssertEqual(FarmState().plots.count, 3)
+        XCTAssertEqual(FarmSystem.costForNextPlot(currentCount: FarmSystem.startingPlots), 1_500)
+        XCTAssertEqual(FarmSystem.costForNextPlot(currentCount: 2), 500)
+        XCTAssertNil(FarmSystem.costForNextPlot(currentCount: 1))
+        XCTAssertEqual(FarmState().plots.filter(\.isPlanted).count, 3)
+        XCTAssertEqual(FarmState().plots.map(\.workerType), [.alba, .none, .none])
+    }
+
+    func test_oldTwoPlotSave_keepsItsPlotsAndBuysTheThirdAtFiveHundred() {
+        defaults.set(Data(#"{"plots":[{"growth":0.4,"isPlanted":true,"workerType":"alba"},{"growth":0.9,"isPlanted":true}]}"#.utf8),
+                     forKey: GameStore.SaveBlob.farm.key)
+        let store = GameStore(defaults: defaults)
+        XCTAssertEqual(store.farm.plots.count, 2)
+        store.stall.coins = 500
+        store.purchaseUpgrade(.farm)
+        XCTAssertEqual(store.farm.plots.count, 3)
+        XCTAssertEqual(store.stall.coins, 0, accuracy: 0.001)
     }
 }

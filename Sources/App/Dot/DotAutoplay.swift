@@ -141,9 +141,10 @@ extension DotWorldScene {
         let s = store.stall
         let lost = p.totalServed + p.totalFailed > 0
             ? String(format: "%.0f%%", Double(p.totalFailed) / Double(p.totalServed + p.totalFailed) * 100) : "-"
-        DotDebug.qa(String(format: "t=%@ coins=%.0f rating=%.2f served=%d failed=%d lost=%@ stall=%d menu=%d loc=%d staff=%d fevers=%d goldens=%d tips=%d buys=%d gap=%.0f recipes=%@ reno=%d boost=%d",
+        DotDebug.qa(String(format: "t=%@ coins=%.0f rating=%.2f served=%d failed=%d lost=%@ stall=%d menu=%d loc=%d staff=%d wh=%d/%d stock=%d plots=%d fevers=%d goldens=%d tips=%d buys=%d gap=%.0f recipes=%@ reno=%d boost=%d",
                            timeText(store), s.coins, p.rating, p.totalServed, p.totalFailed, lost, s.stallTier, s.menuTier,
-                           s.locationTier, s.staffCount + s.farmerCount + s.veteranAlbaCount, p.totalFevers,
+                           s.locationTier, s.staffCount + s.farmerCount + s.veteranAlbaCount, s.warehouse, s.warehouseCapacity,
+                           s.menuStock.reduce(0, +), store.farm.plots.count, p.totalFevers,
                            p.totalGoldenHarvested, p.totalTipsCollected, autoplayState.purchases,
                            max(autoplayState.longestGap, autoplayState.clock - autoplayState.lastPurchase),
                            s.recipeLevels.map(String.init).joined(separator: "/"), s.renovationLevel,

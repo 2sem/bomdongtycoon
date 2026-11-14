@@ -89,7 +89,7 @@ final class PrestigeCoreTests: XCTestCase {
         let base = EarningsSystem.coinsPerSecond(for: stall, prestigeCount: 0)
         XCTAssertEqual(EarningsSystem.coinsPerSecond(for: stall, prestigeCount: 1), base * 1.4, accuracy: 0.0001)
         // Upgrade costs are definition data, untouched by the multiplier.
-        XCTAssertEqual(UpgradeDefinitions.menu[1].coinCost, 1_000)
+        XCTAssertEqual(UpgradeDefinitions.menu[1].coinCost, 800)
     }
 
     func test_offlineEarnings_doNotApplyLegacyAgain() {

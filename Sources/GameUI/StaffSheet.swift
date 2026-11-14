@@ -135,7 +135,7 @@ public struct StaffSheet: View {
                 tier: 5,
                 def: UpgradeDefinitions.veteranAlba[0],
                 count: store.stall.veteranAlbaCount,
-                isUnlocked: store.farm.plots.count > 2,
+                isUnlocked: store.farm.plots.count > FarmSystem.startingPlots,
                 unlockHint: String(localized: "dot.staff.unlock.plots"),
                 cashierHint: cashierHireHint(tier: 5),
                 onHire: {

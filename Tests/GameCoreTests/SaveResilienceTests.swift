@@ -42,7 +42,7 @@ final class SaveResilienceTests: XCTestCase {
         XCTAssertEqual(store.corruptBackup(of: .farm), Data("7".utf8))
         XCTAssertNil(store.corruptBackup(of: .progress))
         XCTAssertEqual(store.stall.coins, StallState().coins)
-        XCTAssertEqual(store.farm.plots.count, 2)
+        XCTAssertEqual(store.farm.plots.count, FarmSystem.startingPlots)
     }
 
     func test_backupSurvivesTheNextSave() throws {
@@ -96,7 +96,7 @@ final class SaveResilienceTests: XCTestCase {
         for plots in ["[1,\"x\",null]", "[]", "\"nope\""] {
             put(#"{"plots":\#(plots)}"#, .farm)
             let farm = GameStore(defaults: defaults).farm
-            XCTAssertEqual(farm.plots.count, 2, plots)
+            XCTAssertEqual(farm.plots.count, FarmSystem.startingPlots, plots)
             XCTAssertEqual(farm.plots[0].workerType, .alba, plots)
         }
     }

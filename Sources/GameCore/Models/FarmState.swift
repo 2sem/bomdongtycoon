@@ -69,7 +69,11 @@ public struct FarmState: Codable {
         plot1.isPlanted = true
         plot1.growth = 0.5
 
-        plots = [plot0, plot1]
+        var plot2 = FarmPlot()
+        plot2.isPlanted = true
+        plot2.growth = 0.5
+
+        plots = [plot0, plot1, plot2]
     }
 
     private enum CodingKeys: String, CodingKey { case plots }

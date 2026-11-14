@@ -83,7 +83,7 @@ public enum UpgradeDefinitions {
     /// Menu upgrades — increase price per item sold
     public static let menu: [UpgradeDefinition] = [
         .init(name: "겉절이",     coinCost: 0,      description: "기본 메뉴",      priceMultiplier: 1.0),
-        .init(name: "봄동김치",   coinCost: 1_000,  description: "인기 메뉴",      priceMultiplier: 2.5),
+        .init(name: "봄동김치",   coinCost: 800,    description: "인기 메뉴",      priceMultiplier: 2.5),
         .init(name: "봄동비빔밥", coinCost: 10_000, description: "시그니처 메뉴",  priceMultiplier: 6.0)
     ]
 
