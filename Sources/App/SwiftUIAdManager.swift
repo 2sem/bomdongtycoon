@@ -23,8 +23,9 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
 
     #if DEBUG
     private let appOpenUnitID   = "ca-app-pub-3940256099942544/9257395921"  // test app open
-    /// Flip to `false` to test ads locally; keep `true` while doing unrelated feature work so ads don't interrupt.
-    private static let adsDisabledForDevelopment = true
+    /// Debug builds run without ads so they don't interrupt feature work; `-dotAdsLive` turns real
+    /// ads (Google test units) back on.
+    private static let adsDisabledForDevelopment = !ProcessInfo.processInfo.arguments.contains("-dotAdsLive")
     /// `-dotAdsGrant`: every rewarded request succeeds at once with no ad, so reward flows can be driven and screenshot.
     private static let grantsWithoutAds = ProcessInfo.processInfo.arguments.contains("-dotAdsGrant")
     #else
@@ -140,7 +141,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
         isAppOpenReady = false
         lastAppOpenShownDate = Date()
         pendingAppOpenCompletion = completion
-        ad.present(fromRootViewController: rootVC)
+        ad.present(fromRootViewController: rootVC.topmostPresented)
     }
 
     // MARK: - Show Rewarded
@@ -234,7 +235,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
         setReady(placement, false)
         presentingPlacement = placement
         pendingRewardCompletion = completion
-        ad.present(fromRootViewController: rootVC) { [weak self] in
+        ad.present(fromRootViewController: rootVC.topmostPresented) { [weak self] in
             print("[RewardAd] \(placement.rawValue) reward earned ✓")
             self?.pendingRewardCompletion?(true)
             self?.pendingRewardCompletion = nil
@@ -297,5 +298,14 @@ extension SwiftUIAdManager: GADFullScreenContentDelegate {
                 self?.reloadPresentedPlacement()
             }
         }
+    }
+}
+
+private extension UIViewController {
+    /// SwiftUI sheets and dialogs are presented modally on the root, which cannot present a second controller.
+    var topmostPresented: UIViewController {
+        var top = self
+        while let next = top.presentedViewController, !next.isBeingDismissed { top = next }
+        return top
     }
 }
