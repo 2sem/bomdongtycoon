@@ -5,6 +5,7 @@ import GameUI
 struct GameRootView: View {
     @EnvironmentObject var store: GameStore
     @EnvironmentObject var adManager: SwiftUIAdManager
+    @EnvironmentObject var ads: RewardedAds
     @State private var showUpgrades = false
     @State private var showStaff = false
     @State private var showStats = false
@@ -17,6 +18,10 @@ struct GameRootView: View {
     @State private var showFeverPointer = false
     @State private var lastGoldenToast: Date?
     @State private var isAlertUp = false
+    @State private var showBoostOffer = false
+    @State private var showGiftOffer = false
+    @State private var showMissionPointer = false
+    @State private var missionToastGate = CooldownGate(interval: 30)
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -29,18 +34,23 @@ struct GameRootView: View {
             }
             if store.offlineEarnings > 0 {
                 OfflineEarningsPopup { completion in
-                    adManager.showRewarded(completion: completion)
+                    adManager.showRewarded(.offline, completion: completion)
                 }
             }
+            adOffers
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             HUDView(showUpgrades: $showUpgrades, showStaff: $showStaff, staffTab: $staffTab,
-                    showPrestige: $showPrestige, showStats: $showStats) { coinTarget = $0 }
+                    showPrestige: $showPrestige, showStats: $showStats,
+                    showsBoostChip: !isIntroOverlayUp,
+                    boostIsPulsing: pulsingSurface == .boost,
+                    onBoostTap: { showBoostOffer = true }) { coinTarget = $0 }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                HStack {
+                HStack(spacing: 6) {
                     Spacer()
+                    if !isIntroOverlayUp { FeverAdButton(isPulsing: pulsingSurface == .fever) }
                     FeverButton()
                         .overlay(alignment: .top) {
                             if showFeverPointer { HintArrowView().offset(y: -32) }
@@ -54,8 +64,17 @@ struct GameRootView: View {
                 DotTabBar(
                     onUpgrades: { showUpgrades = true },
                     onStaff: { staffTab = .assign; showStaff = true },
-                    onMissions: { showMissions = true },
+                    onMissions: { showMissionPointer = false; showMissions = true },
                     onStats: { showStats = true })
+                    .overlay(alignment: .topLeading) {
+                        if showMissionPointer {
+                            // The mission tab is the third of four equal columns (0.5-0.75); the arrow leans right of its
+                            // centre so it stays off the AD recharge button.
+                            GeometryReader { proxy in
+                                HintArrowView(pixel: 3).position(x: proxy.size.width * 0.68, y: -12)
+                            }
+                        }
+                    }
             }
         }
         .environment(\.dotPlaySound, { DotSound.shared.play($0.effect) })
@@ -91,6 +110,10 @@ struct GameRootView: View {
         .onChange(of: headcount) { old, new in
             if new > old { NotificationManager.requestPermissionIfUndetermined() }
         }
+        .onChange(of: store.unclaimedCompletedMissionCount) { old, new in
+            guard new > old, !isIntroOverlayUp else { return }
+            announceMissionDone()
+        }
         .onChange(of: store.isFeverReady) { _, isReady in
             guard isReady, !isIntroOverlayUp, !FirstRunHint.fever.isDone else { return }
             FirstRunHint.fever.markDone()
@@ -104,6 +127,11 @@ struct GameRootView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .goldenPlotRipened)) { _ in
             showGoldenToast()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .requestGiftOffer)) { _ in
+            guard store.isGiftPresent, !isIntroOverlayUp else { return }
+            store.isGiftHeld = true
+            showGiftOffer = true
         }
         .modifier(AddFarmPlotConfirmation())
         .modifier(ExpandWarehouseConfirmation())
@@ -156,6 +184,75 @@ struct GameRootView: View {
 
     private var isStorefrontHeld: Bool {
         showUpgrades || showStaff || showStats || showPrestige || showMissions || isAlertUp
+            || showBoostOffer || showGiftOffer
+    }
+
+    // MARK: Rewarded offers
+
+    /// The one rewarded prompt allowed to animate: the crate first (it animates in the scene), then the
+    /// boost chip, then the fever recharge.
+    private var pulsingSurface: AdPromptSurface? {
+        guard !isIntroOverlayUp, !showBoostOffer, !showGiftOffer else { return nil }
+        return AdPromptSurface.active(
+            giftPresent: store.isGiftPresent,
+            boostAvailable: store.isBoostAvailable && ads.isReady(.boost),
+            feverAdAvailable: store.isFeverAdAvailable && ads.isReady(.fever))
+    }
+
+    @ViewBuilder
+    private var adOffers: some View {
+        if showBoostOffer, store.isBoostAvailable {
+            AdOfferDialog(
+                title: String(localized: "dot.boost.title"),
+                message: String(format: String(localized: "dot.boost.message"), Int(AdBoostSystem.boostDuration / 60)),
+                actionTitle: String(localized: "dot.boost.action"),
+                isReady: ads.isReady(.boost),
+                onWatch: {
+                    ads.watch(.boost) {
+                        if store.claimBoost() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+                        showBoostOffer = false
+                    }
+                },
+                onClose: { showBoostOffer = false })
+                .onAppear { ads.prepare(.boost) }
+        }
+        if showGiftOffer {
+            AdOfferDialog(
+                title: String(localized: "dot.gift.title"),
+                message: String(format: String(localized: "dot.gift.message"), CoinFormat.string(store.giftAmount)),
+                actionTitle: String(localized: "dot.gift.action"),
+                isReady: ads.isReady(.gift),
+                onWatch: {
+                    ads.watch(.gift) {
+                        if store.claimGift() != nil { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+                        closeGiftOffer()
+                    }
+                },
+                onClose: closeGiftOffer)
+                .onAppear { ads.prepare(.gift) }
+        }
+    }
+
+    private func closeGiftOffer() {
+        showGiftOffer = false
+        store.isGiftHeld = false
+    }
+
+    // MARK: Mission announcement
+
+    private static let missionPointerKey = "dot.hint.missionPointerCount"
+    private static let missionPointerLimit = 3
+
+    private func announceMissionDone() {
+        if missionToastGate.fire(now: Date()) {
+            let text = String(localized: "dot.mission.announce")
+            showToast(text, announcement: text)
+            DotSound.shared.play(.missionDone)
+        }
+        let shown = UserDefaults.standard.integer(forKey: Self.missionPointerKey)
+        guard !showMissions, shown < Self.missionPointerLimit else { return }
+        UserDefaults.standard.set(shown + 1, forKey: Self.missionPointerKey)
+        showMissionPointer = true
     }
 
     private var isIntroOverlayUp: Bool {

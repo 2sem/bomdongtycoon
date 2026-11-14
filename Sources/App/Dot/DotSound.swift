@@ -31,8 +31,12 @@ final class DotSound {
     private static let voicesPerEffect = 3
 
     private init() {
-        try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default)
-        try? AVAudioSession.sharedInstance().setActive(true)
+        // Activating the session can block for a while on a cold launch; nothing plays before it is ready.
+        DispatchQueue.global(qos: .utility).async {
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.ambient, mode: .default)
+            try? session.setActive(true)
+        }
     }
 
     /// `volume` below 1 is for cues that should not startle, like the golden-crop chime that

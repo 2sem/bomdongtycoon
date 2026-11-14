@@ -11,6 +11,8 @@ extension Notification.Name {
     static let requestExpandWarehouse = Notification.Name("requestExpandWarehouse")
     /// Posted when a plot ripens golden; the HUD shows a rate-limited toast.
     static let goldenPlotRipened = Notification.Name("goldenPlotRipened")
+    /// Posted when the gift crate is tapped; the root view owns the ad offer.
+    static let requestGiftOffer = Notification.Name("requestGiftOffer")
 }
 
 /// The whole game scene as 2D pixel art. One root node is scaled by `layout.scale` points per
@@ -72,6 +74,8 @@ final class DotWorldScene: SKScene {
     private var isRunTransitionActive = false
     private var wasRaining = false
     private var wasFever = false
+    private var wasGiftPresent = false
+    private var giftSparkleClock: TimeInterval = 0
     private var feverAmount: CGFloat = 0
     private var feverClock: TimeInterval = 0
     private var sparkleClock: TimeInterval = 0
@@ -242,11 +246,32 @@ final class DotWorldScene: SKScene {
             sound.play(.cookDone)
         }
         yard.apply(count: store.stall.warehouse, capacity: store.stall.warehouseCapacity)
+        applyGift(store, yard: yard, fx: fx, delta: delta)
         let starved = isWarehouseStarved(store)
         yard.setAlert(starved, reduceMotion: reduce)
         farm.apply(farm: store.farm, canAddPlot: canAddPlot(store), pulseRipe: starved, reduceMotion: reduce)
         announceGoldenPlots(store, farm: farm, fx: fx)
         updateHint(store, shop: shop, farm: farm)
+    }
+
+    // MARK: Gift crate
+
+    /// The crate drops in with a chime, glitters while it waits and is tapped to open the offer.
+    private func applyGift(_ store: GameStore, yard: YardNode, fx: FXLayer, delta: TimeInterval) {
+        let present = store.isGiftPresent
+        if present, !wasGiftPresent {
+            sound.play(.golden, volume: 0.5)
+            fx.sparkleBurst(at: yard.giftPoint, radius: 12)
+        }
+        wasGiftPresent = present
+        yard.setGift(isPresent: present, remaining: store.giftRemaining, reduceMotion: reduceMotion)
+        guard present, !reduceMotion else { return }
+        giftSparkleClock -= delta
+        if giftSparkleClock <= 0 {
+            giftSparkleClock = 0.7
+            let jitter = CGPoint(x: CGFloat.random(in: -8...8).rounded(), y: CGFloat.random(in: -6...6).rounded())
+            fx.sparkle(at: CGPoint(x: yard.giftPoint.x + jitter.x, y: yard.giftPoint.y + jitter.y))
+        }
     }
 
     // MARK: Fever tally
@@ -421,6 +446,10 @@ final class DotWorldScene: SKScene {
             handleFarmTap(hit, store: store)
         } else if let menu = shop.menuIndex(atLocal: shop.local(fromRoot: p)) {
             handleDishTap(menu, store: store)
+        } else if store.isGiftPresent, yard.hitGift(local: yard.local(fromRoot: p)) {
+            sound.play(.tap)
+            fx?.lightHaptic()
+            NotificationCenter.default.post(name: .requestGiftOffer, object: nil)
         } else if yard.hit(local: yard.local(fromRoot: p)) {
             sound.play(.tap)
             fx?.lightHaptic()

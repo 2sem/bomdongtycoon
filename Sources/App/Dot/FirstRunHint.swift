@@ -17,6 +17,7 @@ enum FirstRunHint: String, CaseIterable {
     /// DEBUG `-dotResetHints` replays them on a seeded save.
     static func resetForDebug() {
         for hint in allCases { UserDefaults.standard.removeObject(forKey: hint.key) }
+        UserDefaults.standard.removeObject(forKey: "dot.hint.missionPointerCount")
     }
 }
 
@@ -91,13 +92,13 @@ final class HintArrowNode: SKNode {
 
 /// The same arrow for SwiftUI, pointing down at a button; bobs unless Reduce Motion is on.
 struct HintArrowView: View {
-    private static let pixel: CGFloat = 4
+    var pixel: CGFloat = 4
     @State private var isUp = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Canvas { context, _ in
-            let p = Self.pixel
+            let p = pixel
             for (y, row) in HintArrowNode.rows.enumerated() {
                 for (x, c) in row.enumerated() where c != "." {
                     let color: Color = c == "#" ? Color(red: 0x2b / 255, green: 0x1b / 255, blue: 0x2e / 255)
@@ -106,7 +107,7 @@ struct HintArrowView: View {
                 }
             }
         }
-        .frame(width: 9 * Self.pixel, height: CGFloat(HintArrowNode.rows.count) * Self.pixel)
+        .frame(width: 9 * pixel, height: CGFloat(HintArrowNode.rows.count) * pixel)
         .offset(y: isUp && !reduceMotion ? -6 : 0)
         .onAppear {
             guard !reduceMotion else { return }

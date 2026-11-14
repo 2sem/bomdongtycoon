@@ -2,8 +2,9 @@ import Foundation
 import GameCore
 
 /// QA launch arguments, compiled out of release builds.
-///   -dotSeed early|mid|late   start from a seeded save (in memory, skips the intro); early = 골목, tier-1 stall,
-///                       coins for the 시장 move and a hire
+///   -dotSeed early|mid|late   start from a seeded save (volatile: never the real save, skips the intro);
+///                       early = 골목, tier-1 stall, coins for the 시장 move and a hire; mid = 시장, 2 dishes;
+///                       late = 강남, final tiers, ~400k coins, a measured-looking earning rate
 ///   -dotEmpty           empty warehouse (the crate "!" and the ripe-plot pulse)
 ///   -dotResetHints      replay the first-run pointers
 ///   -dotFever           keep fever running
@@ -16,6 +17,9 @@ import GameCore
 ///   -dotSpeed N         run the simulation (and the scene's timers) N times faster; 4-8 for a quick play-through
 ///   -dotAutoplay        play like an attentive player with no taps, logging a `[DotQA]` line every 30 game seconds
 ///   -dotNoFever         with -dotAutoplay: never press the fever button (isolates the base economy)
+///   -dotGift            keep a gift crate in the yard
+///   -dotAdsGrant        every rewarded request succeeds at once, with no ad (also marks every placement ready)
+///   -dotAutoplayAds     with -dotAutoplay: also take the ad rewards (fever recharge, x2 missions, boost, gift)
 ///   -dotDemo            tap a ripe plot, an empty plot and a dish in turn
 ///   -dotPhase morning|noon|dusk|night   freeze the time of day
 ///   -dotSheet upgrades|staff|hire|missions|stats|prestige|tutorial|name|offline   open that screen at launch
@@ -43,6 +47,39 @@ enum DotDebug {
         return value(after: "-dotSpeed").flatMap(Double.init).map { max(0.1, min($0, 30)) } ?? 1
         #else
         return 1
+        #endif
+    }
+
+    /// A seeded or autoplayed run keeps its save in a throwaway suite, so the next plain launch is the real save.
+    static var storeDefaults: UserDefaults {
+        #if DEBUG
+        if arguments.contains("-dotSeed") || arguments.contains("-dotAutoplay") {
+            let name = "dot.volatile"
+            let defaults = UserDefaults(suiteName: name) ?? .standard
+            defaults.removePersistentDomain(forName: name)
+            return defaults
+        }
+        #endif
+        return .standard
+    }
+
+    /// The store's clock: real time, run `-dotSpeed` times faster in DEBUG so wall-clock rules (the
+    /// boost's 180 s) keep pace with the sped-up simulation.
+    static var clock: () -> Date {
+        #if DEBUG
+        let origin = Date()
+        let speed = speed
+        return { origin.addingTimeInterval(Date().timeIntervalSince(origin) * speed) }
+        #else
+        return Date.init
+        #endif
+    }
+
+    static var autoplayTakesAds: Bool {
+        #if DEBUG
+        return arguments.contains("-dotAutoplayAds")
+        #else
+        return false
         #endif
     }
 
@@ -126,10 +163,13 @@ enum DotDebug {
         progress.lastActiveDate = Date()
         progress.rating = late ? 4.7 : (early ? 2.5 : 3.8)
         progress.prestigeCount = late ? 1 : 0
+        // What a few sessions of play leave behind, so income-scaled rewards and ad offers read true.
+        progress.earningRate = late ? 180 : (early ? 0 : 40)
+        progress.totalPlaySeconds = late ? 7_200 : (early ? 150 : 1_800)
         store.progress = progress
 
         var stall = StallState()
-        stall.coins = late ? 50_000_000 : (early ? 60_000 : 25_000)
+        stall.coins = late ? 400_000 : (early ? 60_000 : 25_000)
         stall.menuTier = late ? 2 : 1
         stall.stallTier = late ? 2 : 1
         stall.locationTier = late ? 2 : (early ? 0 : 1)
@@ -145,6 +185,9 @@ enum DotDebug {
         stall.menuStock = late ? [9, 12, 0] : (early ? [0, 0, 0] : [3, 0, 0])
         stall.farmerCount = late ? 2 : 0
         stall.veteranAlbaCount = late ? 2 : 0
+        stall.recipeLevels = late ? [12, 9, 6] : (early ? [0, 0, 0] : [3, 1, 0])
+        stall.renovationLevel = late ? 3 : 0
+        if !early { stall.staffTier = late ? 3 : 2 }
         if arguments.contains("-dotEmpty") { stall.warehouse = 0; stall.menuStock = [0, 0, 0] }
         store.stall = stall
 
@@ -161,6 +204,7 @@ enum DotDebug {
             return plot
         }
         store.farm = farm
+        store.debugRerollMissions()
 
         switch value(after: "-dotSheet") {
         case "tutorial":
@@ -183,6 +227,7 @@ enum DotDebug {
         if arguments.contains("-dotSeed"), value(after: "-dotSheet") != "offline", store.offlineEarnings > 0 {
             store.offlineEarnings = 0
         }
+        if arguments.contains("-dotGift"), !store.isGiftPresent, !store.isGiftHeld { store.debugSpawnGift() }
         if wantsFever, !store.isFeverActive {
             for _ in 0..<10 { store.recordServed(waitTime: 0) }
             store.startFever()

@@ -5,6 +5,7 @@ import GameCore
 /// Today's three missions, with claim buttons and a countdown to the next set.
 public struct MissionsSheet: View {
     @EnvironmentObject var store: GameStore
+    @EnvironmentObject var ads: RewardedAds
     @Environment(\.dotPlaySound) private var play
     @Binding public var isPresented: Bool
 
@@ -17,28 +18,39 @@ public struct MissionsSheet: View {
             DotScroll {
                 ForEach(store.missions) { mission in
                     MissionRow(mission: mission,
-                               blockedReason: MissionSystem.blockedReason(kind: mission.kind, rating: store.progress.rating)) {
-                        claim(mission)
-                    }
+                               blockedReason: MissionSystem.blockedReason(kind: mission.kind, rating: store.progress.rating),
+                               isAdReady: ads.isReady(.mission),
+                               onClaim: { claim(mission, multiplier: 1) },
+                               onClaimDoubled: { claimWithAd(mission) })
                 }
                 if !store.missions.isEmpty {
                     BonusRow(reward: store.dailyBonusReward, isReady: store.isDailyBonusReady,
                              isClaimed: store.isDailyBonusClaimed,
-                             done: store.missions.filter(\.isComplete).count, total: store.missions.count) {
-                        guard store.claimDailyBonus() != nil else { return }
-                        play(.missionDone)
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    }
+                             done: store.missions.filter(\.isComplete).count, total: store.missions.count,
+                             isAdReady: ads.isReady(.mission),
+                             onClaim: { claimBonus(multiplier: 1) },
+                             onClaimDoubled: { ads.watch(.mission) { claimBonus(multiplier: 2) } })
                 }
                 MissionCountdown()
                     .frame(maxWidth: .infinity)
                     .padding(.top, 4)
             }
         }
+        .onAppear { ads.prepare(.mission) }
     }
 
-    private func claim(_ mission: Mission) {
-        guard store.claimMission(id: mission.id) != nil else { return }
+    private func claim(_ mission: Mission, multiplier: Double) {
+        guard store.claimMission(id: mission.id, multiplier: multiplier) != nil else { return }
+        play(.missionDone)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    private func claimWithAd(_ mission: Mission) {
+        ads.watch(.mission) { claim(mission, multiplier: 2) }
+    }
+
+    private func claimBonus(multiplier: Double) {
+        guard store.claimDailyBonus(multiplier: multiplier) != nil else { return }
         play(.missionDone)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
@@ -49,7 +61,9 @@ public struct MissionsSheet: View {
 private struct MissionRow: View {
     let mission: Mission
     var blockedReason: MissionBlock?
+    let isAdReady: Bool
     let onClaim: () -> Void
+    let onClaimDoubled: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var isReady: Bool { mission.isComplete && !mission.isClaimed }
@@ -93,8 +107,7 @@ private struct MissionRow: View {
                 Text(String(localized: "dot.mission.claimed")).dotText(.caption, color: DotPalette.leafDark)
             }
         } else if mission.isComplete {
-            Button(action: onClaim) { Text(String(localized: "dot.mission.claim")) }
-                .buttonStyle(.dot)
+            ClaimButtons(isAdReady: isAdReady, onClaim: onClaim, onClaimDoubled: onClaimDoubled)
         } else {
             DotImage("dot_ui_lock", scale: 1)
                 .opacity(0.5)
@@ -160,7 +173,9 @@ private struct BonusRow: View {
     let isClaimed: Bool
     let done: Int
     let total: Int
+    let isAdReady: Bool
     let onClaim: () -> Void
+    let onClaimDoubled: () -> Void
 
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
@@ -183,8 +198,7 @@ private struct BonusRow: View {
                     Text(String(localized: "dot.mission.claimed")).dotText(.caption, color: DotPalette.leafDark)
                 }
             } else if isReady {
-                Button(action: onClaim) { Text(String(localized: "dot.mission.claim")) }
-                    .buttonStyle(.dot)
+                ClaimButtons(isAdReady: isAdReady, onClaim: onClaim, onClaimDoubled: onClaimDoubled)
             } else {
                 DotImage("dot_ui_lock", scale: 1).opacity(0.5).accessibilityHidden(true)
             }
@@ -217,5 +231,31 @@ private struct MissionCountdown: View {
             return String(format: String(localized: "dot.mission.countdown.hm"), minutes / 60, minutes % 60)
         }
         return String(format: String(localized: "dot.mission.countdown.m"), max(minutes, 1))
+    }
+}
+
+// MARK: - Claim buttons
+
+/// "받기" pays the reward; "AD 2배" pays it twice after an ad. Both stay available: the ad is a choice.
+private struct ClaimButtons: View {
+    let isAdReady: Bool
+    let onClaim: () -> Void
+    let onClaimDoubled: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button(action: onClaim) { Text(String(localized: "dot.mission.claim")).frame(minWidth: 44) }
+                .buttonStyle(.dot)
+            Button(action: onClaimDoubled) {
+                if isAdReady {
+                    DotAdLabel(text: String(localized: "dot.ad.mission.double"))
+                } else {
+                    Text(String(localized: "dot.ad.loading")).font(.dot(.caption))
+                }
+            }
+            .buttonStyle(.dotCompact)
+            .disabled(!isAdReady)
+            .accessibilityLabel(DotAdText.accessibility(String(localized: "dot.ad.mission.accessibility")))
+        }
     }
 }

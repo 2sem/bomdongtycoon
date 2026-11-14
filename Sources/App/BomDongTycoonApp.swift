@@ -5,7 +5,7 @@ import FirebaseMessaging
 
 @main
 struct BomDongTycoonApp: App {
-    @StateObject private var store = GameStore()
+    @StateObject private var store = GameStore(defaults: DotDebug.storeDefaults, now: DotDebug.clock)
     @StateObject private var adManager = SwiftUIAdManager()
 
     init() {
@@ -27,6 +27,7 @@ struct BomDongTycoonApp: App {
             }
             .environmentObject(store)
             .environmentObject(adManager)
+            .environmentObject(adManager.rewarded)
             .onChange(of: isSplashDone) { _, done in
                 guard done, pendingOfflineCalc else { return }
                 pendingOfflineCalc = false

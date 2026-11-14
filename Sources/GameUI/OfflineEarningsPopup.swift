@@ -3,6 +3,7 @@ import GameCore
 
 public struct OfflineEarningsPopup: View {
     @EnvironmentObject var store: GameStore
+    @EnvironmentObject var ads: RewardedAds
 
     /// Called when user taps the 2x button. App layer shows the rewarded ad,
     /// then calls the completion with `true` if reward was earned, `false` to skip.
@@ -36,9 +37,20 @@ public struct OfflineEarningsPopup: View {
                         store.collectOfflineEarnings(multiplier: rewarded ? 2.0 : 1.0)
                     }
                 } label: {
-                    Text(String(localized: "광고 보고 2배 받기")).frame(maxWidth: .infinity)
+                    Group {
+                        if ads.isReady(.offline) {
+                            DotAdLabel(text: String(localized: "광고 보고 2배 받기"))
+                        } else {
+                            Text(String(localized: "dot.ad.loading"))
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.dot)
+                .disabled(!ads.isReady(.offline))
+                .accessibilityLabel(ads.isReady(.offline)
+                    ? DotAdText.accessibility(String(localized: "광고 보고 2배 받기"))
+                    : String(localized: "dot.ad.loading"))
 
                 Button { store.collectOfflineEarnings(multiplier: 1.0) } label: {
                     Text(String(localized: "그냥 받기")).frame(maxWidth: .infinity)
@@ -46,5 +58,6 @@ public struct OfflineEarningsPopup: View {
                 .buttonStyle(.dotQuiet)
             }
         }
+        .onAppear { ads.prepare(.offline) }
     }
 }

@@ -2,6 +2,19 @@ import GoogleMobileAds
 import AppTrackingTransparency
 import UIKit
 import GameCore
+import GameUI
+
+extension AdPlacement {
+    /// The one place a placement meets its ad unit. Release reads `AdPlacement.releaseUnitID`
+    /// (GameCore, where a test checks the table); debug builds use Google's test rewarded unit.
+    var unitID: String {
+        #if DEBUG
+        "ca-app-pub-3940256099942544/1712485313"
+        #else
+        releaseUnitID
+        #endif
+    }
+}
 
 @MainActor
 final class SwiftUIAdManager: NSObject, ObservableObject {
@@ -9,25 +22,29 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     // MARK: - Ad Unit IDs
 
     #if DEBUG
-    private let rewardedUnitID  = "ca-app-pub-3940256099942544/1712485313"  // test rewarded
     private let appOpenUnitID   = "ca-app-pub-3940256099942544/9257395921"  // test app open
     /// Flip to `false` to test ads locally; keep `true` while doing unrelated feature work so ads don't interrupt.
     private static let adsDisabledForDevelopment = true
+    /// `-dotAdsGrant`: every rewarded request succeeds at once with no ad, so reward flows can be driven and screenshot.
+    private static let grantsWithoutAds = ProcessInfo.processInfo.arguments.contains("-dotAdsGrant")
     #else
-    private let rewardedUnitID  = "ca-app-pub-9684378399371172/3844454464"
     private let appOpenUnitID   = "ca-app-pub-9684378399371172/7904835004"
     private static let adsDisabledForDevelopment = false
+    private static let grantsWithoutAds = false
     #endif
 
     // MARK: - State
 
-    private var rewardedAd: GADRewardedAd?
+    /// What GameUI reads and calls; mirrors `readyPlacements`.
+    let rewarded = RewardedAds()
+    private var rewardedAds: [AdPlacement: GADRewardedAd] = [:]
+    private var loadingPlacements: Set<AdPlacement> = []
+    private var presentingPlacement: AdPlacement?
+    @Published private(set) var readyPlacements: Set<AdPlacement> = []
     private var appOpenAd: GADAppOpenAd?
     private var isShowingAd = false
-    private var isLoadingRewarded = false
     private var isLoadingAppOpen = false
     @Published private(set) var isAppOpenReady = false
-    @Published private(set) var isRewardedReady = false
     private var pendingRewardCompletion: ((Bool) -> Void)?
     private var pendingAppOpenCompletion: (() -> Void)?
     private var lastAppOpenShownDate: Date?
@@ -40,25 +57,43 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     private static let appOpenInterval: TimeInterval = 4 * 3600 // 4 hours in production
     #endif
 
+    override init() {
+        super.init()
+        rewarded.show = { [weak self] placement, completion in self?.showRewarded(placement, completion: completion) }
+        rewarded.prepare = { [weak self] placement in self?.preloadRewarded(placement) }
+        if Self.grantsWithoutAds { for placement in AdPlacement.allCases { setReady(placement, true) } }
+    }
+
+    func isRewardedReady(_ placement: AdPlacement) -> Bool { readyPlacements.contains(placement) }
+
+    private func setReady(_ placement: AdPlacement, _ isReady: Bool) {
+        if isReady { readyPlacements.insert(placement) } else { readyPlacements.remove(placement) }
+        rewarded.setReady(placement, isReady)
+    }
+
     // MARK: - Preload
 
+    /// The offline popup can open at launch, so its ad loads at once; every other placement loads
+    /// the first time a surface for it appears (`RewardedAds.prepare`).
     func preload() {
         guard !Self.adsDisabledForDevelopment else { return }
-        preloadRewarded()
+        preloadRewarded(.offline)
         preloadAppOpen()
     }
 
-    private func preloadRewarded() {
-        guard !isLoadingRewarded, rewardedAd == nil else { return }
-        isLoadingRewarded = true
-        print("[RewardAd] preloading — unit: \(rewardedUnitID)")
-        GADRewardedAd.load(withAdUnitID: rewardedUnitID, request: GADRequest()) { [weak self] ad, error in
-            self?.isLoadingRewarded = false
-            if let error { print("[RewardAd] preload failed: \(error.localizedDescription)"); return }
-            print("[RewardAd] preloaded ✓")
-            self?.rewardedAd = ad
-            self?.rewardedAd?.fullScreenContentDelegate = self
-            self?.isRewardedReady = true
+    private func preloadRewarded(_ placement: AdPlacement) {
+        guard !Self.adsDisabledForDevelopment, !Self.grantsWithoutAds,
+              !loadingPlacements.contains(placement), rewardedAds[placement] == nil else { return }
+        loadingPlacements.insert(placement)
+        print("[RewardAd] preloading \(placement.rawValue) — unit: \(placement.unitID)")
+        GADRewardedAd.load(withAdUnitID: placement.unitID, request: GADRequest()) { [weak self] ad, error in
+            guard let self else { return }
+            self.loadingPlacements.remove(placement)
+            if let error { print("[RewardAd] \(placement.rawValue) preload failed: \(error.localizedDescription)"); return }
+            print("[RewardAd] \(placement.rawValue) preloaded ✓")
+            ad?.fullScreenContentDelegate = self
+            self.rewardedAds[placement] = ad
+            self.setReady(placement, ad != nil)
         }
     }
 
@@ -110,9 +145,10 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
 
     // MARK: - Show Rewarded
 
-    /// Show the rewarded ad. Calls `completion(true)` if reward earned, `completion(false)` if skipped/failed.
-    /// If the ad is still loading, waits up to 5s before giving up.
-    func showRewarded(completion: @escaping (Bool) -> Void) {
+    /// Show the rewarded ad of `placement`. Calls `completion(true)` if the reward was earned,
+    /// `completion(false)` if skipped or failed. If the ad is still loading, waits up to 5 s.
+    func showRewarded(_ placement: AdPlacement, completion: @escaping (Bool) -> Void) {
+        if Self.grantsWithoutAds { completion(true); return }
         guard !Self.adsDisabledForDevelopment else { completion(false); return }
         guard !isShowingAd else { completion(false); return }
 
@@ -121,29 +157,29 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
                 completion(false)
                 return
             }
-            self.showRewardedAfterTrackingPrompt(completion: completion)
+            self.showRewardedAfterTrackingPrompt(placement, completion: completion)
         }
     }
 
-    private func showRewardedAfterTrackingPrompt(completion: @escaping (Bool) -> Void) {
-        if rewardedAd == nil {
-            if !isLoadingRewarded {
-                print("[RewardAd] not ready and not loading — triggering fresh load")
-                preloadRewarded()
+    private func showRewardedAfterTrackingPrompt(_ placement: AdPlacement, completion: @escaping (Bool) -> Void) {
+        if rewardedAds[placement] == nil {
+            if !loadingPlacements.contains(placement) {
+                print("[RewardAd] \(placement.rawValue) not ready and not loading — triggering fresh load")
+                preloadRewarded(placement)
             } else {
-                print("[RewardAd] loading in progress — waiting up to 5s")
+                print("[RewardAd] \(placement.rawValue) loading in progress — waiting up to 5s")
             }
             Task { @MainActor [weak self] in
                 let deadline = Date().addingTimeInterval(5)
-                while let self, self.rewardedAd == nil && Date() < deadline {
+                while let self, self.rewardedAds[placement] == nil && Date() < deadline {
                     try? await Task.sleep(nanoseconds: 100_000_000)
                 }
                 guard let self else { completion(false); return }
-                self.presentRewarded(completion: completion)
+                self.presentRewarded(placement, completion: completion)
             }
             return
         }
-        presentRewarded(completion: completion)
+        presentRewarded(placement, completion: completion)
     }
 
     private func requestTrackingAuthorizationIfNeeded(completion: @escaping () -> Void) {
@@ -180,31 +216,38 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
         }
     }
 
-    private func presentRewarded(completion: @escaping (Bool) -> Void) {
-        guard let ad = rewardedAd else {
-            print("[RewardAd] no ad ready — skipping bonus")
+    private func presentRewarded(_ placement: AdPlacement, completion: @escaping (Bool) -> Void) {
+        guard let ad = rewardedAds[placement] else {
+            print("[RewardAd] \(placement.rawValue) no ad ready — skipping bonus")
             completion(false)
-            preloadRewarded()
+            preloadRewarded(placement)
             return
         }
-        guard let rootVC = rootViewController else {
-            print("[RewardAd] no rootViewController — rewarding anyway")
-            completion(true)
+        guard !isShowingAd, let rootVC = rootViewController else {
+            print("[RewardAd] cannot present now — no bonus")
+            completion(false)
             return
         }
-        print("[RewardAd] presenting...")
+        print("[RewardAd] presenting \(placement.rawValue)...")
         isShowingAd = true
-        rewardedAd = nil
-        isRewardedReady = false
+        rewardedAds[placement] = nil
+        setReady(placement, false)
+        presentingPlacement = placement
         pendingRewardCompletion = completion
         ad.present(fromRootViewController: rootVC) { [weak self] in
-            print("[RewardAd] reward earned ✓")
+            print("[RewardAd] \(placement.rawValue) reward earned ✓")
             self?.pendingRewardCompletion?(true)
             self?.pendingRewardCompletion = nil
         }
     }
 
     // MARK: - Helpers
+
+    private func reloadPresentedPlacement() {
+        guard let placement = presentingPlacement else { return }
+        presentingPlacement = nil
+        preloadRewarded(placement)
+    }
 
     private var rootViewController: UIViewController? {
         UIApplication.shared.connectedScenes
@@ -231,7 +274,7 @@ extension SwiftUIAdManager: GADFullScreenContentDelegate {
                     self?.pendingRewardCompletion?(false)
                     self?.pendingRewardCompletion = nil
                 }
-                self?.preloadRewarded()
+                self?.reloadPresentedPlacement()
             }
         }
     }
@@ -251,7 +294,7 @@ extension SwiftUIAdManager: GADFullScreenContentDelegate {
                 print("[RewardAd] failed: \(error.localizedDescription)")
                 self?.pendingRewardCompletion?(false)  // no ad shown → no bonus
                 self?.pendingRewardCompletion = nil
-                self?.preloadRewarded()
+                self?.reloadPresentedPlacement()
             }
         }
     }

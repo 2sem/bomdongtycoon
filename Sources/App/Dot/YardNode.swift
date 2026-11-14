@@ -11,6 +11,8 @@ final class YardNode: BandNode {
     private let alert = SKNode()
     private let alertRest: CGPoint
     private var lastKey = ""
+    private let gift = GiftNode()
+    private static let giftX: CGFloat = 99
 
     init(layout: DotWorldLayout, labelLayer: SKNode) {
         crateRow = CGFloat(layout.yardHeight - 3)
@@ -34,6 +36,9 @@ final class YardNode: BandNode {
         mark.zPosition = 0.1
         alert.addChild(mark)
         addChild(alert)
+        gift.position = feetPoint(Self.giftX, crateRow)
+        gift.zPosition = 6
+        addChild(gift)
 
         let bushes: [(CGFloat, CGFloat)] = [(130, CGFloat(layout.yardHeight) - 12), (112, CGFloat(layout.yardHeight) - 2)]
         for (x, y) in bushes {
@@ -51,6 +56,23 @@ final class YardNode: BandNode {
 
     func hit(local p: CGPoint) -> Bool {
         p.x >= 4 && p.x < 56 && p.y >= crateRow - 26 && p.y < crateRow + 4
+    }
+
+    /// Where the gift crate sits, for the sparkle.
+    var giftPoint: CGPoint { rootPoint(Self.giftX, crateRow - 7) }
+
+    /// A generous box around the crate: it is a rare, timed tap.
+    func hitGift(local p: CGPoint) -> Bool {
+        p.x >= Self.giftX - 16 && p.x < Self.giftX + 16 && p.y >= crateRow - 24 && p.y < crateRow + 4
+    }
+
+    func setGift(isPresent: Bool, remaining: Double, reduceMotion: Bool) {
+        if isPresent {
+            gift.appear(reduceMotion: reduceMotion)
+            gift.setRemaining(remaining, reduceMotion: reduceMotion)
+        } else {
+            gift.disappear()
+        }
     }
 
     /// A "!" bubble over the crate while the warehouse is empty and a dish has no stock.

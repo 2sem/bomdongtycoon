@@ -23,8 +23,9 @@ public struct UpgradeSheet: View {
                     type: .menu,
                     definitions: UpgradeDefinitions.menu,
                     currentTier: store.stall.menuTier + 1,
-                    icons: ["dot_dish_geotjeori", "dot_dish_kimchi", "dot_dish_bibimbap"]
+                    icons: Self.dishIcons
                 )
+                recipeSection
                 upgradeSection(
                     title: String(localized: "dot.upgrade.stall"),
                     type: .stall,
@@ -94,6 +95,36 @@ public struct UpgradeSheet: View {
                 canAfford: coins >= definitions[index].coinCost,
                 onPurchase: { purchase(type) }
             )
+        }
+    }
+
+    private static let dishIcons = ["dot_dish_geotjeori", "dot_dish_kimchi", "dot_dish_bibimbap"]
+
+    // MARK: Recipes
+
+    /// 레시피 강화: one row per dish, endless until `RecipeSystem.maxLevel`.
+    private var recipeSection: some View {
+        let stall = store.stall
+        return Group {
+            DotSectionHeader(String(localized: "dot.recipe.title"))
+            ForEach(UpgradeDefinitions.menu.indices, id: \.self) { index in
+                let level = RecipeSystem.level(for: stall, menuIndex: index)
+                let unlocked = RecipeSystem.isUnlocked(menuIndex: index, stall: stall)
+                let cost = RecipeSystem.nextCost(for: stall, menuIndex: index)
+                UpgradeRowView(
+                    upgrade: UpgradeDefinition(
+                        name: UpgradeDefinitions.menu[index].name, coinCost: cost ?? 0,
+                        description: String(format: String(localized: "dot.recipe.level"), level, RecipeSystem.maxLevel)),
+                    icon: Self.dishIcons[index],
+                    displayEffect: cost == nil
+                        ? (unlocked ? String(localized: "dot.recipe.max") : String(localized: "dot.recipe.locked"))
+                        : String(format: String(localized: "dot.recipe.effect"),
+                                 RecipeSystem.percentPerLevel, RecipeSystem.bonusPercent(level: level)),
+                    isOwned: unlocked && cost == nil,
+                    isNext: cost != nil,
+                    canAfford: cost.map { stall.coins >= $0 } ?? false,
+                    onPurchase: { purchase(.recipe(menuIndex: index)) })
+            }
         }
     }
 

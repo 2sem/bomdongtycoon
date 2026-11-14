@@ -95,7 +95,7 @@ final class CustomerDirector {
 
     private func trySpawn(store: GameStore, isFever: Bool) {
         guard sessions.count < (isFever ? Self.maxConcurrentFever : Self.maxConcurrent) else { spawnTimer = 1; return }
-        let menu = (0...store.stall.menuTier).randomElement() ?? 0
+        let menu = store.rollOrderedMenu()
         let isGourmet = store.rollGourmet()
         let look = isGourmet ? "gourmet" : (Self.looks.randomElement() ?? "man")
         let node = CustomerNode(look: look, wantedDish: "dot_dish_\(Self.dishNames[menu])")
