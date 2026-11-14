@@ -12,11 +12,13 @@ final class StaffFigure: SKNode {
     private var kind = ""
     private var pose: Pose?
 
-    override init() {
+    /// Where the zzz sits relative to the feet. Farm workers keep it beside the head: above it, the
+    /// top row's zzz would land on the yard's crate label.
+    init(zzzOffset: CGPoint = CGPoint(x: 5, y: 24)) {
         super.init()
         addChild(bob)
         bob.addChild(sprite)
-        zzz.position = CGPoint(x: 5, y: 24)
+        zzz.position = zzzOffset
         zzz.isHidden = true
         bob.addChild(zzz)
         isHidden = true

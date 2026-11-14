@@ -34,8 +34,9 @@ final class CustomerDirector {
 
     static let slotX: [CGFloat] = [46, 80, 113]
     /// Feet row of a queued customer and of the lane walkers use, in front of them (band-local).
-    private static let queueRow: CGFloat = 27
-    private static let laneRow: CGFloat = 30
+    /// The yard's bushes and crate reach up to street row 29, so feet stay clear of that.
+    private static let queueRow: CGFloat = 25
+    private static let laneRow: CGFloat = 28
     private static let maxConcurrent = 3
     private static let pollInterval: TimeInterval = 0.5
     private static let maxWait: TimeInterval = 8
