@@ -121,7 +121,7 @@ final class ShopNode: BandNode {
     }
 
     /// Tip of the first-run pointer: just above the dish's rim.
-    func hintTip(_ menu: Int) -> CGPoint { rootPoint(Self.dishX[menu], Self.dishY - 16) }
+    func hintTip(_ menu: Int) -> CGPoint { rootPoint(Self.dishX[menu], Self.dishY - 10) }
 
     func shakeDish(menu: Int, reduceMotion: Bool) {
         FXLayer.shake(slots[menu].dish, reduceMotion: reduceMotion)

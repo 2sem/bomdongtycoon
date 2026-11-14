@@ -4,6 +4,7 @@ import GameCore
 /// QA launch arguments, compiled out of release builds.
 ///   -dotSeed early|mid|late   start from a seeded save (in memory, skips the intro); early = 골목, tier-1 stall,
 ///                       coins for the 시장 move and a hire
+///   -dotEmpty           empty warehouse (the crate "!" and the ripe-plot pulse)
 ///   -dotResetHints      replay the first-run pointers
 ///   -dotFever           keep fever running
 ///   -dotRain            keep it raining
@@ -82,6 +83,7 @@ enum DotDebug {
         stall.menuStock = late ? [9, 12, 0] : (early ? [0, 0, 0] : [3, 0, 0])
         stall.farmerCount = late ? 2 : 0
         stall.veteranAlbaCount = late ? 2 : 0
+        if arguments.contains("-dotEmpty") { stall.warehouse = 0; stall.menuStock = [0, 0, 0] }
         store.stall = stall
 
         var farm = FarmState()

@@ -15,7 +15,7 @@ final class YardNode: BandNode {
     init(layout: DotWorldLayout, labelLayer: SKNode) {
         crateRow = CGFloat(layout.yardHeight - 3)
         label = PixelLabel(style: .tiny, scale: layout.scale, alignment: .left)
-        alertRest = feetPoint(32, CGFloat(layout.yardHeight - 3) - 14)
+        alertRest = feetPoint(76, CGFloat(layout.yardHeight - 3) - 3)
         super.init(top: layout.yardTop)
         zPosition = 300
         crate.position = feetPoint(22, crateRow)
@@ -23,7 +23,7 @@ final class YardNode: BandNode {
         label.position = rootPoint(40, crateRow - 8)
         labelLayer.addChild(label)
 
-        // The tail tip sits on the crate's upper-right corner; "!" is centred in the 22 px bubble.
+        // Beside the count label, inside the yard: above the crate it would cover the street's customers.
         alert.position = alertRest
         alert.zPosition = 5
         alert.isHidden = true
