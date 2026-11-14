@@ -301,28 +301,39 @@ final class CoreLoopV2Tests: DotWorldTestCase {
 
     // MARK: Auto-placed hires
 
+    /// Every plot worked by its own alba, with the headcount to match.
+    private func occupyPlotsWithAlbas() {
+        for i in store.farm.plots.indices {
+            store.farm.plots[i].workerType = .alba
+            store.stall.tier1Count += 1
+        }
+    }
+
     private func openEverything() {
         store.stall.stallTier = 2
         store.stall.menuTier = 2
         store.stall.coins = 1_000_000
     }
 
-    func test_alba_goesToTheLowestDishWithoutACook_thenCashier_thenAPlot() {
+    func test_alba_fillsEmptyPlotsFirst_thenTheLowestDishWithoutACook_thenCashier() {
         openEverything()
-        XCTAssertEqual(store.hireWorker(tier: 1), .init(tier: 1, placement: .cook(menuIndex: 0)))
+        XCTAssertEqual(store.hireWorker(tier: 1), .init(tier: 1, placement: .farm(plotIndex: 0)))
+        XCTAssertEqual(store.farm.plots[0].workerType, .alba)
+        XCTAssertEqual(store.hireWorker(tier: 1)?.placement, .farm(plotIndex: 1))
+        XCTAssertEqual(store.hireWorker(tier: 1)?.placement, .farm(plotIndex: 2))
+        XCTAssertEqual(store.hireWorker(tier: 1)?.placement, .cook(menuIndex: 0))
         XCTAssertEqual(store.stall.menuCooks, [1, 0, 0])
         XCTAssertEqual(store.hireWorker(tier: 1)?.placement, .cook(menuIndex: 1))
         XCTAssertEqual(store.hireWorker(tier: 1)?.placement, .cook(menuIndex: 2))
         XCTAssertEqual(store.hireWorker(tier: 1)?.placement, .cashier)
         XCTAssertEqual(store.stall.cashierTier, 1)
-        XCTAssertEqual(store.hireWorker(tier: 1)?.placement, .farm(plotIndex: 0))
-        XCTAssertEqual(store.farm.plots[0].workerType, .alba)
-        XCTAssertEqual(store.hireWorker(tier: 1)?.placement, .farm(plotIndex: 1))
-        XCTAssertEqual(store.availableWorkers, 1, "only the unplaced starting alba is left")
+        XCTAssertEqual(store.hireWorker(tier: 1)?.placement, .unassigned, "nothing is left to do")
+        XCTAssertEqual(store.availableWorkers, 2, "the spare and the unplaced starting alba")
     }
 
     func test_alba_onlyTakesDishesTheShopHasUnlocked() {
         store.stall.coins = 10_000
+        occupyPlotsWithAlbas()
         XCTAssertEqual(store.hireWorker(tier: 1)?.placement, .cook(menuIndex: 0))
         XCTAssertEqual(store.hireWorker(tier: 1)?.placement, .cashier, "dish 1 is still locked")
     }
@@ -385,6 +396,7 @@ final class CoreLoopV2Tests: DotWorldTestCase {
     func test_placedHire_arrivesRested_andPoolsStayConsistent() {
         store.stall.coins = 1_000
         store.stall.tier1IdleEnergies = []
+        occupyPlotsWithAlbas()
         store.hireWorker(tier: 1)
         XCTAssertEqual(store.stall.menuCookEnergy[0], 1, accuracy: 1e-9)
         XCTAssertTrue(store.stall.tier1IdleEnergies.isEmpty, "the worker left the idle pool")

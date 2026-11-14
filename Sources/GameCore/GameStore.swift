@@ -1063,13 +1063,26 @@ public final class GameStore: ObservableObject {
         public let placement: StaffPlacement
     }
 
-    /// Puts the newest idle worker of `tier` on the most useful free job: an unlocked dish with no
-    /// cook (lowest first), then an empty cashier post, then a plot with no worker. Each tier only
-    /// takes jobs it may do; with none free the worker stays idle.
+    /// Puts the newest idle worker of `tier` on the most useful free job. Each tier only takes jobs it
+    /// may do; with none free the worker stays idle.
+    ///
+    /// An alba fills the empty plots first, then a dish with no cook (lowest first), then the cashier.
+    /// Cabbages are what a shop that nobody taps runs out of (a plot only feeds the warehouse while a
+    /// worker harvests it), and with the first 300-coin hire cooking instead, a fully idle 12-minute
+    /// run lost 17% of its customers and earned a seventh of an active one; farm-first loses none and
+    /// earns about 0.4x. Self-serve prep already cooks a dish up to 5 with nobody hired.
+    /// 이모님 and the chef cannot farm: dish first, then (이모님) the cashier. The veteran takes the
+    /// till, then a plot.
     private func autoPlace(tier: Int) -> StaffPlacement {
         let canCook = (1...3).contains(tier)
         let canCashier = [1, 2, 5].contains(tier)
         let farmType: FarmWorkerType? = [1: .alba, 4: .farmer, 5: .veteranAlba][tier]
+        func placeOnFarm() -> StaffPlacement? {
+            guard let farmType, let plot = farm.plots.indices.first(where: { !farm.plots[$0].hasWorker }) else { return nil }
+            toggleFarmWorker(plotIndex: plot, workerType: farmType)
+            return farm.plots[plot].workerType == farmType ? .farm(plotIndex: plot) : nil
+        }
+        if tier == 1, let placed = placeOnFarm() { return placed }
         if canCook,
            let menu = stall.menuCooks.indices.first(where: { $0 <= stall.menuTier && stall.menuCooks[$0] == 0 }) {
             assignMenuCook(menuIndex: menu, tier: tier)
@@ -1079,10 +1092,7 @@ public final class GameStore: ObservableObject {
             assignToCashier(tier: tier)
             if stall.cashierCount > 0 { return .cashier }
         }
-        if let farmType, let plot = farm.plots.indices.first(where: { !farm.plots[$0].hasWorker }) {
-            toggleFarmWorker(plotIndex: plot, workerType: farmType)
-            if farm.plots[plot].workerType == farmType { return .farm(plotIndex: plot) }
-        }
+        if tier != 1, let placed = placeOnFarm() { return placed }
         return .unassigned
     }
 
