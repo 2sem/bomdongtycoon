@@ -25,7 +25,7 @@ public enum FeverSystem {
     public static let decayDelay: Double = 6.0
     public static let decayPerSecond: Double = 1.0 / 60.0
     public static let duration: Double = 15.0
-    public static let priceMultiplier: Double = 2.0
+    public static let priceMultiplier: Double = 3.0
     public static let spawnIntervalMultiplier: Double = 0.35
     /// Crops ripen this much faster during fever (12 s -> 4 s). Instant tap cooking drains the
     /// warehouse in about seven seconds; without this the last half of the rush has nothing to tap.

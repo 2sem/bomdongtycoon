@@ -82,6 +82,12 @@ public final class GameStore: ObservableObject {
         var giftDue: Double?
         var giftRemaining: Double = 0
         var giftOfferAmount: Double?
+        /// Seconds of simulated time (sum of `tick` deltas): the clock the tap cooldowns run on, so
+        /// they hold at any `-dotSpeed` and tests drive them with `tick`.
+        var clock: Double = 0
+        var lastHurry: [Int: Double] = [:]
+        var lastWater: [Int: Double] = [:]
+        var lastWake: [WorkerTarget: Double] = [:]
     }
     private var transients = RunTransients()
 
@@ -244,6 +250,7 @@ public final class GameStore: ObservableObject {
         guard !isSimulationPaused else { return }
         // Play time is held in memory and rides the 5 s activity save below; no extra disk writes.
         if isAppActive { progress.totalPlaySeconds += deltaTime }
+        transients.clock += deltaTime
         FeverSystem.tick(&transients.fever, deltaTime: deltaTime)
         transients.adFeverCooldown = max(0, transients.adFeverCooldown - deltaTime)
         advanceGift(deltaTime: deltaTime)
@@ -350,20 +357,16 @@ public final class GameStore: ObservableObject {
             }
         }
 
-        // Manual (tap) cook: one running session per menu index, advanced
-        // at the fixed `manualCookRate` (slower than any hired cook — see
-        // its own doc comment). Unlike the auto-cook loop above, a session
-        // produces at most one portion, so this checks the threshold once
-        // rather than draining it in a `while`. Preconditions are
-        // re-checked at completion, not just at start — the warehouse can
-        // empty or stock can fill while the cook is running, in which case
-        // it ends without producing.
+        // Manual (self-serve) cook: one running session per menu index at the fixed `manualCookRate`.
+        // A session keeps producing portion after portion (see `settleManualCook`); a hired cook
+        // takes over the dish, so a session left running for it ends.
         for menuIndex in transients.manualCookProgress.keys.sorted() {
+            if menuIndex < stall.menuCooks.count, stall.menuCooks[menuIndex] > 0 {
+                transients.manualCookProgress[menuIndex] = nil
+                continue
+            }
             transients.manualCookProgress[menuIndex, default: 0] += Self.manualCookRate * deltaTime
-            guard transients.manualCookProgress[menuIndex] ?? 0 >= 1.0 else { continue }
-            transients.manualCookProgress[menuIndex] = nil
-            guard canManualCook(menuIndex: menuIndex) else { continue }
-            completeManualCook(menuIndex: menuIndex)
+            settleManualCook(menuIndex: menuIndex)
         }
 
         // pendingCoins always pays out immediately, cashier or not: the tap-a-bubble
@@ -405,6 +408,25 @@ public final class GameStore: ObservableObject {
             }
             // Only app-active time counts: a golden crop must not ripen and be taken while the player is away.
             transients.goldenAge[i, default: 0] += isAppActive ? deltaTime : 0
+        }
+    }
+
+    /// Lands every portion the session's progress has paid for. Preconditions are re-checked per
+    /// portion (the warehouse can empty or the stock fill while it cooks): a session that can no
+    /// longer produce ends without one. It also ends on reaching `selfServeStock`, and stays
+    /// running only while the next portion is possible.
+    private func settleManualCook(menuIndex: Int) {
+        while let progress = transients.manualCookProgress[menuIndex], progress >= 1 {
+            guard canManualCook(menuIndex: menuIndex) else {
+                transients.manualCookProgress[menuIndex] = nil
+                return
+            }
+            completeManualCook(menuIndex: menuIndex)
+            guard stall.menuStock[menuIndex] < Self.selfServeStock, canManualCook(menuIndex: menuIndex) else {
+                transients.manualCookProgress[menuIndex] = nil
+                return
+            }
+            transients.manualCookProgress[menuIndex] = progress - 1
         }
     }
 
@@ -836,23 +858,141 @@ public final class GameStore: ObservableObject {
         }
     }
 
-    /// Starts a timed manual cook for `menuIndex` (a tap on its bowl) if
-    /// one isn't already running there; `tick` advances it and lands the
-    /// portion on completion. Returns whether it actually started, so a
-    /// caller (the tap handler) knows whether to play accept feedback —
-    /// tapping again mid-cook is a no-op.
+    /// Stock a self-serve session cooks a dish up to. A tap always yields at least one portion
+    /// (the cap only decides whether the session carries on), so the player can still stock past it.
+    public static let selfServeStock = 5
+    /// Progress a tap adds to the portion in flight: three taps are about one portion.
+    public static let hurryPerTap: Double = 0.34
+    public static let hurryDebounce: Double = 0.08
+
+    public enum DishTap: Equatable {
+        /// The dish is not unlocked yet.
+        case locked
+        /// A self-serve session began, or fever made the tap an instant portion.
+        case started
+        /// The portion in flight moved on.
+        case hurried
+        /// Nothing to cook with or no room: warehouse empty, stock full, or a cook with nothing to do.
+        case blocked
+        /// Closer to the last hurry than `hurryDebounce`; no feedback is due.
+        case ignored
+    }
+
+    /// What a tap on a dish does. Cooking already (a session, or a hired cook who can work): it
+    /// hurries the portion. Otherwise it starts a self-serve session, unless a cook is hired for
+    /// the dish (a cook with nothing to work on has nothing a tap can speed up). During fever a tap
+    /// is an instant portion.
     @discardableResult
-    public func startManualCook(menuIndex: Int) -> Bool {
-        // Fever: a tap is an instant portion, so the player can keep up with the rush.
+    public func tapDish(menuIndex: Int) -> DishTap {
+        guard menuIndex >= 0, menuIndex <= stall.menuTier, menuIndex < stall.menuStock.count else { return .locked }
         if isFeverActive, canManualCook(menuIndex: menuIndex) {
             transients.manualCookProgress[menuIndex] = nil
             completeManualCook(menuIndex: menuIndex)
-            return true
+            return .started
         }
-        guard transients.manualCookProgress[menuIndex] == nil, canManualCook(menuIndex: menuIndex) else { return false }
+        let maxStock = EarningsSystem.maxStock(for: stall)
+        let hasCook = stall.menuCooks.indices.contains(menuIndex) && stall.menuCooks[menuIndex] > 0
+        if hasCook {
+            guard canAutoCook(menuIndex: menuIndex, maxStock: maxStock) else { return .blocked }
+            guard consumeHurry(menuIndex: menuIndex) else { return .ignored }
+            transients.cookAccumulators[menuIndex] += hurryAmount(menuIndex: menuIndex)
+            return .hurried
+        }
+        if transients.manualCookProgress[menuIndex] != nil {
+            guard consumeHurry(menuIndex: menuIndex) else { return .ignored }
+            transients.manualCookProgress[menuIndex, default: 0] += hurryAmount(menuIndex: menuIndex)
+            settleManualCook(menuIndex: menuIndex)
+            return .hurried
+        }
+        guard canManualCook(menuIndex: menuIndex) else { return .blocked }
+        transients.manualCookProgress[menuIndex] = 0
+        return .started
+    }
+
+    /// Progress one tap adds to `menuIndex`'s portion in flight.
+    public func hurryAmount(menuIndex: Int) -> Double { Self.hurryPerTap }
+
+    private func consumeHurry(menuIndex: Int) -> Bool {
+        if let last = transients.lastHurry[menuIndex], transients.clock - last < Self.hurryDebounce { return false }
+        transients.lastHurry[menuIndex] = transients.clock
+        return true
+    }
+
+    /// Kept for callers that only care whether a tap began a cook: true for `.started`.
+    @discardableResult
+    public func startManualCook(menuIndex: Int) -> Bool {
+        tapDish(menuIndex: menuIndex) == .started
+    }
+
+    /// A customer is waiting on `menuIndex`: starts a self-serve session when nobody cooks it and
+    /// it is below `selfServeStock`. True when one began.
+    @discardableResult
+    public func requestSelfServe(menuIndex: Int) -> Bool {
+        guard menuIndex >= 0, menuIndex < stall.menuStock.count,
+              !(stall.menuCooks.indices.contains(menuIndex) && stall.menuCooks[menuIndex] > 0),
+              transients.manualCookProgress[menuIndex] == nil,
+              stall.menuStock[menuIndex] < Self.selfServeStock,
+              canManualCook(menuIndex: menuIndex) else { return false }
         transients.manualCookProgress[menuIndex] = 0
         return true
     }
+
+    // MARK: - Watering
+
+    public static let waterGrowth: Double = 0.15
+    public static let waterInterval: Double = 0.25
+
+    /// A tap on a growing plot: +`waterGrowth`, at most once per `waterInterval` per plot. False
+    /// when the plot is not growing or was watered a moment ago.
+    @discardableResult
+    public func waterPlot(plotIndex: Int) -> Bool {
+        guard farm.plots.indices.contains(plotIndex),
+              farm.plots[plotIndex].isPlanted, !farm.plots[plotIndex].isReady else { return false }
+        if let last = transients.lastWater[plotIndex], transients.clock - last < Self.waterInterval { return false }
+        transients.lastWater[plotIndex] = transients.clock
+        farm.plots[plotIndex].growth = min(1, farm.plots[plotIndex].growth + Self.waterGrowth)
+        if farm.plots[plotIndex].isReady, random() < Self.goldenChance { farm.plots[plotIndex].isGolden = true }
+        return true
+    }
+
+    // MARK: - Waking
+
+    public enum WorkerTarget: Hashable {
+        case cook(menuIndex: Int), cashier, farm(plotIndex: Int)
+    }
+
+    public static let wakeEnergy: Double = 0.5
+    public static let wakeInterval: Double = 30
+
+    /// A worker at the post whose energy is under `ShopStaffPresence.lowEnergyThreshold`.
+    public func isTired(_ target: WorkerTarget) -> Bool {
+        let limit = ShopStaffPresence.lowEnergyThreshold
+        switch target {
+        case .cook(let i):
+            return stall.menuCooks.indices.contains(i) && stall.menuCooks[i] > 0
+                && stall.menuCookEnergy.indices.contains(i) && stall.menuCookEnergy[i] < limit
+        case .cashier:
+            return stall.cashierCount > 0 && stall.cashierEnergy < limit
+        case .farm(let i):
+            return farm.plots.indices.contains(i) && farm.plots[i].hasWorker && farm.plots[i].workerEnergy < limit
+        }
+    }
+
+    /// A tap on a tired worker: +`wakeEnergy`, at most once per `wakeInterval` per worker.
+    @discardableResult
+    public func wakeWorker(_ target: WorkerTarget) -> Bool {
+        guard isTired(target) else { return false }
+        if let last = transients.lastWake[target], transients.clock - last < Self.wakeInterval { return false }
+        transients.lastWake[target] = transients.clock
+        switch target {
+        case .cook(let i):  stall.menuCookEnergy[i] = min(1, stall.menuCookEnergy[i] + Self.wakeEnergy)
+        case .cashier:      stall.cashierEnergy = min(1, stall.cashierEnergy + Self.wakeEnergy)
+        case .farm(let i):  farm.plots[i].workerEnergy = min(1, farm.plots[i].workerEnergy + Self.wakeEnergy)
+        }
+        return true
+    }
+
+    public var isWarehouseFull: Bool { stall.warehouse >= stall.warehouseCapacity }
 
     /// Preconditions a manual cook needs both to start and, since the
     /// warehouse or stock can change while one is running, to actually
@@ -913,22 +1053,61 @@ public final class GameStore: ObservableObject {
     public var availableFarmers: Int     { stall.farmerCount - farmersAssigned }
     public var availableVeteranAlbas: Int { stall.veteranAlbaCount - veteranAlbasAssigned }
 
-    public func hireFarmer() {
+    /// Where a new hire went. Tiers are the hire list's: 1-3 staff, 4 farmer, 5 veteran alba.
+    public enum StaffPlacement: Equatable {
+        case cook(menuIndex: Int), cashier, farm(plotIndex: Int), unassigned
+    }
+
+    public struct HireResult: Equatable {
+        public let tier: Int
+        public let placement: StaffPlacement
+    }
+
+    /// Puts the newest idle worker of `tier` on the most useful free job: an unlocked dish with no
+    /// cook (lowest first), then an empty cashier post, then a plot with no worker. Each tier only
+    /// takes jobs it may do; with none free the worker stays idle.
+    private func autoPlace(tier: Int) -> StaffPlacement {
+        let canCook = (1...3).contains(tier)
+        let canCashier = [1, 2, 5].contains(tier)
+        let farmType: FarmWorkerType? = [1: .alba, 4: .farmer, 5: .veteranAlba][tier]
+        if canCook,
+           let menu = stall.menuCooks.indices.first(where: { $0 <= stall.menuTier && stall.menuCooks[$0] == 0 }) {
+            assignMenuCook(menuIndex: menu, tier: tier)
+            if stall.menuCooks[menu] == tier { return .cook(menuIndex: menu) }
+        }
+        if canCashier, stall.cashierCount == 0 {
+            assignToCashier(tier: tier)
+            if stall.cashierCount > 0 { return .cashier }
+        }
+        if let farmType, let plot = farm.plots.indices.first(where: { !farm.plots[$0].hasWorker }) {
+            toggleFarmWorker(plotIndex: plot, workerType: farmType)
+            if farm.plots[plot].workerType == farmType { return .farm(plotIndex: plot) }
+        }
+        return .unassigned
+    }
+
+    @discardableResult
+    public func hireFarmer() -> HireResult? {
         let cost = UpgradeDefinitions.farmer[0].coinCost
-        guard stall.coins >= cost else { return }
+        guard stall.coins >= cost else { return nil }
         stall.coins -= cost
         stall.farmerCount += 1
         stall.farmerIdleEnergies.append(1.0)
+        let placement = autoPlace(tier: 4)
         save()
+        return HireResult(tier: 4, placement: placement)
     }
 
-    public func hireVeteranAlba() {
+    @discardableResult
+    public func hireVeteranAlba() -> HireResult? {
         let cost = UpgradeDefinitions.veteranAlba[0].coinCost
-        guard stall.coins >= cost else { return }
+        guard stall.coins >= cost else { return nil }
         stall.coins -= cost
         stall.veteranAlbaCount += 1
         stall.veteranAlbaIdleEnergies.append(1.0)
+        let placement = autoPlace(tier: 5)
         save()
+        return HireResult(tier: 5, placement: placement)
     }
 
     /// Toggle a farm worker of any type on/off a plot.
@@ -1050,10 +1229,11 @@ public final class GameStore: ObservableObject {
         return 1
     }
 
-    public func hireWorker(tier: Int) {
-        guard UpgradeDefinitions.isStaffTierUnlocked(tier, stallTier: stall.stallTier) else { return }
+    @discardableResult
+    public func hireWorker(tier: Int) -> HireResult? {
+        guard UpgradeDefinitions.isStaffTierUnlocked(tier, stallTier: stall.stallTier) else { return nil }
         let cost = UpgradeDefinitions.staff[tier - 1].coinCost
-        guard stall.coins >= cost else { return }
+        guard stall.coins >= cost else { return nil }
         stall.coins -= cost
         switch tier {
         case 1: stall.tier1Count += 1; stall.tier1IdleEnergies.append(1.0)
@@ -1062,7 +1242,9 @@ public final class GameStore: ObservableObject {
         default: break
         }
         stall.staffTier = max(stall.staffTier, tier)
+        let placement = autoPlace(tier: tier)
         save()
+        return HireResult(tier: tier, placement: placement)
     }
 
     /// Upgrade one idle worker from `tier` to `tier + 1`, paying the target tier's hire cost.
@@ -1353,6 +1535,7 @@ public final class GameStore: ObservableObject {
         next.lastActiveDate         = Date()
 
         stall = StallState()
+        stall.coins = PrestigeSystem.startingCoins(prestigeCount: next.prestigeCount)
         farm = FarmState()
         progress = next
         transients = RunTransients()

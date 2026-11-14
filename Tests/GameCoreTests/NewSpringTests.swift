@@ -203,12 +203,13 @@ final class NewSpringTests: XCTestCase {
         let store = makeReadyStore()
         XCTAssertTrue(store.startNewRun())
         let fresh = StallState()
-        XCTAssertEqual(store.stall.coins, 50)
+        XCTAssertEqual(store.stall.coins, PrestigeSystem.startingCoins(prestigeCount: 1))
+        XCTAssertEqual(store.stall.coins, 350)
         XCTAssertEqual(store.stall.locationTier, 0)
         XCTAssertEqual(store.stall.stallTier, 0)
         XCTAssertEqual(store.stall.menuTier, 0)
         XCTAssertEqual(store.stall.staffTier, 0)
-        XCTAssertEqual(store.stall.warehouseCapacity, 10)
+        XCTAssertEqual(store.stall.warehouseCapacity, 15)
         XCTAssertEqual(store.stall.menuStock, fresh.menuStock)
         XCTAssertEqual(store.stall.cashierCount, 0)
         XCTAssertEqual(store.farm.plots.count, FarmSystem.startingPlots)
@@ -286,7 +287,9 @@ final class NewSpringTests: XCTestCase {
                        "a StallState field is unclassified: reset it here or keep it in startNewRun")
         let e = JSONEncoder()
         e.outputFormatting = .sortedKeys
-        XCTAssertEqual(try e.encode(store.stall), try e.encode(StallState()))
+        var expectedStall = StallState()
+        expectedStall.coins = PrestigeSystem.startingCoins(prestigeCount: store.progress.prestigeCount)
+        XCTAssertEqual(try e.encode(store.stall), try e.encode(expectedStall))
         XCTAssertEqual(try e.encode(store.farm), try e.encode(FarmState()))
         XCTAssertEqual(Mirror(reflecting: store.farm).children.compactMap(\.label), ["plots"])
     }
@@ -294,6 +297,7 @@ final class NewSpringTests: XCTestCase {
     func test_transientsReset() {
         let store = makeReadyStore()
         store.stall.menuStock = [5, 5, 5]
+        store.stall.menuCooks = [0, 0, 0]   // a hired cook would take the dish: the tap would hurry, not start
         XCTAssertTrue(store.startManualCook(menuIndex: 0))
         _ = store.sellItem(menuIndex: 0)
         XCTAssertTrue(store.isManualCookRunning(menuIndex: 0))
@@ -343,7 +347,7 @@ final class NewSpringTests: XCTestCase {
         // No tick, no further call: a kill right here must load the new run.
         let relaunched = GameStore(defaults: defaults)
         XCTAssertEqual(relaunched.progress.prestigeCount, 1)
-        XCTAssertEqual(relaunched.stall.coins, 50)
+        XCTAssertEqual(relaunched.stall.coins, 350)
         XCTAssertEqual(relaunched.stall.locationTier, 0)
         XCTAssertEqual(relaunched.farm.plots.count, FarmSystem.startingPlots)
         XCTAssertEqual(relaunched.progress.totalEarned, 500_000)
@@ -392,13 +396,13 @@ final class NewSpringTests: XCTestCase {
         XCTAssertEqual(store.progress.runFailed, 2)
     }
 
-    func test_legacyMultiplierAppliesAtX1_40AfterTheFirstSpring() throws {
+    func test_legacyMultiplierAppliesAtX1_60AfterTheFirstSpring() throws {
         let store = makeReadyStore()
         XCTAssertTrue(store.startNewRun())
         store.stall.menuStock[0] = 1
         let price = try XCTUnwrap(store.sellItem(menuIndex: 0))
-        XCTAssertEqual(price, 30 * 1.4, accuracy: 0.0001)
-        XCTAssertEqual(PrestigeSystem.multiplierText(prestigeCount: store.progress.prestigeCount), "x1.4")
+        XCTAssertEqual(price, 30 * 1.6, accuracy: 0.0001)
+        XCTAssertEqual(PrestigeSystem.multiplierText(prestigeCount: store.progress.prestigeCount), "x1.6")
     }
 
     // MARK: Encoding and decoding

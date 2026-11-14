@@ -161,7 +161,7 @@ final class GoldenGourmetTests: DotWorldTestCase {
         let base = EarningsSystem.salePrice(for: store.stall, menuIndex: 1, prestigeCount: 3)
         XCTAssertEqual(base, 30 * 2.5 * UpgradeDefinitions.location[1].saleMultiplier
                        * 1.25 * PrestigeSystem.legacyMultiplier(prestigeCount: 3), accuracy: 1e-9)
-        XCTAssertEqual(store.sellItem(menuIndex: 1, isGourmet: true) ?? 0, base * 2 * 3, accuracy: 1e-9)
+        XCTAssertEqual(store.sellItem(menuIndex: 1, isGourmet: true) ?? 0, base * FeverSystem.priceMultiplier * EarningsSystem.gourmetMultiplier, accuracy: 1e-9)
     }
 
     func test_salePrice_feverMultiplier_isTrailingAndDefaultsToOne() {

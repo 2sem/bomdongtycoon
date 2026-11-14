@@ -31,7 +31,7 @@ final class PrestigeCoreTests: XCTestCase {
     // MARK: Multiplier
 
     func test_multiplierTable() {
-        let expected = [1.00, 1.40, 1.67, 1.91, 2.13, 2.34]
+        let expected = [1.00, 1.60, 2.01, 2.37, 2.70, 3.01]
         for (n, want) in expected.enumerated() {
             XCTAssertEqual(PrestigeSystem.legacyMultiplier(prestigeCount: n), want, accuracy: 0.005, "n=\(n)")
         }
@@ -43,9 +43,9 @@ final class PrestigeCoreTests: XCTestCase {
     }
 
     func test_multiplierText_trimsToTwoDecimals() {
-        XCTAssertEqual(PrestigeSystem.multiplierText(prestigeCount: 1), "x1.4")
-        XCTAssertEqual(PrestigeSystem.multiplierText(prestigeCount: 2), "x1.67")
-        XCTAssertEqual(PrestigeSystem.multiplierText(prestigeCount: 5), "x2.34")
+        XCTAssertEqual(PrestigeSystem.multiplierText(prestigeCount: 1), "x1.6")
+        XCTAssertEqual(PrestigeSystem.multiplierText(prestigeCount: 2), "x2.01")
+        XCTAssertEqual(PrestigeSystem.multiplierText(prestigeCount: 5), "x3.01")
         XCTAssertEqual(PrestigeSystem.multiplierText(prestigeCount: 0), "x1")
         XCTAssertEqual(PrestigeSystem.multiplierNumber(2.0), "2")
         XCTAssertEqual(PrestigeSystem.multiplierNumber(2 * 1.4), "2.8")
@@ -80,14 +80,14 @@ final class PrestigeCoreTests: XCTestCase {
         store.stall.menuStock[0] = 5
         XCTAssertEqual(store.sellItem(menuIndex: 0) ?? 0, 30, accuracy: 0.0001)
         store.progress.prestigeCount = 3
-        XCTAssertEqual(store.sellItem(menuIndex: 0) ?? 0, 30 * 1.9118, accuracy: 0.01)
+        XCTAssertEqual(store.sellItem(menuIndex: 0) ?? 0, 30 * 2.3677, accuracy: 0.01)
     }
 
     func test_coinsPerSecond_includesLegacy_costsUnscaled() {
         var stall = StallState()
         stall.menuCooks = [1, 0, 0]
         let base = EarningsSystem.coinsPerSecond(for: stall, prestigeCount: 0)
-        XCTAssertEqual(EarningsSystem.coinsPerSecond(for: stall, prestigeCount: 1), base * 1.4, accuracy: 0.0001)
+        XCTAssertEqual(EarningsSystem.coinsPerSecond(for: stall, prestigeCount: 1), base * 1.6, accuracy: 0.0001)
         // Upgrade costs are definition data, untouched by the multiplier.
         XCTAssertEqual(UpgradeDefinitions.menu[1].coinCost, 800)
     }

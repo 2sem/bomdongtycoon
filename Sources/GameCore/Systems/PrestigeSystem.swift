@@ -4,14 +4,14 @@ import Foundation
 /// `PlayerProgress.prestigeCount`.
 public enum PrestigeSystem {
 
-    /// Revenue multiplier a player with `prestigeCount` springs earns: 1 + 0.4 * n^0.75.
+    /// Revenue multiplier a player with `prestigeCount` springs earns: 1 + 0.6 * n^0.75.
     /// Exactly 1.0 at n = 0, so a first-run player's prices are unchanged.
     public static func legacyMultiplier(prestigeCount: Int) -> Double {
-        1 + 0.4 * pow(Double(max(0, prestigeCount)), 0.75)
+        1 + 0.6 * pow(Double(max(0, prestigeCount)), 0.75)
     }
 
-    /// "1.4", "1.67", "2": at most two decimals, trailing zeros trimmed, so the text matches the
-    /// designed table (1.00 1.40 1.67 1.91 2.13 2.34).
+    /// "1.6", "2.01", "2": at most two decimals, trailing zeros trimmed, so the text matches the
+    /// formula (1.00 1.60 2.01 2.37 2.70 3.01).
     public static func multiplierNumber(_ multiplier: Double) -> String {
         var text = String(format: "%.2f", multiplier)
         while text.hasSuffix("0") { text.removeLast() }
@@ -19,9 +19,20 @@ public enum PrestigeSystem {
         return text
     }
 
-    /// "x1.4", the chip and row text.
+    /// "x1.6", the chip and row text.
     public static func multiplierText(prestigeCount: Int) -> String {
         "x" + multiplierNumber(legacyMultiplier(prestigeCount: prestigeCount))
+    }
+
+    /// Coins a new spring opens with: 50, then 300 more per spring already completed, capped so a
+    /// veteran's restart is a head start and not a skipped tier.
+    public static let startingCoinsBase: Double = 50
+    public static let startingCoinsPerSpring: Double = 300
+    public static let startingCoinsCap: Double = 3_000
+
+    /// `prestigeCount` is the count of the run being started (1 for the first new spring).
+    public static func startingCoins(prestigeCount: Int) -> Double {
+        min(startingCoinsCap, startingCoinsBase + startingCoinsPerSpring * Double(max(0, prestigeCount)))
     }
 
     // MARK: Availability

@@ -70,7 +70,7 @@ final class SpringRecoveryTests: XCTestCase {
                                   file: StaticString = #filePath, line: UInt = #line) {
         if isNew {
             XCTAssertEqual(store.progress.prestigeCount, 2, "\(message) prestigeCount", file: file, line: line)
-            XCTAssertEqual(store.stall.coins, StallState().coins, "\(message) stall.coins", file: file, line: line)
+            XCTAssertEqual(store.stall.coins, PrestigeSystem.startingCoins(prestigeCount: 2), "\(message) stall.coins", file: file, line: line)
             XCTAssertEqual(store.stall.menuTier, 0, "\(message) menuTier", file: file, line: line)
             XCTAssertEqual(store.progress.earningRate, 0, "\(message) earningRate", file: file, line: line)
             XCTAssertEqual(store.progress.totalEarned, 700_000, "\(message) totalEarned", file: file, line: line)

@@ -26,47 +26,82 @@ final class WarehouseExpansionTests: XCTestCase {
 
     func test_ladder_costsAndCaps() {
         var cap = WarehouseSystem.baseCapacity
+        XCTAssertEqual(cap, 15)
+        var seen: [(Int, Double)] = []
+        while let next = WarehouseSystem.nextExpansion(current: cap) {
+            seen.append((next.capacity, next.cost))
+            cap = next.capacity
+        }
+        XCTAssertEqual(seen.map(\.0), [25, 35, 45, 55])
+        XCTAssertEqual(seen.map(\.1), [300, 800, 2_000, 5_000])
+        XCTAssertNil(WarehouseSystem.costForNextExpansion(current: 55))
+    }
+
+    func test_ladder_oldSaveShape_keepsItsPrices() {
+        var cap = WarehouseSystem.legacyBaseCapacity
         var seen: [(Int, Double)] = []
         while let next = WarehouseSystem.nextExpansion(current: cap) {
             seen.append((next.capacity, next.cost))
             cap = next.capacity
         }
         XCTAssertEqual(seen.map(\.0), [20, 30, 40, 50])
-        XCTAssertEqual(seen.map(\.1), [300, 800, 2_000, 5_000])
+        XCTAssertEqual(seen.map(\.1), [300, 800, 2_000, 5_000], "a save on 10/20/30/40 pays what it always paid")
         XCTAssertNil(WarehouseSystem.costForNextExpansion(current: 50))
+    }
+
+    func test_ladder_bothShapesPriceTheSameStep() {
+        for (old, new) in [(10, 15), (20, 25), (30, 35), (40, 45)] {
+            XCTAssertEqual(WarehouseSystem.costForNextExpansion(current: old),
+                           WarehouseSystem.costForNextExpansion(current: new), "\(old) vs \(new)")
+            XCTAssertNotNil(WarehouseSystem.costForNextExpansion(current: old))
+        }
+    }
+
+    func test_oldSaveOnTen_expandsFromItsOwnShape() {
+        store.stall.warehouseCapacity = 10
+        store.stall.coins = 300
+        store.expandWarehouse()
+        XCTAssertEqual(store.stall.warehouseCapacity, 20)
+        XCTAssertEqual(store.stall.coins, 0, accuracy: 0.001)
+    }
+
+    func test_newGameOpensOnFifteen() {
+        XCTAssertEqual(StallState().warehouseCapacity, 15)
     }
 
     func test_expandWarehouse_spendsCoinsAndRaisesCap() {
         store.stall.coins = 1_000
         store.expandWarehouse()
-        XCTAssertEqual(store.stall.warehouseCapacity, 20)
+        XCTAssertEqual(store.stall.warehouseCapacity, 25)
         XCTAssertEqual(store.stall.coins, 700, accuracy: 0.001)
         store.stall.coins = 800
         store.expandWarehouse()
-        XCTAssertEqual(store.stall.warehouseCapacity, 30)
+        XCTAssertEqual(store.stall.warehouseCapacity, 35)
         XCTAssertEqual(store.stall.coins, 0, accuracy: 0.001)
     }
 
     func test_expandWarehouse_unaffordable_doesNothing() {
         store.stall.coins = 299
         store.expandWarehouse()
-        XCTAssertEqual(store.stall.warehouseCapacity, 10)
+        XCTAssertEqual(store.stall.warehouseCapacity, 15)
         XCTAssertEqual(store.stall.coins, 299, accuracy: 0.001)
     }
 
     func test_purchaseUpgradeWarehouse_matchesExpand() {
         store.stall.coins = 300
         store.purchaseUpgrade(.warehouse)
-        XCTAssertEqual(store.stall.warehouseCapacity, 20)
+        XCTAssertEqual(store.stall.warehouseCapacity, 25)
         XCTAssertEqual(store.stall.coins, 0, accuracy: 0.001)
     }
 
     func test_maxCap_isNotExceeded() {
-        store.stall.warehouseCapacity = 50
-        store.stall.coins = 1_000_000
-        store.expandWarehouse()
-        store.purchaseUpgrade(.warehouse)
-        XCTAssertEqual(store.stall.warehouseCapacity, 50)
+        for max in [50, 55] {
+            store.stall.warehouseCapacity = max
+            store.stall.coins = 1_000_000
+            store.expandWarehouse()
+            store.purchaseUpgrade(.warehouse)
+            XCTAssertEqual(store.stall.warehouseCapacity, max)
+        }
         XCTAssertEqual(store.stall.coins, 1_000_000, accuracy: 0.001)
     }
 
@@ -148,12 +183,12 @@ final class WarehouseExpansionTests: XCTestCase {
         store.stall.coins = 300
         store.expandWarehouse()
         let reloaded = GameStore(defaults: defaults)
-        XCTAssertEqual(reloaded.stall.warehouseCapacity, 20)
+        XCTAssertEqual(reloaded.stall.warehouseCapacity, 25)
     }
 
-    func test_oldSaveWithoutCapacity_defaultsToBase() throws {
+    func test_oldSaveWithoutCapacity_defaultsToTheOldBase() throws {
         let json = #"{"coins": 5}"#
         let decoded = try JSONDecoder().decode(StallState.self, from: Data(json.utf8))
-        XCTAssertEqual(decoded.warehouseCapacity, WarehouseSystem.baseCapacity)
+        XCTAssertEqual(decoded.warehouseCapacity, WarehouseSystem.legacyBaseCapacity)
     }
 }
