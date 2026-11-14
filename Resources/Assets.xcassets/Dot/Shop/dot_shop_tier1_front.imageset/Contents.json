@@ -1,0 +1,13 @@
+{
+  "images": [
+    {
+      "filename": "dot_shop_tier1_front.png",
+      "idiom": "universal",
+      "scale": "1x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
