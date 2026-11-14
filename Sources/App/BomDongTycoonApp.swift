@@ -55,6 +55,7 @@ struct BomDongTycoonApp: App {
             } else if isFromBackground {
                 print("[App] bg→fg → calculateOfflineEarnings")
                 isFromBackground = false
+                if store.progress.isShopNameSet { NotificationManager.requestPermissionIfUndetermined() }
                 store.calculateOfflineEarnings()
                 if store.offlineEarnings == 0 {
                     print("[App] no offline earnings → show app open ad")

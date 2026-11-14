@@ -2,7 +2,7 @@ import SpriteKit
 import GameCore
 
 /// Spawns, walks and serves street customers. Serve semantics are the store's: sell at once if
-/// the dish is in stock, otherwise poll every 0.5 s for up to 8 s, then give up.
+/// the dish is in stock, otherwise poll every 0.5 s for up to 12 s, then give up.
 @MainActor
 final class CustomerDirector {
 
@@ -10,6 +10,7 @@ final class CustomerDirector {
         let headPoint: CGPoint      // root space
         let price: Double
         let isGourmet: Bool
+        let footPoint: CGPoint      // root space, on the ground where a tip coin can lie
     }
 
     private enum Phase { case walkingIn, ordering, waiting, reacting, walkingOut }
@@ -32,14 +33,20 @@ final class CustomerDirector {
         }
     }
 
-    static let slotX: [CGFloat] = [46, 80, 113]
+    /// Five queue places 27 px apart: a bubble is ~21 px wide, so neighbours never overlap. Normal
+    /// play fills the middle three; fever opens the outer two.
+    static let slotX: [CGFloat] = [20, 47, 74, 101, 128]
+    private static let slotOrder = [2, 1, 3, 0, 4]
     /// Feet row of a queued customer and of the lane walkers use, in front of them (band-local).
     /// The yard's bushes and crate reach up to street row 29, so feet stay clear of that.
     private static let queueRow: CGFloat = 25
     private static let laneRow: CGFloat = 28
+    /// Where a tip coin lies: just in front of the queue, under the lane.
+    private static let tipRow: CGFloat = 30
     private static let maxConcurrent = 3
+    private static let maxConcurrentFever = 5
     private static let pollInterval: TimeInterval = 0.5
-    private static let maxWait: TimeInterval = 8
+    private static let maxWait: TimeInterval = 12
     private static let reactionPause: TimeInterval = 0.6
     /// Bubble shows this long on arrival before the first sale attempt, so an order is always seen.
     private static let orderingPause: TimeInterval = 0.7
@@ -75,23 +82,23 @@ final class CustomerDirector {
         guard store.progress.isShopNameSet, !store.isSimulationPaused else { return }
         if !isSpawningPaused {
             spawnTimer -= delta
-            if spawnTimer <= 0 { trySpawn(store: store) }
+            if spawnTimer <= 0 { trySpawn(store: store, isFever: isFever) }
         }
-        let speed: CGFloat = isFever ? 46 : 30
+        let speed: CGFloat = isFever ? 56 : 30
         for session in sessions {
             advance(session, delta: delta, speed: speed, store: store)
         }
         sessions.removeAll { $0.node.parent == nil }
     }
 
-    private func trySpawn(store: GameStore) {
-        guard sessions.count < Self.maxConcurrent else { spawnTimer = 1; return }
+    private func trySpawn(store: GameStore, isFever: Bool) {
+        guard sessions.count < (isFever ? Self.maxConcurrentFever : Self.maxConcurrent) else { spawnTimer = 1; return }
         let menu = (0...store.stall.menuTier).randomElement() ?? 0
         let isGourmet = store.rollGourmet()
         let look = isGourmet ? "gourmet" : (Self.looks.randomElement() ?? "man")
         let node = CustomerNode(look: look, wantedDish: "dot_dish_\(Self.dishNames[menu])")
         let held = Set(sessions.map(\.slot))
-        let slot = (0..<Self.maxConcurrent).first { !held.contains($0) } ?? 0
+        let slot = Self.slotOrder.first { !held.contains($0) } ?? 0
         let start = CGPoint(x: rightEntry, y: Self.laneRow)
         let session = Session(node: node, slot: slot, menu: menu, isGourmet: isGourmet, position: start,
                               path: [CGPoint(x: Self.slotX[slot], y: Self.laneRow),
@@ -161,7 +168,8 @@ final class CustomerDirector {
     private func finishServed(_ s: Session, price: Double) {
         s.node.setBubbleVisible(false)
         s.node.showFront()
-        onServed?(ServeEvent(headPoint: headPoint(s), price: price, isGourmet: s.isGourmet))
+        onServed?(ServeEvent(headPoint: headPoint(s), price: price, isGourmet: s.isGourmet,
+                             footPoint: street.rootPoint(s.position.x.rounded(), Self.tipRow)))
         startReaction(s)
     }
 

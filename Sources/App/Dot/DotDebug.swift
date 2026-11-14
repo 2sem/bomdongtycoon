@@ -9,6 +9,13 @@ import GameCore
 ///   -dotFever           keep fever running
 ///   -dotRain            keep it raining
 ///   -dotFeverReady      keep the fever gauge full (the FEVER! button) without starting it
+///   -dotGolden          every plot that ripens turns golden (the sparkle, chime and toast)
+///   -dotTips            every served customer leaves a tip coin that never fades
+///   -dotTapLog          print one line per tap outcome to stderr
+///   -dotMissionsDone    complete all of today's missions (the all-done bonus row)
+///   -dotSpeed N         run the simulation (and the scene's timers) N times faster; 4-8 for a quick play-through
+///   -dotAutoplay        play like an attentive player with no taps, logging a `[DotQA]` line every 30 game seconds
+///   -dotNoFever         with -dotAutoplay: never press the fever button (isolates the base economy)
 ///   -dotDemo            tap a ripe plot, an empty plot and a dish in turn
 ///   -dotPhase morning|noon|dusk|night   freeze the time of day
 ///   -dotSheet upgrades|staff|hire|missions|stats|prestige|tutorial|name|offline   open that screen at launch
@@ -30,10 +37,35 @@ enum DotDebug {
         #endif
     }
 
-    /// Seeded QA runs have nobody to tap the notification prompt.
+    /// Simulation speed multiplier from `-dotSpeed`; always 1 in release.
+    static var speed: Double {
+        #if DEBUG
+        return value(after: "-dotSpeed").flatMap(Double.init).map { max(0.1, min($0, 30)) } ?? 1
+        #else
+        return 1
+        #endif
+    }
+
+    static var autoplaySkipsFever: Bool {
+        #if DEBUG
+        return arguments.contains("-dotNoFever")
+        #else
+        return false
+        #endif
+    }
+
+    static var wantsAutoplay: Bool {
+        #if DEBUG
+        return arguments.contains("-dotAutoplay")
+        #else
+        return false
+        #endif
+    }
+
+    /// Seeded and autoplayed QA runs have nobody to tap the notification prompt.
     static var suppressesSystemPrompts: Bool {
         #if DEBUG
-        return arguments.contains("-dotSeed")
+        return arguments.contains("-dotSeed") || arguments.contains("-dotAutoplay")
         #else
         return false
         #endif
@@ -45,16 +77,46 @@ enum DotDebug {
         guard let i = arguments.firstIndex(of: flag), arguments.indices.contains(i + 1) else { return nil }
         return arguments[i + 1]
     }
+    static var wantsTips: Bool { arguments.contains("-dotTips") }
+    private static let launchTime = Date()
     static var wantsDemo: Bool { arguments.contains("-dotDemo") }
     private static var wantsFever: Bool { arguments.contains("-dotFever") }
+    private static var wantsGolden: Bool { arguments.contains("-dotGolden") }
     private static var wantsRain: Bool { arguments.contains("-dotRain") }
     private static var wantsFeverReady: Bool { arguments.contains("-dotFeverReady") }
     #endif
+
+    /// One line per tap outcome on stdout (`simctl launch --console`), for counting taps that did something.
+    static var alwaysTips: Bool {
+        #if DEBUG
+        return wantsTips
+        #else
+        return false
+        #endif
+    }
+
+    /// The QA line the play-through scripts read: `xcrun simctl launch --console-pty ... | grep '\[DotQA\]'`.
+    static func qa(_ text: String) {
+        #if DEBUG
+        NSLog("[DotQA] %@", text)
+        #endif
+    }
+
+    static func tapLog(_ text: @autoclosure () -> String) {
+        #if DEBUG
+        if arguments.contains("-dotTapLog") { FileHandle.standardError.write(Data("TAP \(text())\n".utf8)) }
+        #endif
+    }
 
     @MainActor
     static func seed(_ store: GameStore) {
         #if DEBUG
         if arguments.contains("-dotResetHints") { FirstRunHint.resetForDebug() }
+        if wantsAutoplay, value(after: "-dotSeed") == nil {
+            // No fingers for the intro: a fresh install is named and started straight away.
+            if store.progress.isFirstLaunch { store.markFirstLaunchComplete() }
+            if !store.progress.isShopNameSet { store.setShopName("QA") }
+        }
         guard let kind = value(after: "-dotSeed") else { return }
         let late = kind == "late"
         let early = kind == "early"
@@ -125,8 +187,17 @@ enum DotDebug {
             for _ in 0..<10 { store.recordServed(waitTime: 0) }
             store.startFever()
         }
-        if wantsFeverReady, !store.isFeverActive, !store.isFeverReady {
+        // Held back 6 s so the first-ready toast lands after the splash instead of behind it.
+        if wantsFeverReady, Date().timeIntervalSince(launchTime) > 6, !store.isFeverActive, !store.isFeverReady {
             for _ in 0..<10 { store.recordServed(waitTime: 0) }
+        }
+        if arguments.contains("-dotMissionsDone"), !store.isDailyBonusReady, !store.isDailyBonusClaimed {
+            store.debugCompleteAllMissions()
+        }
+        if wantsGolden {
+            for i in store.farm.plots.indices where store.farm.plots[i].stage == .ready && !store.farm.plots[i].isGolden {
+                store.farm.plots[i].isGolden = true
+            }
         }
         if wantsRain, store.weather == .clear {
             var guardCount = 0

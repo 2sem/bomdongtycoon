@@ -70,6 +70,12 @@ struct DotWorldLayout: Equatable {
                          y: viewSize.height - backdropScreenTop)
     }
 
+    /// Whether every band lands on the same pixels. The insets alone differ whenever the fever button
+    /// changes height, and that must not rebuild the world (it would wipe customers, tips and pops).
+    func hasSameGeometry(as other: DotWorldLayout) -> Bool {
+        viewSize == other.viewSize && scale == other.scale && origin == other.origin && yardHeight == other.yardHeight
+    }
+
     /// Scene point -> root space (art px, y up).
     func rootPoint(fromScene p: CGPoint) -> CGPoint {
         CGPoint(x: (p.x - origin.x) / scale, y: (p.y - origin.y) / scale)

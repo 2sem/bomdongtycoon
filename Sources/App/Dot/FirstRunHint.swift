@@ -1,4 +1,5 @@
 import SpriteKit
+import SwiftUI
 import UIKit
 import GameCore
 
@@ -6,6 +7,8 @@ import GameCore
 /// so a prestige or a restored save never replays them.
 enum FirstRunHint: String, CaseIterable {
     case harvest, plant, cook
+    /// The first full fever gauge of an install (pointer on the button plus a toast).
+    case fever
 
     private var key: String { "dot.hint.done.\(rawValue)" }
     var isDone: Bool { UserDefaults.standard.bool(forKey: key) }
@@ -21,7 +24,7 @@ enum FirstRunHint: String, CaseIterable {
 @MainActor
 final class HintArrowNode: SKNode {
 
-    private static let rows = [
+    static let rows = [
         ".#######.",
         "#ggggggg#",
         "#ggggggg#",
@@ -83,5 +86,32 @@ final class HintArrowNode: SKNode {
             bob.removeAllActions()
             bob.position = .zero
         }
+    }
+}
+
+/// The same arrow for SwiftUI, pointing down at a button; bobs unless Reduce Motion is on.
+struct HintArrowView: View {
+    private static let pixel: CGFloat = 4
+    @State private var isUp = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Canvas { context, _ in
+            let p = Self.pixel
+            for (y, row) in HintArrowNode.rows.enumerated() {
+                for (x, c) in row.enumerated() where c != "." {
+                    let color: Color = c == "#" ? Color(red: 0x2b / 255, green: 0x1b / 255, blue: 0x2e / 255)
+                                                : Color(red: 0xf4 / 255, green: 0xb9 / 255, blue: 0x3a / 255)
+                    context.fill(Path(CGRect(x: CGFloat(x) * p, y: CGFloat(y) * p, width: p, height: p)), with: .color(color))
+                }
+            }
+        }
+        .frame(width: 9 * Self.pixel, height: CGFloat(HintArrowNode.rows.count) * Self.pixel)
+        .offset(y: isUp && !reduceMotion ? -6 : 0)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 0.45).repeatForever(autoreverses: true)) { isUp = true }
+        }
+        .accessibilityHidden(true)
     }
 }

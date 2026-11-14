@@ -35,11 +35,14 @@ final class DotSound {
         try? AVAudioSession.sharedInstance().setActive(true)
     }
 
-    func play(_ effect: Effect) {
+    /// `volume` below 1 is for cues that should not startle, like the golden-crop chime that
+    /// plays on its own rather than from a tap.
+    func play(_ effect: Effect, volume: Float = 1) {
         guard isEnabled else { return }
         let pool = pools[effect] ?? makePool(effect)
         guard let player = pool.first(where: { !$0.isPlaying }) ?? pool.first else { return }
         player.currentTime = 0
+        player.volume = volume
         player.play()
     }
 

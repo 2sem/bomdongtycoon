@@ -7,8 +7,9 @@ enum NotificationManager {
     nonisolated(unsafe) private static var isRequesting = false
 
     /// Asks only while the status is `.notDetermined`, so it is safe to call
-    /// from every launch and never prompts twice. `GameRootView` calls it once
-    /// the shop is named, so the system alert never stacks on an in-game modal.
+    /// from anywhere and never prompts twice. It is asked for after something the
+    /// player did (first hire, first return from the background), not on a cold
+    /// start, so the system alert never lands on a player who has not played yet.
     /// `isRequesting` covers the async gap between reading the status and the
     /// system recording the answer, where two calls would both see
     /// `.notDetermined`.

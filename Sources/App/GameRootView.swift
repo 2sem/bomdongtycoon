@@ -14,6 +14,8 @@ struct GameRootView: View {
     @State private var coinTarget: CGPoint?
     @State private var locationToast: String?
     @State private var toastTask: Task<Void, Never>?
+    @State private var showFeverPointer = false
+    @State private var lastGoldenToast: Date?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -39,7 +41,13 @@ struct GameRootView: View {
                 HStack {
                     Spacer()
                     FeverButton()
+                        .overlay(alignment: .top) {
+                            if showFeverPointer { HintArrowView().offset(y: -32) }
+                        }
                 }
+                // Fixed height: the charging, ready and active forms differ by a point, and the scene
+                // rebuilds the whole world (customers, tips, pops) whenever the bottom inset moves.
+                .frame(height: FeverButton.slotHeight, alignment: .bottom)
                 .padding(.horizontal, 8)
                 .padding(.bottom, 8)
                 DotTabBar(
@@ -72,14 +80,29 @@ struct GameRootView: View {
         }
         .onAppear {
             store.isSimulationPaused = isIntroOverlayUp
-            if store.progress.isShopNameSet { NotificationManager.requestPermissionIfUndetermined() }
             openDebugSheet()
         }
         .onChange(of: isIntroOverlayUp) { _, isUp in
             store.isSimulationPaused = isUp
         }
-        .onChange(of: store.progress.isShopNameSet) { _, isSet in
-            if isSet { NotificationManager.requestPermissionIfUndetermined() }
+        // The system prompt waits for something the player has done: the first hire (any worker),
+        // or the first return from the background (see `BomDongTycoonApp`).
+        .onChange(of: headcount) { old, new in
+            if new > old { NotificationManager.requestPermissionIfUndetermined() }
+        }
+        .onChange(of: store.isFeverReady) { _, isReady in
+            guard isReady, !isIntroOverlayUp, !FirstRunHint.fever.isDone else { return }
+            FirstRunHint.fever.markDone()
+            showFeverPointer = true
+            showToast(String(format: String(localized: "dot.fever.firstReady"), Int(FeverSystem.duration)),
+                      announcement: String(format: String(localized: "dot.fever.firstReady"), Int(FeverSystem.duration)))
+        }
+        // The pointer only makes sense while the button says FEVER!: the gauge decays if it is ignored.
+        .onChange(of: store.isFeverReady) { _, isReady in
+            if !isReady { showFeverPointer = false }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .goldenPlotRipened)) { _ in
+            showGoldenToast()
         }
         .modifier(AddFarmPlotConfirmation())
         .modifier(ExpandWarehouseConfirmation())
@@ -113,6 +136,20 @@ struct GameRootView: View {
         case "prestige": showPrestige = true
         default: break
         }
+    }
+
+    private var headcount: Int {
+        store.stall.staffCount + store.stall.farmerCount + store.stall.veteranAlbaCount
+    }
+
+    private static let goldenToastCooldown: TimeInterval = 45
+
+    private func showGoldenToast() {
+        guard !isIntroOverlayUp else { return }
+        if let last = lastGoldenToast, Date().timeIntervalSince(last) < Self.goldenToastCooldown { return }
+        lastGoldenToast = Date()
+        let text = String(localized: "dot.toast.golden")
+        showToast(text, announcement: text)
     }
 
     private var isIntroOverlayUp: Bool {

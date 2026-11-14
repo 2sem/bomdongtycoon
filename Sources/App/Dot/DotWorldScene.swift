@@ -9,6 +9,8 @@ extension Notification.Name {
     static let requestAddFarmPlot = Notification.Name("requestAddFarmPlot")
     /// Posted when the warehouse crate is tapped; `ExpandWarehouseConfirmation` owns the alert and purchase.
     static let requestExpandWarehouse = Notification.Name("requestExpandWarehouse")
+    /// Posted when a plot ripens golden; the HUD shows a rate-limited toast.
+    static let goldenPlotRipened = Notification.Name("goldenPlotRipened")
 }
 
 /// The whole game scene as 2D pixel art. One root node is scaled by `layout.scale` points per
@@ -41,7 +43,7 @@ final class DotWorldScene: SKScene {
     private let root = SKNode()
     private let veil = SKSpriteNode(color: SKColor(hex: 0x2b1b2e), size: .zero)
 
-    private var layout: DotWorldLayout?
+    var layout: DotWorldLayout?
     private var needsLayout = true
     private var lastUpdate: TimeInterval = 0
 
@@ -49,9 +51,15 @@ final class DotWorldScene: SKScene {
     private var groundNode: SKSpriteNode?
     private var shop: ShopNode?
     private var yard: YardNode?
-    private var farm: FarmNode?
+    var farm: FarmNode?
     private var director: CustomerDirector?
     private var fx: FXLayer?
+    var tipLayer: TipLayer?
+    #if DEBUG
+    var autoplayState = AutoplayState()
+    #endif
+    private let feverTally = PixelLabel(style: .bold, color: SKColor(hex: 0xffe680))
+    private var knownGolden: Set<Int>?
     private var rain: RainNode?
     private var tint: SKSpriteNode?
     private var feverGlow: SKSpriteNode?
@@ -90,11 +98,15 @@ final class DotWorldScene: SKScene {
 
     // MARK: Build
 
-    private func rebuildWorld() {
+    private func rebuildWorld(force: Bool = false) {
         needsLayout = false
         guard size.width > 0, size.height > 0 else { return }
         let scaleFactor = view?.window?.screen.scale ?? UIScreen.main.scale
         let layout = DotWorldLayout(viewSize: size, topInset: topInset, bottomInset: bottomInset, screenScale: scaleFactor)
+        if !force, let current = self.layout, current.hasSameGeometry(as: layout), !root.children.isEmpty {
+            self.layout = layout
+            return
+        }
         self.layout = layout
         veil.size = size
         veil.position = CGPoint(x: size.width / 2, y: size.height / 2)
@@ -125,6 +137,12 @@ final class DotWorldScene: SKScene {
         }
         director.onSparkle = { [weak self] point in self?.fx?.sparkle(at: point) }
         let rain = RainNode(layout: layout, fx: fx)
+        let tips = TipLayer()
+        feverTally.removeFromParent()
+        feverTally.position = CGPoint(x: CGFloat(DotWorldLayout.width) / 2, y: -CGFloat(layout.shopTop - 8))
+        feverTally.zPosition = 20
+        feverTally.isHidden = true
+        fx.addChild(feverTally)
 
         let width = layout.rightEdge - layout.leftEdge
         let height = layout.bottomEdge - layout.topEdge
@@ -140,8 +158,9 @@ final class DotWorldScene: SKScene {
 
         let hint = HintArrowNode()
         hint.zPosition = 5900
-        for node in [backdrop, ground, shop, street, yard, farm, decor, rain, tint, glow, labels, hint, fx] as [SKNode] { root.addChild(node) }
+        for node in [backdrop, ground, shop, street, yard, farm, decor, rain, tint, glow, labels, tips, hint, fx] as [SKNode] { root.addChild(node) }
         hintArrow = hint
+        tipLayer = tips
         self.fx = fx; self.backdrop = backdrop; groundNode = ground; self.shop = shop
         self.yard = yard; self.farm = farm; self.director = director; self.rain = rain
         self.tint = tint; feverGlow = glow
@@ -150,7 +169,7 @@ final class DotWorldScene: SKScene {
     // MARK: Frame
 
     override func update(_ currentTime: TimeInterval) {
-        let delta = lastUpdate == 0 ? 0 : min(currentTime - lastUpdate, 1.0 / 3.0)
+        let delta = (lastUpdate == 0 ? 0 : min(currentTime - lastUpdate, 1.0 / 3.0)) * DotDebug.speed
         lastUpdate = currentTime
         if needsLayout, store != nil { rebuildWorld() }
         guard let store, layout != nil else { return }
@@ -163,8 +182,10 @@ final class DotWorldScene: SKScene {
 
         DotDebug.keepAlive(store)
         demo(delta: delta, store: store)
+        autoplay(delta: delta, store: store)
         store.tick(deltaTime: delta)
         director?.update(delta: delta, store: store, isFever: store.isFeverActive, reduceMotion: reduceMotion)
+        tipLayer?.update(delta: delta)
         checkLocation(store.stall.locationTier)
         applyState(store, delta: delta)
     }
@@ -205,6 +226,7 @@ final class DotWorldScene: SKScene {
 
         let fever = store.isFeverActive
         if fever, !wasFever { sound.play(.feverStart) }
+        updateFeverTally(store, isFever: fever, fx: fx)
         wasFever = fever
         feverClock += delta
         let target: CGFloat = fever ? 1 : 0
@@ -221,7 +243,40 @@ final class DotWorldScene: SKScene {
         let starved = isWarehouseStarved(store)
         yard.setAlert(starved, reduceMotion: reduce)
         farm.apply(farm: store.farm, canAddPlot: canAddPlot(store), pulseRipe: starved, reduceMotion: reduce)
+        announceGoldenPlots(store, farm: farm, fx: fx)
         updateHint(store, shop: shop, farm: farm)
+    }
+
+    // MARK: Fever tally
+
+    /// Running "피버 수익" over the shop while fever lasts, then one big pop when it ends.
+    private func updateFeverTally(_ store: GameStore, isFever: Bool, fx: FXLayer) {
+        if isFever {
+            feverTally.isHidden = false
+            feverTally.text = String(format: String(localized: "dot.fever.tally"), CoinFormat.string(store.feverEarned))
+        } else if wasFever {
+            feverTally.isHidden = true
+            guard store.feverEarned > 0, let layout else { return }
+            fx.pop(String(format: String(localized: "dot.fever.tally"), CoinFormat.string(store.feverEarned)),
+                   at: CGPoint(x: CGFloat(DotWorldLayout.width) / 2, y: -CGFloat(layout.shopTop + 22)),
+                   color: SKColor(hex: 0xffe680), rise: 16, hold: 1.2)
+            fx.successHaptic()
+        }
+    }
+
+    // MARK: Golden plots
+
+    /// A plot that has just ripened golden gets a burst, a soft chime and a HUD toast. Plots that
+    /// are already golden when the scene first looks are not announced again.
+    private func announceGoldenPlots(_ store: GameStore, farm: FarmNode, fx: FXLayer) {
+        let current = Set(store.farm.plots.indices.filter { store.farm.plots[$0].stage == .ready && store.farm.plots[$0].isGolden })
+        defer { knownGolden = current }
+        guard let known = knownGolden else { return }
+        let fresh = current.subtracting(known)
+        guard !fresh.isEmpty else { return }
+        for index in fresh.sorted() { fx.sparkleBurst(at: farm.plotCenter(index), radius: 14) }
+        sound.play(.golden, volume: 0.35)
+        NotificationCenter.default.post(name: .goldenPlotRipened, object: nil)
     }
 
     /// Nothing to cook with while a dish the player could sell is out of stock.
@@ -262,7 +317,7 @@ final class DotWorldScene: SKScene {
         fx.sparkle(at: feetPoint(x.rounded(), y.rounded()))
     }
 
-    private func canAddPlot(_ store: GameStore) -> Bool {
+    func canAddPlot(_ store: GameStore) -> Bool {
         FarmSystem.costForNextPlot(currentCount: store.farm.plots.count) != nil
     }
 
@@ -273,7 +328,11 @@ final class DotWorldScene: SKScene {
         fx.reaction("dot_fx_heart", at: event.headPoint)
         // Low and short-lived: higher, a fever pop climbs over the counter's padlocks.
         fx.pop("+\(CoinFormat.string(event.price))", at: CGPoint(x: event.headPoint.x, y: event.headPoint.y - 2),
-               color: SKColor(hex: event.isGourmet ? 0xffe680 : 0xf4b93a), rise: 6)
+               color: SKColor(hex: event.isGourmet ? 0xffe680 : 0xf4b93a), rise: 6, big: store?.isFeverActive == true)
+        if let store, store.rollTip(isGourmet: event.isGourmet) || DotDebug.alwaysTips {
+            tipLayer?.drop(at: event.footPoint, amount: GameStore.tipAmount(forSale: event.price, isGourmet: event.isGourmet),
+                           reduceMotion: reduceMotion)
+        }
         fx.flyCoins(from: shop.tillRootPoint, to: layout.rootPoint(fromScene: coinTargetScenePoint),
                     count: event.isGourmet ? 6 : 3)
         sound.play(.coin)
@@ -318,7 +377,7 @@ final class DotWorldScene: SKScene {
         let out = SKAction.fadeAlpha(to: 1, duration: fadeOut)
         out.timingMode = .easeIn
         let swap = SKAction.run { [weak self] in
-            self?.rebuildWorld()
+            self?.rebuildWorld(force: true)
         }
         let back = SKAction.fadeAlpha(to: 0, duration: fadeIn)
         back.timingMode = .easeOut
@@ -354,7 +413,9 @@ final class DotWorldScene: SKScene {
     private func handleTap(at scenePoint: CGPoint) {
         guard !isRunTransitionActive, let store, let layout, let farm, let shop, let yard else { return }
         let p = layout.rootPoint(fromScene: scenePoint)
-        if let hit = farm.hit(local: farm.local(fromRoot: p), plotCount: store.farm.plots.count, canAdd: canAddPlot(store)) {
+        if let tip = tipLayer?.collect(at: p) {
+            collectTip(tip, store: store, layout: layout)
+        } else if let hit = farm.hit(local: farm.local(fromRoot: p), plotCount: store.farm.plots.count, canAdd: canAddPlot(store)) {
             handleFarmTap(hit, store: store)
         } else if let menu = shop.menuIndex(atLocal: shop.local(fromRoot: p)) {
             handleDishTap(menu, store: store)
@@ -365,7 +426,19 @@ final class DotWorldScene: SKScene {
         }
     }
 
-    private func handleDishTap(_ menu: Int, store: GameStore) {
+    func collectTip(_ tip: (amount: Double, point: CGPoint), store: GameStore, layout: DotWorldLayout) {
+        guard let fx else { return }
+        DotDebug.tapLog("tip ok")
+        store.collectTip(amount: tip.amount)
+        fx.sparkle(at: tip.point)
+        fx.pop("+\(CoinFormat.string(tip.amount))", at: CGPoint(x: tip.point.x, y: tip.point.y + 6),
+               color: SKColor(hex: 0xffe680), rise: 10)
+        fx.flyCoins(from: tip.point, to: layout.rootPoint(fromScene: coinTargetScenePoint), count: 2)
+        fx.lightHaptic()
+        sound.play(.coin)
+    }
+
+    func handleDishTap(_ menu: Int, store: GameStore) {
         guard let shop, let fx else { return }
         guard menu <= store.stall.menuTier else {
             shop.shakeLock(menu: menu, reduceMotion: reduceMotion)
@@ -373,6 +446,7 @@ final class DotWorldScene: SKScene {
             return
         }
         if store.startManualCook(menuIndex: menu) {
+            DotDebug.tapLog("dish ok")
             if menu == 0 { FirstRunHint.cook.markDone() }
             shop.pulse(menu: menu, reduceMotion: reduceMotion)
             fx.puff(at: shop.dishPoint(menu))
@@ -380,6 +454,7 @@ final class DotWorldScene: SKScene {
             sound.play(.tap)
             return
         }
+        DotDebug.tapLog("dish none")
         // A tap that starts nothing still answers: a shake, and a sound limited so mashing stays calm.
         shop.shakeDish(menu: menu, reduceMotion: reduceMotion)
         let now = CACurrentMediaTime()
@@ -389,7 +464,7 @@ final class DotWorldScene: SKScene {
         sound.play(isCooking ? .tap : .error)
     }
 
-    private func handleFarmTap(_ hit: FarmNode.Hit, store: GameStore) {
+    func handleFarmTap(_ hit: FarmNode.Hit, store: GameStore) {
         guard let farm, let fx else { return }
         switch hit {
         case .addPlot:
@@ -402,6 +477,7 @@ final class DotWorldScene: SKScene {
             case .empty:
                 store.plantSeed(plotIndex: index)
                 if store.farm.plots[index].isPlanted {
+                    DotDebug.tapLog("plant ok")
                     FirstRunHint.plant.markDone()
                     farm.apply(farm: store.farm, canAddPlot: canAddPlot(store), reduceMotion: reduceMotion)
                     farm.bump(plot: index, reduceMotion: reduceMotion)
@@ -428,6 +504,7 @@ final class DotWorldScene: SKScene {
             sound.play(.error)
             return
         }
+        DotDebug.tapLog(result.isGolden ? "harvest golden ok" : "harvest ok")
         FirstRunHint.harvest.markDone()
         farm.apply(farm: store.farm, canAddPlot: canAddPlot(store), reduceMotion: reduceMotion)
         let from = farm.plotCenter(index)

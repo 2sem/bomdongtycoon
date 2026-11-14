@@ -9,6 +9,9 @@ final class ShopNode: BandNode {
 
     private static let dishX: [CGFloat] = [30, 63, 96]
     private static let dishY: CGFloat = 50
+    /// Stock badge baseline, in band-local art px: right of the bowl's rim and above the bubbles' top (y 44).
+    private static let badgeDX: CGFloat = 6
+    private static let badgeY: CGFloat = 40
     private static let cookX: [CGFloat] = [15, 48, 81]
     private static let cashierSlot = CGPoint(x: 118, y: 49)
     private static let dishNames = ["geotjeori", "kimchi", "bibimbap"]
@@ -31,6 +34,8 @@ final class ShopNode: BandNode {
         let barFrame = dotSprite("dot_ui_bar_frame", anchor: .topLeft)
         let barFill = dotSprite("dot_ui_bar_fill", anchor: .topLeft)
         let count: PixelLabel
+        /// Ink plate behind the stock count; sized to the digits in `apply`.
+        let plate = SKSpriteNode(color: SKColor(hex: 0x2b1b2e), size: CGSize(width: 8, height: 10))
         let cook = StaffFigure()
         var dishName = ""
         init(scale: CGFloat) { count = PixelLabel(style: .tiny, scale: scale, alignment: .left) }
@@ -79,7 +84,13 @@ final class ShopNode: BandNode {
             slot.barFill.position = CGPoint(x: 2, y: -2)
             slot.barFill.zPosition = 0.1
             slot.barFrame.addChild(slot.barFill)
-            slot.count.position = rootPoint(x + 13, 61)
+            // Stock badge at the dish's upper right on the back wall: customers' order bubbles and the
+            // "+N" pops live over the counter front below it, so nothing ever overlaps the number.
+            let badge = rootPoint(x + Self.badgeDX, Self.badgeY)
+            slot.plate.anchorPoint = CGPoint(x: 0, y: 0)
+            slot.plate.alpha = 0.8
+            slot.plate.position = CGPoint(x: badge.x - 1, y: badge.y - 2)
+            slot.count.position = badge
             slot.cook.position = feetPoint(Self.cookX[i], 49)
 
             staffLayer.addChild(slot.cook)
@@ -87,6 +98,7 @@ final class ShopNode: BandNode {
             dishLayer.addChild(slot.pot)
             dishLayer.addChild(slot.lock)
             barLayer.addChild(slot.barFrame)
+            labelLayer.addChild(slot.plate)
             labelLayer.addChild(slot.count)
             slots.append(slot)
         }
@@ -159,6 +171,7 @@ final class ShopNode: BandNode {
             slot.lock.isHidden = unlocked
             slot.dish.isHidden = !unlocked
             slot.count.isHidden = !unlocked
+            slot.plate.isHidden = !unlocked
             slot.pot.isHidden = !(unlocked && snapshot.cooking[i] && snapshot.stock[i] == 0)
             slot.barFrame.isHidden = !(unlocked && snapshot.cooking[i])
             if unlocked {
@@ -168,6 +181,7 @@ final class ShopNode: BandNode {
                     slot.dish.texture = DotTexture.named(name)
                 }
                 slot.count.text = "\(snapshot.stock[i])"
+                slot.plate.size.width = CGFloat(String(snapshot.stock[i]).count * 5 + 2)
                 slot.barFill.isHidden = snapshot.barPx[i] == 0
                 slot.barFill.size = CGSize(width: CGFloat(max(snapshot.barPx[i], 2)), height: 4)
             }

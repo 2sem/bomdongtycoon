@@ -69,16 +69,25 @@ final class FXLayer: SKNode {
         ]))
     }
 
-    /// Floating label; `bold` is the larger pop used for money.
-    func pop(_ text: String, at point: CGPoint, color: SKColor, bold: Bool = true, rise: CGFloat = 14) {
+    /// Floating label; `bold` is the larger pop used for money. `big` doubles it (whole art pixels,
+    /// so glyphs stay on the grid) for fever sales and the fever summary.
+    func pop(_ text: String, at point: CGPoint, color: SKColor, bold: Bool = true, rise: CGFloat = 14,
+             big: Bool = false, hold: TimeInterval = 0) {
         let label = PixelLabel(style: bold ? .bold : .small, scale: scale, color: color)
         label.text = text
         label.position = CGPoint(x: point.x.rounded(), y: point.y.rounded())
         label.zPosition = 10
+        if big {
+            label.setScale(2)
+            // A doubled "+3,750" is ~80 art px wide: keep it inside the 144 px column instead of off the screen edge.
+            let half = CGFloat(text.count) * 7
+            label.position.x = min(max(label.position.x, half), 144 - half)
+        }
         addChild(label)
         let lift: CGFloat = reduceMotion ? 0 : rise
         label.run(.sequence([
-            .group([.moveBy(x: 0, y: lift, duration: 0.9), .sequence([.wait(forDuration: 0.55), .fadeOut(withDuration: 0.35)])]),
+            .group([.moveBy(x: 0, y: lift, duration: 0.9 + hold),
+                    .sequence([.wait(forDuration: 0.55 + hold), .fadeOut(withDuration: 0.35)])]),
             .removeFromParent(),
         ]))
     }
@@ -153,8 +162,8 @@ final class FXLayer: SKNode {
         node.userData?["restX"] = x
         node.position.x = x
         node.run(.sequence([
-            .moveTo(x: x - 1, duration: 0.04), .moveTo(x: x + 1, duration: 0.04),
-            .moveTo(x: x - 1, duration: 0.04), .moveTo(x: x, duration: 0.04),
+            .moveTo(x: x - 2, duration: 0.04), .moveTo(x: x + 2, duration: 0.04),
+            .moveTo(x: x - 2, duration: 0.04), .moveTo(x: x, duration: 0.04),
         ]), withKey: "shake")
     }
 }
