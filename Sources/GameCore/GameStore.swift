@@ -227,6 +227,7 @@ public final class GameStore: ObservableObject {
             refreshMissionsIfNeeded()
         }
         let growRate   = FarmSystem.growthRate(for: farm) * WeatherSystem.growthMultiplier(transients.weather)
+            * (FeverSystem.isActive(transients.fever) ? FeverSystem.growthMultiplier : 1)
 
         let activePlots = FarmSystem.activePlotCount(for: farm);
 
@@ -590,6 +591,13 @@ public final class GameStore: ObservableObject {
         let mission = missionState.missions[index]
         missionState.missions[index].progress = min(mission.target, mission.progress + amount)
     }
+
+    #if DEBUG
+    /// QA only (`-dotMissionsDone`): marks every mission of the day complete.
+    public func debugCompleteAllMissions() {
+        for i in missionState.missions.indices { missionState.missions[i].progress = missionState.missions[i].target }
+    }
+    #endif
 
     func replaceMissionsForTesting(_ state: MissionState) { missionState = state }
 

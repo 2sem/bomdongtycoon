@@ -58,6 +58,18 @@ final class FunPassTests: DotWorldTestCase {
         XCTAssertEqual(store.feverEarned, 0)
     }
 
+    func test_fever_cropsRipenThreeTimesFaster() {
+        store.farm.plots[1].isPlanted = true
+        store.farm.plots[1].growth = 0
+        store.tick(deltaTime: 3)
+        let normal = store.farm.plots[1].growth
+        store.farm.plots[1].growth = 0
+        chargeFever()
+        store.startFever()
+        store.tick(deltaTime: 3)
+        XCTAssertEqual(store.farm.plots[1].growth, normal * 3, accuracy: 1e-9)
+    }
+
     // MARK: Tips
 
     func test_rollTip_twentyPercent_thirtyFivePercentInFever_gourmetAlways() {

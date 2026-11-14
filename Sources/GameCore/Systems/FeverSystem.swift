@@ -18,6 +18,9 @@ public enum FeverSystem {
     public static let duration: Double = 15.0
     public static let priceMultiplier: Double = 2.0
     public static let spawnIntervalMultiplier: Double = 0.35
+    /// Crops ripen this much faster during fever (12 s -> 4 s). Instant tap cooking drains the
+    /// warehouse in about seven seconds; without this the last half of the rush has nothing to tap.
+    public static let growthMultiplier: Double = 3
 
     /// Ten serves sum to 0.9999999999999999 in floating point; "full" must tolerate that.
     private static let fullTolerance = 1e-9
