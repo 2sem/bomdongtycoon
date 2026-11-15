@@ -256,6 +256,58 @@ def app_icon():
     img.save(os.path.join(OUT, "appicon_1024.png"))
 
 
+LAUNCH = os.path.join(REPO, "Resources", "Assets.xcassets", "Launch")
+LAUNCH_TITLES = {None: "봄동 타이쿤", "en": "Bomdong Tycoon"}   # None = every other language
+LAUNCH_PT = {"LaunchLogo": 4, "LaunchTitle": 2}                # points per art pixel
+
+
+def launch_title(text):
+    """The splash title: Galmuri11-Bold on its 12 px grid, paper with a 1 px ink drop."""
+    from PIL import ImageFont
+    font = ImageFont.truetype(os.path.join(REPO, "Resources", "Fonts", "Galmuri11-Bold.ttf"), 12)
+    x0, y0, x1, y1 = font.getbbox(text)
+    img = Image.new("RGBA", (x1 - x0, y1 - y0 + 1), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.fontmode = "1"
+    d.text((-x0, -y0 + 1), text, font=font, fill="#" + PALETTE["ink"])
+    d.text((-x0, -y0), text, font=font, fill="#" + PALETTE["paper"])
+    return img
+
+
+def launch(assets):
+    """Logo and title for LaunchScreen.storyboard and SplashView, which must look identical.
+
+    A storyboard image view cannot ask for nearest-neighbour scaling or a bundled font, so both
+    are baked here at 2x and 3x with every art pixel already a whole block of device pixels."""
+    if os.path.isdir(LAUNCH):
+        shutil.rmtree(LAUNCH)
+    os.makedirs(LAUNCH)
+    write_json(os.path.join(LAUNCH, "Contents.json"), FOLDER_JSON)
+    logo = next(a for a in assets if a.group == "ui" and a.name == "logo").frames[0][1].to_image()
+    sets = {"LaunchLogo": {None: logo},
+            "LaunchTitle": {loc: launch_title(t) for loc, t in LAUNCH_TITLES.items()}}
+    for name, by_locale in sets.items():
+        d = os.path.join(LAUNCH, f"{name}.imageset")
+        os.makedirs(d)
+        images = []
+        for loc, img in by_locale.items():
+            for scale in (2, 3):
+                k = LAUNCH_PT[name] * scale
+                fn = f"{name}{'_' + loc if loc else ''}@{scale}x.png"
+                img.resize((img.width * k, img.height * k), Image.NEAREST).save(os.path.join(d, fn))
+                entry = {"filename": fn, "idiom": "universal", "scale": f"{scale}x"}
+                if loc:
+                    entry["locale"] = loc
+                images.append(entry)
+        data = {"images": images, "info": {"author": "xcode", "version": 1}}
+        if len(by_locale) > 1:
+            data["properties"] = {"localizable": True}
+        write_json(os.path.join(d, "Contents.json"), data)
+        pt = LAUNCH_PT[name]
+        print(f"{name}: " + ", ".join(f"{loc or 'base'} {i.width * pt}x{i.height * pt} pt"
+                                      for loc, i in by_locale.items()))
+
+
 def manifest(assets):
     from sfx import SOUNDS
     L = ["# Dot sprite manifest", "",
@@ -346,6 +398,7 @@ def main():
     app_icon()
     manifest(assets)
     if not args.no_install:
+        launch(assets)
         install(assets)
     print(f"{len(assets)} assets, {len(names)} images; review sheets in {os.path.relpath(OUT, REPO)}")
 
