@@ -166,7 +166,8 @@ final class TolerantSaveDecodingTests: XCTestCase {
             // Prestige core. `fastestRunSeconds` is nil until a spring, so it is omitted by default.
             "prestigeCount", "totalPlaySeconds", "runBaselinePlaySeconds", "runBaselineEarned",
             "runBaselineServed", "runBaselineFailed", "bestRating", "hasSeenPrestigeIntro",
-            "totalGourmetServed", "totalGoldenHarvested", "totalFevers", "totalTipsCollected"])
+            "totalGourmetServed", "totalGoldenHarvested", "totalFevers", "totalTipsCollected",
+            "totalWagesPaid", "lastWageDay"])
         XCTAssertEqual(Set(try json(FarmState()).keys), ["plots"])
         XCTAssertEqual(Set(try json(FarmPlot()).keys), ["growth", "isPlanted", "workerType", "workerEnergy", "workerResting", "isGolden"])
     }

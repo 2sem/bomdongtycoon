@@ -218,7 +218,8 @@ final class SaveResilienceTests: XCTestCase {
             // Prestige core. `fastestRunSeconds` is nil until a spring, so it is omitted by default.
             "prestigeCount", "totalPlaySeconds", "runBaselinePlaySeconds", "runBaselineEarned",
             "runBaselineServed", "runBaselineFailed", "bestRating", "hasSeenPrestigeIntro",
-            "totalGourmetServed", "totalGoldenHarvested", "totalFevers", "totalTipsCollected"])
+            "totalGourmetServed", "totalGoldenHarvested", "totalFevers", "totalTipsCollected",
+            "totalWagesPaid", "lastWageDay"])
         XCTAssertEqual(try keys(FarmState()), ["plots"])
         XCTAssertEqual(try keys(FarmPlot()), ["growth", "isPlanted", "workerType", "workerEnergy", "workerResting", "isGolden"])
         XCTAssertEqual(try keys(StallState()), [

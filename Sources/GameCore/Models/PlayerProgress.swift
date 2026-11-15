@@ -31,6 +31,10 @@ public struct PlayerProgress: Codable {
     public var totalGoldenHarvested: Int = 0
     public var totalFevers: Int = 0
     public var totalTipsCollected: Int = 0
+    public var totalWagesPaid: Double = 0
+    /// The last day (`DayCycle.dayIndex`) whose wages were settled. A save from before wages starts
+    /// at its current day, so nobody is back-charged for the play time already behind it.
+    public var lastWageDay: Int = 0
 
     public init() {}
 
@@ -67,5 +71,8 @@ public struct PlayerProgress: Codable {
         totalGoldenHarvested   = max(0, c.decodeOrDefault(.totalGoldenHarvested, d.totalGoldenHarvested))
         totalFevers            = max(0, c.decodeOrDefault(.totalFevers, d.totalFevers))
         totalTipsCollected     = max(0, c.decodeOrDefault(.totalTipsCollected, d.totalTipsCollected))
+        totalWagesPaid         = max(0, c.decodeOrDefault(.totalWagesPaid, d.totalWagesPaid))
+        lastWageDay            = max(0, c.decodeOrNil(Int.self, forKey: .lastWageDay)
+                                    ?? DayCycle.dayIndex(playSeconds: totalPlaySeconds))
     }
 }

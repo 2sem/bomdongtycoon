@@ -17,6 +17,16 @@ public final class GameStore: ObservableObject {
     @Published public private(set) var missionState: MissionState
     /// 봄바람 부스트 end and cooldown, as wall-clock dates so a killed app neither refunds nor loses them.
     @Published public private(set) var adState = AdRewardState()
+    /// The latest payday, for the HUD toast and sound. `id` changes on every payday that owed something.
+    @Published public private(set) var payday: Payday?
+
+    public struct Payday: Equatable {
+        public let id: Int
+        public let paid: Double
+        public let paidCount: Int
+        public let unpaidCount: Int
+    }
+    private var paydayCount = 0
 
     /// Set by the UI while the tutorial or shop-name overlay is up. Frozen
     /// time: `tick` is a no-op and offline earnings are not computed, so a
@@ -252,6 +262,7 @@ public final class GameStore: ObservableObject {
         guard !isSimulationPaused else { return }
         // Play time is held in memory and rides the 5 s activity save below; no extra disk writes.
         if isAppActive { progress.totalPlaySeconds += deltaTime }
+        settleWagesIfDue()
         transients.clock += deltaTime
         FeverSystem.tick(&transients.fever, deltaTime: deltaTime)
         transients.adFeverCooldown = max(0, transients.adFeverCooldown - deltaTime)
@@ -407,6 +418,31 @@ public final class GameStore: ObservableObject {
             }
         }
     }
+
+    /// One settlement per day boundary crossed, in order, so a long tick cannot skip a payday and
+    /// a day never pays twice. Offline time is not play time and never reaches this.
+    private func settleWagesIfDue() {
+        let today = DayCycle.dayIndex(playSeconds: progress.totalPlaySeconds)
+        guard today > progress.lastWageDay else { return }
+        normalizeIdlePools()
+        var total = WageSystem.Settlement()
+        while progress.lastWageDay < today {
+            progress.lastWageDay += 1
+            let day = WageSystem.settle(stall: &stall, farm: &farm)
+            total.paid += day.paid; total.paidCount += day.paidCount; total.unpaidCount += day.unpaidCount
+        }
+        guard total.paidCount + total.unpaidCount > 0 else { return }
+        progress.totalWagesPaid += total.paid
+        paydayCount += 1
+        payday = Payday(id: paydayCount, paid: total.paid, paidCount: total.paidCount, unpaidCount: total.unpaidCount)
+        save()
+    }
+
+    /// What the next payday will cost with today's staff.
+    public var dailyPayroll: Double { WageSystem.payroll(stall: stall) }
+
+    /// Play seconds until the next payday.
+    public var secondsUntilPayday: Double { DayCycle.secondsUntilNextDay(playSeconds: progress.totalPlaySeconds) }
 
     private func advanceGoldenAges(deltaTime: Double) {
         for i in farm.plots.indices {
@@ -1317,6 +1353,89 @@ public final class GameStore: ObservableObject {
         return HireResult(tier: tier, placement: placement)
     }
 
+    // MARK: - Firing
+
+    /// Who to let go: the worker at a post, or a benched one (`index` into that tier's idle pool).
+    public enum FireTarget: Equatable {
+        case cook(menuIndex: Int), cashier, farm(plotIndex: Int), idle(tier: Int, index: Int)
+    }
+
+    /// Lets one worker go for good: the post is freed as `remove*` would but she does not return
+    /// to the bench, and the headcount drops. No refund; hiring again pays the full price.
+    /// `staffTier` stays: it is the highest tier ever hired, which the goal bar and the gift
+    /// crate read as progress, so letting someone go never sets the player back.
+    /// False, changing nothing, when the target does not hold a worker.
+    @discardableResult
+    public func fireWorker(_ target: FireTarget) -> Bool {
+        let tier: Int
+        switch target {
+        case .cook(let i):
+            guard stall.menuCooks.indices.contains(i), stall.menuCooks[i] > 0 else { return false }
+            tier = stall.menuCooks[i]
+            removeMenuCook(menuIndex: i, addToIdle: false)
+            transients.cookAccumulators[i] = 0
+        case .cashier:
+            guard stall.cashierCount > 0 else { return false }
+            tier = stall.cashierTier
+            removeFromCashier(addToIdle: false)
+        case .farm(let i):
+            guard farm.plots.indices.contains(i), farm.plots[i].hasWorker else { return false }
+            switch farm.plots[i].workerType {
+            case .alba: tier = 1
+            case .farmer: tier = 4
+            case .veteranAlba: tier = 5
+            case .none: return false
+            }
+            toggleFarmWorker(plotIndex: i, addToIdle: false)
+        case .idle(let t, let index):
+            guard (1...5).contains(t), benchedCount(tier: t) > 0 else { return false }
+            tier = t
+            removeIdleEntry(tier: t, index: index)
+        }
+        decrementCount(for: tier)
+        if let wake = workerTarget(for: target) { transients.lastWake[wake] = nil }
+        normalizeIdlePools()
+        save()
+        return true
+    }
+
+    private func benchedCount(tier: Int) -> Int {
+        tier == 4 ? availableFarmers : unassignedCount(for: tier)
+    }
+
+    private func workerTarget(for target: FireTarget) -> WorkerTarget? {
+        switch target {
+        case .cook(let i): .cook(menuIndex: i)
+        case .cashier: .cashier
+        case .farm(let i): .farm(plotIndex: i)
+        case .idle: nil
+        }
+    }
+
+    private func removeIdleEntry(tier: Int, index: Int) {
+        func drop(_ pool: inout [Double]) {
+            guard !pool.isEmpty else { return }
+            pool.remove(at: min(max(index, 0), pool.count - 1))
+        }
+        switch tier {
+        case 1: drop(&stall.tier1IdleEnergies)
+        case 2: drop(&stall.tier2IdleEnergies)
+        case 3: drop(&stall.tier3IdleEnergies)
+        case 4: drop(&stall.farmerIdleEnergies)
+        default: drop(&stall.veteranAlbaIdleEnergies)
+        }
+    }
+
+    private func decrementCount(for tier: Int) {
+        switch tier {
+        case 1: stall.tier1Count = max(0, stall.tier1Count - 1)
+        case 2: stall.tier2Count = max(0, stall.tier2Count - 1)
+        case 3: stall.tier3Count = max(0, stall.tier3Count - 1)
+        case 4: stall.farmerCount = max(0, stall.farmerCount - 1)
+        default: stall.veteranAlbaCount = max(0, stall.veteranAlbaCount - 1)
+        }
+    }
+
     /// Upgrade one idle worker from `tier` to `tier + 1`, paying the target tier's hire cost.
     /// The worker must be idle (unassigned). `energy` is the displayed energy to preserve.
     public func upgradeWorker(fromTier tier: Int, preservingEnergy energy: Double) {
@@ -1590,6 +1709,9 @@ public final class GameStore: ObservableObject {
         next.totalGoldenHarvested   = old.totalGoldenHarvested
         next.totalFevers            = old.totalFevers
         next.totalTipsCollected     = old.totalTipsCollected
+        next.totalWagesPaid         = old.totalWagesPaid
+        // The play clock is kept, so the new shop starts mid-day: no wages for the days already behind it.
+        next.lastWageDay            = DayCycle.dayIndex(playSeconds: old.totalPlaySeconds)
         // Changed on purpose.
         next.prestigeCount          = old.prestigeCount + 1
         next.fastestRunSeconds      = min(old.fastestRunSeconds ?? .infinity, old.runPlaySeconds)
