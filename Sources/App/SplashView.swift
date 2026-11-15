@@ -8,16 +8,18 @@ struct SplashView: View {
 
     var body: some View {
         ZStack {
-            // Same colour as LaunchScreen.storyboard, so the hand-off from launch to splash is seamless.
+            // Colour and layout mirror LaunchScreen.storyboard (same images, same offsets), so the hand-off is seamless.
             DotPalette.meadow.ignoresSafeArea()
 
             VStack(spacing: 20) {
-                DotImage("dot_ui_logo", scale: 4)
-                Text(String(localized: "봄동 타이쿤"))
-                    .dotText(.title, color: DotPalette.paper, shadow: true)
+                Image("LaunchLogo")
+                    .accessibilityHidden(true)
+                Image("LaunchTitle")
+                    .accessibilityLabel(String(localized: "봄동 타이쿤"))
                     .accessibilityAddTraits(.isHeader)
             }
-            .offset(y: -24)
+            .frame(height: 192, alignment: .top)
+            .offset(y: -46)
         }
         .transition(.opacity)
         .onAppear { setup() }

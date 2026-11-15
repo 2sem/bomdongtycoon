@@ -1,0 +1,33 @@
+{
+  "images": [
+    {
+      "filename": "LaunchTitle@2x.png",
+      "idiom": "universal",
+      "scale": "2x"
+    },
+    {
+      "filename": "LaunchTitle@3x.png",
+      "idiom": "universal",
+      "scale": "3x"
+    },
+    {
+      "filename": "LaunchTitle_en@2x.png",
+      "idiom": "universal",
+      "scale": "2x",
+      "locale": "en"
+    },
+    {
+      "filename": "LaunchTitle_en@3x.png",
+      "idiom": "universal",
+      "scale": "3x",
+      "locale": "en"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  },
+  "properties": {
+    "localizable": true
+  }
+}
