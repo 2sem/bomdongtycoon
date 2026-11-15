@@ -629,11 +629,23 @@ public final class GameStore: ObservableObject {
         hasPassedAdGrace && !isBoostActive && boostCooldownRemaining <= 0
     }
 
-    /// Starts 180 s of x2 sale price; the cooldown runs from its end.
+    /// A running boost can take one more ad while the banked time stays within `AdBoostSystem.maxBankedSeconds`.
+    public var isBoostExtendable: Bool {
+        isBoostActive && boostRemaining + AdBoostSystem.boostDuration <= AdBoostSystem.maxBankedSeconds
+    }
+
+    /// Starts 180 s of x2 sale price, or adds 180 s to a running one; the cooldown runs from the end.
     @discardableResult
     public func claimBoost() -> Bool {
-        guard isBoostAvailable else { return false }
-        let end = now().addingTimeInterval(AdBoostSystem.boostDuration)
+        let start: Date
+        if isBoostAvailable {
+            start = now()
+        } else if isBoostExtendable, let endsAt = adState.boostEndsAt {
+            start = endsAt
+        } else {
+            return false
+        }
+        let end = start.addingTimeInterval(AdBoostSystem.boostDuration)
         adState.boostEndsAt = end
         adState.boostCooldownEndsAt = end.addingTimeInterval(AdBoostSystem.boostCooldown)
         saveAdState()

@@ -147,8 +147,8 @@ public struct FeverAdButton: View {
     }
 }
 
-/// Next to the weather chip: "AD x2" when a boost can be bought, the countdown while it runs, the
-/// cooldown after. Tapping an available chip asks for confirmation (the dialog lives in the root).
+/// Next to the weather chip: "AD x2" when a boost can be bought, the countdown while it runs (a button
+/// that extends it while there is room for another ad), the cooldown after. Tapping an available chip asks for confirmation (the dialog lives in the root).
 public struct BoostChip: View {
     @EnvironmentObject var store: GameStore
     @EnvironmentObject var ads: RewardedAds
@@ -165,7 +165,19 @@ public struct BoostChip: View {
         TimelineView(.periodic(from: .now, by: 0.35)) { context in
             let active = store.boostRemaining
             let cooling = store.boostCooldownRemaining
-            if active > 0 {
+            if active > 0, store.isBoostExtendable {
+                Button(action: onTap) {
+                    chip(icon: AnyView(DotAdIcon())) {
+                        Text(String(format: String(localized: "dot.boost.active"), Self.clock(active)))
+                            .foregroundStyle(DotPalette.goldLight)
+                    }
+                    .contentShape(Rectangle().inset(by: -4))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(DotAdText.accessibility(
+                    String(format: String(localized: "dot.boost.extend.accessibility"), Self.clock(active))))
+                .onAppear { ads.prepare(.boost) }
+            } else if active > 0 {
                 chip(icon: AnyView(DotImage("dot_ui_fever", scale: 1))) {
                     Text(String(format: String(localized: "dot.boost.active"), Self.clock(active)))
                         .foregroundStyle(DotPalette.goldLight)

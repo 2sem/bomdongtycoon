@@ -121,6 +121,14 @@ struct GameRootView: View {
         .onChange(of: store.isFeverReady) { _, isReady in
             if !isReady { showFeverPointer = false }
         }
+        .onChange(of: store.isGiftPresent) { _, isPresent in
+            if isPresent { ads.prepare(.gift) }
+        }
+        // A boost that runs out under the extend dialog leaves nothing to offer: without this the flag
+        // stays set, the storefront stays held and the dialog reopens by itself after the cooldown.
+        .onChange(of: store.isBoostAvailable || store.isBoostExtendable) { _, isOffered in
+            if !isOffered { showBoostOffer = false }
+        }
         .onChange(of: store.isFeverAdAvailable) { _, isAvailable in
             if !isAvailable { showFeverOffer = false }
         }
@@ -200,11 +208,13 @@ struct GameRootView: View {
 
     @ViewBuilder
     private var adOffers: some View {
-        if showBoostOffer, store.isBoostAvailable {
+        if showBoostOffer, store.isBoostAvailable || store.isBoostExtendable {
+            let extending = store.isBoostExtendable
+            let minutes = Int(AdBoostSystem.boostDuration / 60)
             AdOfferDialog(
-                title: String(localized: "dot.boost.title"),
-                message: String(format: String(localized: "dot.boost.message"), Int(AdBoostSystem.boostDuration / 60)),
-                actionTitle: String(localized: "dot.boost.action"),
+                title: String(localized: extending ? "dot.boost.extend.title" : "dot.boost.title"),
+                message: String(format: String(localized: extending ? "dot.boost.extend.message" : "dot.boost.message"), minutes),
+                actionTitle: String(localized: extending ? "dot.boost.extend.action" : "dot.boost.action"),
                 isReady: ads.isReady(.boost),
                 onWatch: {
                     ads.watch(.boost) {

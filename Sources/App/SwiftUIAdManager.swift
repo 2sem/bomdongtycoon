@@ -39,10 +39,18 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     /// What GameUI reads and calls; mirrors `readyPlacements`.
     let rewarded = RewardedAds()
     private var rewardedAds: [AdPlacement: GADRewardedAd] = [:]
+    private var rewardedLoadedAt: [AdPlacement: Date] = [:]
+    private var rewardedFailures: [AdPlacement: Int] = [:]
+    private var rewardedRetryTasks: [AdPlacement: Task<Void, Never>] = [:]
+    private var rewardedExpiryTasks: [AdPlacement: Task<Void, Never>] = [:]
     private var loadingPlacements: Set<AdPlacement> = []
     private var presentingPlacement: AdPlacement?
     @Published private(set) var readyPlacements: Set<AdPlacement> = []
     private var appOpenAd: GADAppOpenAd?
+    private var appOpenLoadedAt: Date?
+    private var appOpenFailures = 0
+    private var appOpenRetryTask: Task<Void, Never>?
+    private var appOpenExpiryTask: Task<Void, Never>?
     private var isShowingAd = false
     private var isLoadingAppOpen = false
     @Published private(set) var isAppOpenReady = false
@@ -82,34 +90,130 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
         preloadAppOpen()
     }
 
-    private func preloadRewarded(_ placement: AdPlacement) {
+    /// `userInitiated` (a player waiting on a tap) skips a pending backoff; the lazy `prepare` does not.
+    private func preloadRewarded(_ placement: AdPlacement, userInitiated: Bool = false) {
         guard !Self.adsDisabledForDevelopment, !Self.grantsWithoutAds,
               !loadingPlacements.contains(placement), rewardedAds[placement] == nil else { return }
+        if rewardedRetryTasks[placement] != nil {
+            guard userInitiated else { return }
+            rewardedRetryTasks[placement]?.cancel()
+            rewardedRetryTasks[placement] = nil
+        }
         loadingPlacements.insert(placement)
         print("[RewardAd] preloading \(placement.rawValue) — unit: \(placement.unitID)")
         GADRewardedAd.load(withAdUnitID: placement.unitID, request: GADRequest()) { [weak self] ad, error in
             guard let self else { return }
             self.loadingPlacements.remove(placement)
-            if let error { print("[RewardAd] \(placement.rawValue) preload failed: \(error.localizedDescription)"); return }
+            guard let ad, error == nil else {
+                print("[RewardAd] \(placement.rawValue) preload failed: \(error?.localizedDescription ?? "no ad")")
+                self.scheduleRewardedRetry(placement)
+                return
+            }
             print("[RewardAd] \(placement.rawValue) preloaded ✓")
-            ad?.fullScreenContentDelegate = self
+            self.rewardedFailures[placement] = nil
+            ad.fullScreenContentDelegate = self
             self.rewardedAds[placement] = ad
-            self.setReady(placement, ad != nil)
+            self.rewardedLoadedAt[placement] = Date()
+            self.setReady(placement, true)
+            self.scheduleRewardedExpiry(placement)
         }
     }
 
+    private func scheduleRewardedRetry(_ placement: AdPlacement) {
+        guard rewardedRetryTasks[placement] == nil else { return }
+        let failures = (rewardedFailures[placement] ?? 0) + 1
+        rewardedFailures[placement] = failures
+        let delay = AdLoadPolicy.retryDelay(afterFailures: failures)
+        print("[RewardAd] \(placement.rawValue) retry in \(Int(delay))s")
+        rewardedRetryTasks[placement] = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(delay), clock: .continuous)
+            guard !Task.isCancelled, let self else { return }
+            self.rewardedRetryTasks[placement] = nil
+            self.preloadRewarded(placement)
+        }
+    }
+
+    private func scheduleRewardedExpiry(_ placement: AdPlacement) {
+        rewardedExpiryTasks[placement]?.cancel()
+        rewardedExpiryTasks[placement] = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(AdLoadPolicy.rewardedLifetime), clock: .continuous)
+            guard !Task.isCancelled else { return }
+            self?.dropRewardedIfExpired(placement)
+        }
+    }
+
+    /// Drops a stale ad, marks the placement not ready and loads a fresh one. True when it dropped one.
+    @discardableResult
+    private func dropRewardedIfExpired(_ placement: AdPlacement) -> Bool {
+        guard rewardedAds[placement] != nil,
+              let loadedAt = rewardedLoadedAt[placement],
+              AdLoadPolicy.isRewardedExpired(loadedAt: loadedAt, now: Date()) else { return false }
+        print("[RewardAd] \(placement.rawValue) expired — reloading")
+        rewardedAds[placement] = nil
+        rewardedLoadedAt[placement] = nil
+        rewardedExpiryTasks[placement]?.cancel()
+        rewardedExpiryTasks[placement] = nil
+        setReady(placement, false)
+        preloadRewarded(placement)
+        return true
+    }
+
     private func preloadAppOpen() {
-        guard !isLoadingAppOpen, appOpenAd == nil else { return }
+        guard !Self.adsDisabledForDevelopment, !isLoadingAppOpen, appOpenAd == nil, appOpenRetryTask == nil else { return }
         isLoadingAppOpen = true
         print("[AppOpenAd] preloading — unit: \(appOpenUnitID)")
         GADAppOpenAd.load(withAdUnitID: appOpenUnitID, request: GADRequest()) { [weak self] ad, error in
-            self?.isLoadingAppOpen = false
-            if let error { print("[AppOpenAd] preload failed: \(error.localizedDescription)"); return }
+            guard let self else { return }
+            self.isLoadingAppOpen = false
+            guard let ad, error == nil else {
+                print("[AppOpenAd] preload failed: \(error?.localizedDescription ?? "no ad")")
+                self.scheduleAppOpenRetry()
+                return
+            }
             print("[AppOpenAd] preloaded ✓")
-            self?.appOpenAd = ad
-            self?.appOpenAd?.fullScreenContentDelegate = self
-            self?.isAppOpenReady = true
+            self.appOpenFailures = 0
+            ad.fullScreenContentDelegate = self
+            self.appOpenAd = ad
+            self.appOpenLoadedAt = Date()
+            self.isAppOpenReady = true
+            self.scheduleAppOpenExpiry()
         }
+    }
+
+    private func scheduleAppOpenRetry() {
+        guard appOpenRetryTask == nil else { return }
+        appOpenFailures += 1
+        let delay = AdLoadPolicy.retryDelay(afterFailures: appOpenFailures)
+        print("[AppOpenAd] retry in \(Int(delay))s")
+        appOpenRetryTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(delay), clock: .continuous)
+            guard !Task.isCancelled, let self else { return }
+            self.appOpenRetryTask = nil
+            self.preloadAppOpen()
+        }
+    }
+
+    private func scheduleAppOpenExpiry() {
+        appOpenExpiryTask?.cancel()
+        appOpenExpiryTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(AdLoadPolicy.appOpenLifetime), clock: .continuous)
+            guard !Task.isCancelled else { return }
+            self?.dropAppOpenIfExpired()
+        }
+    }
+
+    @discardableResult
+    private func dropAppOpenIfExpired() -> Bool {
+        guard appOpenAd != nil, let loadedAt = appOpenLoadedAt,
+              AdLoadPolicy.isAppOpenExpired(loadedAt: loadedAt, now: Date()) else { return false }
+        print("[AppOpenAd] expired — reloading")
+        appOpenAd = nil
+        appOpenLoadedAt = nil
+        appOpenExpiryTask?.cancel()
+        appOpenExpiryTask = nil
+        isAppOpenReady = false
+        preloadAppOpen()
+        return true
     }
 
     // MARK: - Show App Open
@@ -124,6 +228,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
             completion()
             return
         }
+        dropAppOpenIfExpired()
         guard let ad = appOpenAd else {
             print("[AppOpenAd] no ad ready — skipping")
             completion()
@@ -138,6 +243,8 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
         print("[AppOpenAd] presenting...")
         isShowingAd = true
         appOpenAd = nil
+        appOpenLoadedAt = nil
+        appOpenExpiryTask?.cancel()
         isAppOpenReady = false
         lastAppOpenShownDate = Date()
         pendingAppOpenCompletion = completion
@@ -163,10 +270,11 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     }
 
     private func showRewardedAfterTrackingPrompt(_ placement: AdPlacement, completion: @escaping (Bool) -> Void) {
+        dropRewardedIfExpired(placement)
         if rewardedAds[placement] == nil {
             if !loadingPlacements.contains(placement) {
                 print("[RewardAd] \(placement.rawValue) not ready and not loading — triggering fresh load")
-                preloadRewarded(placement)
+                preloadRewarded(placement, userInitiated: true)
             } else {
                 print("[RewardAd] \(placement.rawValue) loading in progress — waiting up to 5s")
             }
@@ -232,6 +340,9 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
         print("[RewardAd] presenting \(placement.rawValue)...")
         isShowingAd = true
         rewardedAds[placement] = nil
+        rewardedLoadedAt[placement] = nil
+        rewardedExpiryTasks[placement]?.cancel()
+        rewardedExpiryTasks[placement] = nil
         setReady(placement, false)
         presentingPlacement = placement
         pendingRewardCompletion = completion

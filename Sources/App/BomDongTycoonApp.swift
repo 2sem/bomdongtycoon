@@ -41,10 +41,10 @@ struct BomDongTycoonApp: App {
         }
     }
 
-    /// Not over the tutorial or the shop-name overlay, and not when the offline popup has the screen.
+    /// Not over the tutorial or the shop-name overlay. The offline popup is a SwiftUI overlay, so the
+    /// ad presents over it and the popup is still there when the ad closes.
     private func showAppOpenIfPlayable() {
-        guard store.offlineEarnings == 0,
-              !store.progress.isFirstLaunch, store.progress.isShopNameSet else { return }
+        guard !store.progress.isFirstLaunch, store.progress.isShopNameSet else { return }
         print("[App] show app open ad")
         adManager.showAppOpen {}
     }

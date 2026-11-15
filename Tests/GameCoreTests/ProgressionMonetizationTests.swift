@@ -316,7 +316,7 @@ final class AdPlacementTests: DotWorldTestCase {
         XCTAssertTrue(store.claimBoost())
         XCTAssertEqual(store.boostRemaining, 180, accuracy: 1e-9)
         XCTAssertEqual(try XCTUnwrap(store.sellItem(menuIndex: 0)), base * 2, accuracy: 1e-9)
-        XCTAssertFalse(store.claimBoost(), "already running")
+        XCTAssertFalse(store.isBoostAvailable, "already running")
 
         clock.date.addTimeInterval(179)
         XCTAssertTrue(store.isBoostActive)
@@ -327,6 +327,51 @@ final class AdPlacementTests: DotWorldTestCase {
         XCTAssertFalse(store.isBoostAvailable)
         clock.date.addTimeInterval(300)
         XCTAssertTrue(store.isBoostAvailable)
+    }
+
+    func test_boost_extend_addsOneDuration_upToTheBankedCeiling() {
+        store.progress.totalPlaySeconds = 600
+        XCTAssertFalse(store.isBoostExtendable, "nothing running")
+        XCTAssertTrue(store.claimBoost())
+        XCTAssertTrue(store.isBoostExtendable)
+        XCTAssertTrue(store.claimBoost())
+        XCTAssertEqual(store.boostRemaining, 360, accuracy: 1e-9)
+        XCTAssertTrue(store.claimBoost())
+        XCTAssertEqual(store.boostRemaining, 540, accuracy: 1e-9)
+        XCTAssertFalse(store.isBoostExtendable)
+        XCTAssertFalse(store.claimBoost(), "cannot exceed 540 banked")
+        XCTAssertEqual(store.boostRemaining, 540, accuracy: 1e-9)
+
+        clock.date.addTimeInterval(1)
+        XCTAssertFalse(store.isBoostExtendable, "539 + 180 is over the ceiling")
+        clock.date.addTimeInterval(179)
+        XCTAssertTrue(store.isBoostExtendable, "360 + 180 fits again")
+    }
+
+    func test_boost_extend_cooldownRunsFromTheNewEnd() {
+        store.progress.totalPlaySeconds = 600
+        store.claimBoost()
+        clock.date.addTimeInterval(100)
+        XCTAssertTrue(store.claimBoost())
+        XCTAssertEqual(store.boostRemaining, 260, accuracy: 1e-6)
+        clock.date.addTimeInterval(260)
+        XCTAssertFalse(store.isBoostActive)
+        XCTAssertEqual(store.boostCooldownRemaining, 300, accuracy: 1e-6)
+        XCTAssertFalse(store.isBoostExtendable)
+        XCTAssertFalse(store.claimBoost(), "cooling down")
+        clock.date.addTimeInterval(300)
+        XCTAssertTrue(store.isBoostAvailable)
+    }
+
+    func test_boost_extend_survivesRelaunch() {
+        store.progress.totalPlaySeconds = 600
+        store.claimBoost()
+        store.claimBoost()
+        clock.date.addTimeInterval(100)
+        let reloaded = makeStore()
+        XCTAssertEqual(reloaded.boostRemaining, 260, accuracy: 1e-6)
+        clock.date.addTimeInterval(260)
+        XCTAssertEqual(reloaded.boostCooldownRemaining, 300, accuracy: 1e-6)
     }
 
     func test_boost_stacksMultiplicativelyWithFever_andNeverEntersTheOfflineRate() throws {

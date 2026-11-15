@@ -13,6 +13,10 @@ public struct OfflineEarningsPopup: View {
         self.onWatchAd = onWatchAd
     }
 
+    private var doubledLabel: String {
+        String(format: String(localized: "dot.offline.double"), CoinFormat.string(store.offlineEarnings * 2))
+    }
+
     public var body: some View {
         DotOverlay {
             VStack(spacing: 12) {
@@ -39,7 +43,9 @@ public struct OfflineEarningsPopup: View {
                 } label: {
                     Group {
                         if ads.isReady(.offline) {
-                            DotAdLabel(text: String(localized: "광고 보고 2배 받기"))
+                            DotAdLabel(text: doubledLabel)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
                         } else {
                             Text(String(localized: "dot.ad.loading"))
                         }
@@ -49,7 +55,7 @@ public struct OfflineEarningsPopup: View {
                 .buttonStyle(.dot)
                 .disabled(!ads.isReady(.offline))
                 .accessibilityLabel(ads.isReady(.offline)
-                    ? DotAdText.accessibility(String(localized: "광고 보고 2배 받기"))
+                    ? DotAdText.accessibility(doubledLabel)
                     : String(localized: "dot.ad.loading"))
 
                 Button { store.collectOfflineEarnings(multiplier: 1.0) } label: {

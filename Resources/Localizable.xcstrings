@@ -2700,6 +2700,22 @@
         }
       }
     },
+    "dot.offline.double" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2배 받기 %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get x2 %@"
+          }
+        }
+      }
+    },
     "dot.offline.title" : {
       "localizations" : {
         "ko" : {
@@ -3838,6 +3854,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Start spring breeze boost"
+          }
+        }
+      }
+    },
+    "dot.boost.extend.title" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "봄바람 연장"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extend Breeze"
+          }
+        }
+      }
+    },
+    "dot.boost.extend.message" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "광고를 보면 2배 판매가 %d분 더 이어져요."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch an ad to keep double sales going for %d more minutes."
+          }
+        }
+      }
+    },
+    "dot.boost.extend.action" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "연장"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extend"
+          }
+        }
+      }
+    },
+    "dot.boost.extend.accessibility" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "봄바람 부스트 연장, %@ 남음"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extend spring breeze boost, %@ left"
           }
         }
       }

@@ -51,6 +51,8 @@ public enum GiftSystem {
 public enum AdBoostSystem {
     public static let boostDuration: Double = 180
     public static let boostCooldown: Double = 300
+    /// A running boost can be extended by one more `boostDuration` while the total stays within this.
+    public static let maxBankedSeconds: Double = 540
     public static let priceMultiplier: Double = 2
     public static let feverCooldown: Double = 300
     /// Hidden this long after the offer is closed without watching.

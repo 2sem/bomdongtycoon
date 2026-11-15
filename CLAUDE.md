@@ -104,3 +104,12 @@ asset-catalog build step. `xcodebuild` succeeds and ships the previous `Assets.c
 byte, so the simulator keeps showing the old art — which looks exactly like a successful swap.
 Use `tools/isorender/install.py` (it clears the cached catalog output), or delete
 `assetcatalog_output` in DerivedData yourself and confirm the `Assets.car` hash changed.
+
+## Gotcha: generate with `mise run generate`, not bare `tuist generate`
+
+Google's packages declare iOS 12 and Xcode 27 rejects simulator targets below 15, so a plain
+Xcode build fails with "deployment target is set to 12.0". `mise run generate` runs
+`tuist generate --no-open` and then `tools/fix-package-deployment-targets.sh`, which lifts the
+generated package projects to 17.0. A bare `tuist generate` or `tuist install` undoes the patch:
+run the script again. Tuist's `PackageSettings` cannot do this (it misses the resource-bundle
+targets), and Tuist 4.216.6 does not fix it either.
