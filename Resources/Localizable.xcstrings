@@ -2700,6 +2700,22 @@
         }
       }
     },
+    "dot.offline.double" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2배 받기 %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get x2 %@"
+          }
+        }
+      }
+    },
     "dot.offline.title" : {
       "localizations" : {
         "ko" : {
