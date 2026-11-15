@@ -1448,10 +1448,7 @@ public final class GameStore: ObservableObject {
             return   // a goal tag only: hiring goes through `hireWorker(tier:)`
 
         case .menu:
-            let nextTier = stall.menuTier + 1
-            guard nextTier < UpgradeDefinitions.menu.count else { return }
-            let cost = UpgradeDefinitions.menu[nextTier].coinCost
-            guard stall.coins >= cost else { return }
+            guard case .available(_, let cost) = MenuUnlockSystem.status(for: stall, menuIndex: stall.menuTier + 1) else { return }
             stall.coins -= cost
             stall.menuTier += 1
             // The new dish starts with a few portions, so the first customers who ask for it are served.

@@ -9,6 +9,9 @@ extension Notification.Name {
     static let requestAddFarmPlot = Notification.Name("requestAddFarmPlot")
     /// Posted when the warehouse crate is tapped; `ExpandWarehouseConfirmation` owns the alert and purchase.
     static let requestExpandWarehouse = Notification.Name("requestExpandWarehouse")
+    /// Posted when the padlock of the next dish is tapped and affordable; `userInfo["menu"]` is the
+    /// dish index. `UnlockDishConfirmation` owns the alert and purchase.
+    static let requestUnlockDish = Notification.Name("requestUnlockDish")
     /// Posted when a plot ripens golden; the HUD shows a rate-limited toast.
     static let goldenPlotRipened = Notification.Name("goldenPlotRipened")
     /// Posted when the gift crate is tapped; the root view owns the ad offer.
@@ -522,8 +525,25 @@ final class DotWorldScene: SKScene {
         let result = store.tapDish(menuIndex: menu)
         switch result {
         case .locked:
-            shop.shakeLock(menu: menu, reduceMotion: reduceMotion)
-            sound.play(.error)
+            switch MenuUnlockSystem.status(for: store.stall, menuIndex: menu) {
+            case .available:
+                sound.play(.tap)
+                fx.lightHaptic()
+                NotificationCenter.default.post(name: .requestUnlockDish, object: nil, userInfo: ["menu": menu])
+            case .short(_, _, let shortfall):
+                shop.shakeLock(menu: menu, reduceMotion: reduceMotion)
+                sound.play(.error)
+                Notification.Name.postHUDToast(
+                    String(format: String(localized: "dish.unlock.short"), CoinFormat.string(shortfall)))
+            case .needsEarlier(_, let nextIndex):
+                shop.shakeLock(menu: menu, reduceMotion: reduceMotion)
+                sound.play(.error)
+                Notification.Name.postHUDToast(
+                    String(format: String(localized: "dish.unlock.earlier"), UpgradeDefinitions.menu[nextIndex].name))
+            case .notLocked:
+                shop.shakeLock(menu: menu, reduceMotion: reduceMotion)
+                sound.play(.error)
+            }
         case .started:
             DotDebug.tapLog("dish ok")
             if menu == 0 { FirstRunHint.cook.markDone() }
