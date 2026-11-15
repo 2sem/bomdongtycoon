@@ -1,0 +1,18 @@
+Bomdong Tycoon is reborn as a pixel-art world!
+
+• The whole game is redrawn in 2D pixel art: the alley, the market and Gangnam, day and night, even rainy days.
+• Fever: serve customers to fill the gauge, then sell at 3x for 15 seconds. Dishes finish instantly during fever.
+• Lend a hand: tap a cooking dish to hurry it, water growing cabbages, and tap sleeping staff to perk them up.
+• Staff rest: tired staff fall asleep and get back to work once rested. Swap in someone fresh while they nap.
+• Wages and growth: staff earn a daily wage and level up as they work. You can let them go if you need to.
+• Golden cabbage: now and then a cabbage ripens gold. Harvest it yourself for bonus coins.
+• Gourmet customers and tip coins. Tap coins dropped on the street to pick them up.
+• Three daily missions with an all-done bonus, refreshed every day.
+• Recipe levels: level up each dish to raise its price.
+• Shop renovation: keep raising prices even after the Specialty Shop.
+• Shop sign: the name you chose hangs on the roof.
+• Spring Breeze boost and gift crates: watch an ad only when you want the reward. The boost can be extended.
+• Weather: rain, snow, falling leaves and blossom take turns. Customers dress for the weather, and their pace and numbers change. Cabbages grow 2x faster in rain and sell for more in snow.
+• Every screen and menu is now pixel style, with new sound effects.
+• The cabbage mascot greets you from the moment the app opens.
+• A faster, easier start: begin with 3 plots, and cabbages grow quicker.
