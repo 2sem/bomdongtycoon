@@ -121,6 +121,9 @@ struct GameRootView: View {
         .onChange(of: store.isFeverReady) { _, isReady in
             if !isReady { showFeverPointer = false }
         }
+        .onChange(of: store.isGiftPresent) { _, isPresent in
+            if isPresent { ads.prepare(.gift) }
+        }
         .onChange(of: store.isFeverAdAvailable) { _, isAvailable in
             if !isAvailable { showFeverOffer = false }
         }
