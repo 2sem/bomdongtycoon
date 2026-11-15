@@ -75,7 +75,7 @@ public enum UpgradeDefinitions {
         .init(name: "시장", coinCost: 40_000, description: "사람 북적이는 전통시장 한복판",
               requiredStallTier: 1, saleMultiplier: 2.0, unlocks: "시장 풍경과 새 손님",
               lockedReason: "봄동 식당이 필요해요", destination: "시장으로"),
-        .init(name: "강남", coinCost: 200_000, description: "유동 인구 가득한 강남 대로변",
+        .init(name: "강남", coinCost: 150_000, description: "유동 인구 가득한 강남 대로변",
               requiredStallTier: 2, saleMultiplier: 4.0, unlocks: "강남 풍경과 새 손님",
               lockedReason: "봄동 전문점이 필요해요", destination: "강남으로")
     ]
@@ -83,8 +83,8 @@ public enum UpgradeDefinitions {
     /// Menu upgrades — increase price per item sold
     public static let menu: [UpgradeDefinition] = [
         .init(name: "겉절이",     coinCost: 0,      description: "기본 메뉴",      priceMultiplier: 1.0),
-        .init(name: "봄동김치",   coinCost: 1_000,  description: "인기 메뉴",      priceMultiplier: 2.5),
-        .init(name: "봄동비빔밥", coinCost: 10_000, description: "시그니처 메뉴",  priceMultiplier: 6.0)
+        .init(name: "봄동김치",   coinCost: 800,    description: "인기 메뉴",      priceMultiplier: 2.5),
+        .init(name: "봄동비빔밥", coinCost: 6_000, description: "시그니처 메뉴",  priceMultiplier: 6.0)
     ]
 
     /// Staff tiers — each hire's cook speed

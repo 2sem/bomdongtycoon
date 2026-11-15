@@ -336,7 +336,7 @@ final class AdPlacementTests: DotWorldTestCase {
         store.startFever()
         store.claimBoost()
         let price = try XCTUnwrap(store.sellItem(menuIndex: 0))
-        XCTAssertEqual(price, 30 * 2 * 2, accuracy: 1e-9)
+        XCTAssertEqual(price, 30 * 3 * 2, accuracy: 1e-9)
         store.progress.earningRate = 0
         for _ in 0..<5 { store.tick(deltaTime: 1) }
         XCTAssertEqual(store.progress.earningRate, 30.0 / 5, accuracy: 1e-6,

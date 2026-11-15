@@ -101,17 +101,16 @@ private struct MissionRow: View {
 
     @ViewBuilder
     private var trailing: some View {
-        if mission.isClaimed {
-            VStack(spacing: 2) {
-                DotImage("dot_ui_check", scale: 2)
-                Text(String(localized: "dot.mission.claimed")).dotText(.caption, color: DotPalette.leafDark)
+        ClaimSlot(isAdReady: isAdReady) {
+            if mission.isClaimed {
+                ClaimedMark()
+            } else if mission.isComplete {
+                ClaimButtons(isAdReady: isAdReady, onClaim: onClaim, onClaimDoubled: onClaimDoubled)
+            } else {
+                DotImage("dot_ui_lock", scale: 1)
+                    .opacity(0.5)
+                    .accessibilityHidden(true)
             }
-        } else if mission.isComplete {
-            ClaimButtons(isAdReady: isAdReady, onClaim: onClaim, onClaimDoubled: onClaimDoubled)
-        } else {
-            DotImage("dot_ui_lock", scale: 1)
-                .opacity(0.5)
-                .accessibilityHidden(true)
         }
     }
 
@@ -192,15 +191,14 @@ private struct BonusRow: View {
                     Text(CoinFormat.string(reward)).dotText(.bold, color: DotPalette.goldDark)
                 }
             }
-            if isClaimed {
-                VStack(spacing: 2) {
-                    DotImage("dot_ui_check", scale: 2)
-                    Text(String(localized: "dot.mission.claimed")).dotText(.caption, color: DotPalette.leafDark)
+            ClaimSlot(isAdReady: isAdReady) {
+                if isClaimed {
+                    ClaimedMark()
+                } else if isReady {
+                    ClaimButtons(isAdReady: isAdReady, onClaim: onClaim, onClaimDoubled: onClaimDoubled)
+                } else {
+                    DotImage("dot_ui_lock", scale: 1).opacity(0.5).accessibilityHidden(true)
                 }
-            } else if isReady {
-                ClaimButtons(isAdReady: isAdReady, onClaim: onClaim, onClaimDoubled: onClaimDoubled)
-            } else {
-                DotImage("dot_ui_lock", scale: 1).opacity(0.5).accessibilityHidden(true)
             }
         }
         .dotPanel(.light, padding: EdgeInsets(top: 10, leading: 10, bottom: 10, trailing: 10))
@@ -231,6 +229,34 @@ private struct MissionCountdown: View {
             return String(format: String(localized: "dot.mission.countdown.hm"), minutes / 60, minutes % 60)
         }
         return String(format: String(localized: "dot.mission.countdown.m"), max(minutes, 1))
+    }
+}
+
+// MARK: - Claim slot
+
+/// The trailing cell of a mission card. It always measures as the claim buttons do, whatever it
+/// shows: a claimed or still-locked card keeps its height, so the cards below never slide under a
+/// finger that was already on its way to their claim button.
+private struct ClaimSlot<Content: View>: View {
+    let isAdReady: Bool
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        ZStack {
+            ClaimButtons(isAdReady: isAdReady, onClaim: {}, onClaimDoubled: {})
+                .hidden()
+                .accessibilityHidden(true)
+            content
+        }
+    }
+}
+
+private struct ClaimedMark: View {
+    var body: some View {
+        VStack(spacing: 2) {
+            DotImage("dot_ui_check", scale: 2)
+            Text(String(localized: "dot.mission.claimed")).dotText(.caption, color: DotPalette.leafDark)
+        }
     }
 }
 

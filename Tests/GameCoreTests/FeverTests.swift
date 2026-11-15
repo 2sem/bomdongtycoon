@@ -113,12 +113,12 @@ final class FeverTests: DotWorldTestCase {
         XCTAssertEqual(store.customerSpawnInterval, base, accuracy: 1e-9)
     }
 
-    func test_active_doublesSalePrice() {
+    func test_active_triplesSalePrice() {
         store.stall.menuStock[0] = 5
         XCTAssertEqual(store.sellItem(menuIndex: 0) ?? 0, 30, accuracy: 1e-9)
         chargeFever()
         store.startFever()
-        XCTAssertEqual(store.sellItem(menuIndex: 0) ?? 0, 60, accuracy: 1e-9)
+        XCTAssertEqual(store.sellItem(menuIndex: 0) ?? 0, 90, accuracy: 1e-9)
     }
 
     func test_fever_isNotCountedInTheEarningWindow() {

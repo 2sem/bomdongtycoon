@@ -13,6 +13,12 @@ extension Notification.Name {
     static let goldenPlotRipened = Notification.Name("goldenPlotRipened")
     /// Posted when the gift crate is tapped; the root view owns the ad offer.
     static let requestGiftOffer = Notification.Name("requestGiftOffer")
+    /// A short HUD notice; `userInfo["text"]` is the line, `userInfo["announce"]` an optional VoiceOver line.
+    static let requestHUDToast = Notification.Name("requestHUDToast")
+
+    static func postHUDToast(_ text: String) {
+        NotificationCenter.default.post(name: .requestHUDToast, object: nil, userInfo: ["text": text])
+    }
 }
 
 /// The whole game scene as 2D pixel art. One root node is scaled by `layout.scale` points per
@@ -68,6 +74,10 @@ final class DotWorldScene: SKScene {
     private var feverGlow: SKSpriteNode?
     private var hintArrow: HintArrowNode?
     private var lastDishFeedback: [Int: TimeInterval] = [:]
+    /// Consecutive hurry taps per dish, for the rising pitch: `(count, time of the last one)`.
+    private var hurryStreak: [Int: (count: Int, at: TimeInterval)] = [:]
+    private var lastFullNotice: TimeInterval = 0
+    private var lastWakeHint: TimeInterval = 0
 
     private var appliedLocation: Int?
     private var lastPrestige: Int?
@@ -252,6 +262,7 @@ final class DotWorldScene: SKScene {
         farm.apply(farm: store.farm, canAddPlot: canAddPlot(store), pulseRipe: starved, reduceMotion: reduce)
         announceGoldenPlots(store, farm: farm, fx: fx)
         updateHint(store, shop: shop, farm: farm)
+        hintWakeIfNeeded(store)
     }
 
     // MARK: Gift crate
@@ -329,9 +340,34 @@ final class DotWorldScene: SKScene {
             } else if !FirstRunHint.cook.isDone, store.stall.warehouse > 0, store.stall.menuStock[0] == 0,
                       !store.isCooking(menuIndex: 0) {
                 tip = shop.hintTip(0)
+                teachHurry()
+            } else if !FirstRunHint.hurry.isDone, store.isCooking(menuIndex: 0) {
+                tip = shop.hintTip(0)
+                teachHurry()
             }
         }
         arrow.show(tip: tip, animated: !reduceMotion)
+    }
+
+    /// The words that go with the pointer on the dish, once per install.
+    private func teachHurry() {
+        guard !UserDefaults.standard.bool(forKey: FirstRunHint.hurryToastKey) else { return }
+        UserDefaults.standard.set(true, forKey: FirstRunHint.hurryToastKey)
+        Notification.Name.postHUDToast(String(localized: "dot.hint.hurry"))
+    }
+
+    /// A worker has dozed off: tell the player, twice per install, that a tap wakes them.
+    private func hintWakeIfNeeded(_ store: GameStore) {
+        guard !store.progress.isFirstLaunch, store.progress.isShopNameSet, !isRunTransitionActive else { return }
+        let count = UserDefaults.standard.integer(forKey: FirstRunHint.wakeHintKey)
+        let now = CACurrentMediaTime()
+        guard count < 2, now - lastWakeHint > 60 else { return }
+        let tired = store.farm.plots.indices.contains { store.isTired(.farm(plotIndex: $0)) }
+            || (0..<3).contains { store.isTired(.cook(menuIndex: $0)) } || store.isTired(.cashier)
+        guard tired else { return }
+        lastWakeHint = now
+        UserDefaults.standard.set(count + 1, forKey: FirstRunHint.wakeHintKey)
+        Notification.Name.postHUDToast(String(localized: "dot.hint.wake"))
     }
 
     private func partyEffects(delta: TimeInterval, fx: FXLayer) {
@@ -444,6 +480,9 @@ final class DotWorldScene: SKScene {
             collectTip(tip, store: store, layout: layout)
         } else if let hit = farm.hit(local: farm.local(fromRoot: p), plotCount: store.farm.plots.count, canAdd: canAddPlot(store)) {
             handleFarmTap(hit, store: store)
+        } else if let target = shop.workerTarget(atLocal: shop.local(fromRoot: p)),
+                  store.isTired(target), handleWake(target, store: store) {
+            DotDebug.tapLog("wake ok")
         } else if let menu = shop.menuIndex(atLocal: shop.local(fromRoot: p)) {
             handleDishTap(menu, store: store)
         } else if store.isGiftPresent, yard.hitGift(local: yard.local(fromRoot: p)) {
@@ -471,28 +510,66 @@ final class DotWorldScene: SKScene {
 
     func handleDishTap(_ menu: Int, store: GameStore) {
         guard let shop, let fx else { return }
-        guard menu <= store.stall.menuTier else {
+        let result = store.tapDish(menuIndex: menu)
+        switch result {
+        case .locked:
             shop.shakeLock(menu: menu, reduceMotion: reduceMotion)
             sound.play(.error)
-            return
-        }
-        if store.startManualCook(menuIndex: menu) {
+        case .started:
             DotDebug.tapLog("dish ok")
             if menu == 0 { FirstRunHint.cook.markDone() }
             shop.pulse(menu: menu, reduceMotion: reduceMotion)
             fx.puff(at: shop.dishPoint(menu))
             fx.lightHaptic()
             sound.play(.tap)
-            return
+        case .hurried:
+            DotDebug.tapLog("hurry ok")
+            FirstRunHint.hurry.markDone()
+            shop.pulse(menu: menu, reduceMotion: reduceMotion)
+            fx.puff(at: shop.dishPoint(menu))
+            fx.lightHaptic()
+            sound.play(.tap, volume: 0.8, rate: hurryPitch(menu))
+        case .ignored:
+            break
+        case .blocked:
+            DotDebug.tapLog("dish none")
+            // A tap that starts nothing still answers: a shake, and a sound limited so mashing stays calm.
+            shop.shakeDish(menu: menu, reduceMotion: reduceMotion)
+            let now = CACurrentMediaTime()
+            guard now - (lastDishFeedback[menu] ?? 0) > 0.3 else { return }
+            lastDishFeedback[menu] = now
+            sound.play(.error)
         }
-        DotDebug.tapLog("dish none")
-        // A tap that starts nothing still answers: a shake, and a sound limited so mashing stays calm.
-        shop.shakeDish(menu: menu, reduceMotion: reduceMotion)
+    }
+
+    /// 1.0 on the first tap of a run, up a little with each one, back down after a pause.
+    private func hurryPitch(_ menu: Int) -> Float {
         let now = CACurrentMediaTime()
-        let isCooking = store.isCooking(menuIndex: menu)
-        guard now - (lastDishFeedback[menu] ?? 0) > (isCooking ? 0.8 : 0.3) else { return }
-        lastDishFeedback[menu] = now
-        sound.play(isCooking ? .tap : .error)
+        var streak = hurryStreak[menu] ?? (0, 0)
+        streak.count = now - streak.at < 1.2 ? streak.count + 1 : 0
+        streak.at = now
+        hurryStreak[menu] = streak
+        return min(1.7, 1 + 0.1 * Float(streak.count))
+    }
+
+    /// A tap on a tired cook, cashier or farm hand. False when the store refuses (rested, or woken lately).
+    @discardableResult
+    func handleWake(_ target: GameStore.WorkerTarget, store: GameStore) -> Bool {
+        guard let fx, let shop, let farm, store.wakeWorker(target) else { return false }
+        let head: CGPoint
+        switch target {
+        case .farm(let index):
+            head = farm.workerHead(index)
+            farm.bumpWorker(plot: index, reduceMotion: reduceMotion)
+        default:
+            head = shop.headPoint(of: target)
+            shop.bump(worker: target, reduceMotion: reduceMotion)
+        }
+        fx.reaction("dot_fx_heart", at: head)
+        fx.sparkle(at: CGPoint(x: head.x + 5, y: head.y - 4))
+        fx.lightHaptic()
+        sound.play(.tap, volume: 0.7, rate: 1.4)
+        return true
     }
 
     func handleFarmTap(_ hit: FarmNode.Hit, store: GameStore) {
@@ -522,17 +599,44 @@ final class DotWorldScene: SKScene {
             case .ready:
                 harvest(index, store: store)
             case .sprout, .growing:
-                farm.bump(plot: index, reduceMotion: reduceMotion)
+                if store.isTired(.farm(plotIndex: index)), handleWake(.farm(plotIndex: index), store: store) { return }
+                water(index, store: store)
             }
         }
+    }
+
+    /// Every tap on a growing plot waters it; a tap the store debounces still bumps the bed, silently.
+    private func water(_ index: Int, store: GameStore) {
+        guard let farm, let fx else { return }
+        guard store.waterPlot(plotIndex: index) else {
+            farm.bump(plot: index, reduceMotion: reduceMotion)
+            return
+        }
+        DotDebug.tapLog("water ok")
+        farm.apply(farm: store.farm, canAddPlot: canAddPlot(store), reduceMotion: reduceMotion)
+        farm.bump(plot: index, reduceMotion: reduceMotion)
+        fx.water(at: farm.plotCenter(index))
+        fx.lightHaptic()
+        sound.play(.plant, volume: 0.45, rate: 1.3)
     }
 
     private func harvest(_ index: Int, store: GameStore) {
         guard let farm, let fx, let yard, let layout else { return }
         guard let result = store.harvest(plotIndex: index) else {
+            DotDebug.tapLog("harvest blocked")
             farm.shake(plot: index, reduceMotion: reduceMotion)
             yard.bump(reduceMotion: reduceMotion)
             sound.play(.error)
+            if store.isWarehouseFull {
+                // The crop is fine; the crate is the problem. Say so, and shake the crate.
+                yard.shake(reduceMotion: reduceMotion)
+                let now = CACurrentMediaTime()
+                if now - lastFullNotice > 3 {
+                    lastFullNotice = now
+                    yard.showNotice(String(localized: "dot.warehouse.full").components(separatedBy: "\n"),
+                                    reduceMotion: reduceMotion)
+                }
+            }
             return
         }
         DotDebug.tapLog(result.isGolden ? "harvest golden ok" : "harvest ok")

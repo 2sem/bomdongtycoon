@@ -185,7 +185,7 @@ final class GameStoreTests: XCTestCase {
         XCTAssertFalse(store.isManualCookRunning(menuIndex: 0))
     }
 
-    func test_startManualCook_menuIndex1_thenTick_landsOnePortionInMenuStock1() {
+    func test_startManualCook_menuIndex1_thenTick_landsAPortionInMenuStock1() {
         store.farm.plots[0].workerType = .none   // isolate from farm auto-harvest — see first test
         store.stall.menuTier = 1                  // unlocks the large bowl (menu index 1)
         let stockBefore = store.stall.menuStock[1]
@@ -194,10 +194,10 @@ final class GameStoreTests: XCTestCase {
         XCTAssertTrue(store.startManualCook(menuIndex: 1))
         XCTAssertTrue(store.isCooking(menuIndex: 1))
 
-        store.tick(deltaTime: 10.0)
+        store.tick(deltaTime: 4.0)
         XCTAssertEqual(store.stall.menuStock[1], stockBefore + 1)
         XCTAssertEqual(store.stall.warehouse, warehouseBefore - 1)
-        XCTAssertFalse(store.isManualCookRunning(menuIndex: 1))
+        XCTAssertTrue(store.isManualCookRunning(menuIndex: 1), "self-serve carries on towards the cap")
     }
 
     func test_startManualCook_menuIndex1_tierLocked_refuses() {
@@ -206,7 +206,7 @@ final class GameStoreTests: XCTestCase {
         XCTAssertFalse(store.isCooking(menuIndex: 1))
     }
 
-    func test_startManualCook_menuIndex2_thenTick_landsOnePortionInMenuStock2() {
+    func test_startManualCook_menuIndex2_thenTick_landsAPortionInMenuStock2() {
         store.farm.plots[0].workerType = .none   // isolate from farm auto-harvest — see first test
         store.stall.menuTier = 2                  // unlocks the daejeop bowl (menu index 2)
         let stockBefore = store.stall.menuStock[2]
@@ -215,10 +215,10 @@ final class GameStoreTests: XCTestCase {
         XCTAssertTrue(store.startManualCook(menuIndex: 2))
         XCTAssertTrue(store.isCooking(menuIndex: 2))
 
-        store.tick(deltaTime: 10.0)
+        store.tick(deltaTime: 4.0)
         XCTAssertEqual(store.stall.menuStock[2], stockBefore + 1)
         XCTAssertEqual(store.stall.warehouse, warehouseBefore - 1)
-        XCTAssertFalse(store.isManualCookRunning(menuIndex: 2))
+        XCTAssertTrue(store.isManualCookRunning(menuIndex: 2), "self-serve carries on towards the cap")
     }
 
     func test_startManualCook_menuIndex2_tierLocked_refuses() {

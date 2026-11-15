@@ -16,6 +16,7 @@ import GameCore
 ///   -dotMissionsDone    complete all of today's missions (the all-done bonus row)
 ///   -dotSpeed N         run the simulation (and the scene's timers) N times faster; 4-8 for a quick play-through
 ///   -dotAutoplay        play like an attentive player with no taps, logging a `[DotQA]` line every 30 game seconds
+///   -dotAutoplayIdle    like -dotAutoplay but never touches the world: only buys goals, claims missions and starts fever
 ///   -dotNoFever         with -dotAutoplay: never press the fever button (isolates the base economy)
 ///   -dotGift            keep a gift crate in the yard
 ///   -dotAdsGrant        every rewarded request succeeds at once, with no ad (also marks every placement ready)
@@ -54,7 +55,7 @@ enum DotDebug {
     /// A seeded or autoplayed run keeps its save in a throwaway suite, so the next plain launch is the real save.
     static var storeDefaults: UserDefaults {
         #if DEBUG
-        if arguments.contains("-dotSeed") || arguments.contains("-dotAutoplay") {
+        if arguments.contains("-dotSeed") || wantsAutoplay {
             let name = "dot.volatile"
             let defaults = UserDefaults(suiteName: name) ?? .standard
             defaults.removePersistentDomain(forName: name)
@@ -94,7 +95,16 @@ enum DotDebug {
 
     static var wantsAutoplay: Bool {
         #if DEBUG
-        return arguments.contains("-dotAutoplay")
+        return arguments.contains("-dotAutoplay") || arguments.contains("-dotAutoplayIdle")
+        #else
+        return false
+        #endif
+    }
+
+    /// `-dotAutoplayIdle`: the autoplayer buys and claims but never taps the world.
+    static var autoplayIsIdle: Bool {
+        #if DEBUG
+        return arguments.contains("-dotAutoplayIdle")
         #else
         return false
         #endif
@@ -103,7 +113,7 @@ enum DotDebug {
     /// Seeded and autoplayed QA runs have nobody to tap the notification prompt.
     static var suppressesSystemPrompts: Bool {
         #if DEBUG
-        return arguments.contains("-dotSeed") || arguments.contains("-dotAutoplay")
+        return arguments.contains("-dotSeed") || wantsAutoplay
         #else
         return false
         #endif

@@ -2753,13 +2753,13 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "빈 밭을 누르면 씨앗을 심고,\n다 자란 봄동을 누르면 수확해요.\n첫 번째 밭은 알바생이 알아서 돌봐요.\n황금 봄동은 보너스 코인!"
+            "value" : "빈 밭을 누르면 씨앗을 심고,\n자라는 밭을 누르면 물을 줘요.\n다 자란 봄동을 누르면 수확해요.\n첫 번째 밭은 알바생이 돌봐요."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap an empty plot to plant,\nand a ripe bomdong to harvest.\nYour starting part-timer tends the first plot by themselves.\nGolden bomdong pays bonus coins!"
+            "value" : "Tap an empty plot to plant,\na growing plot to water it faster,\nand a ripe bomdong to harvest.\nYour starting part-timer tends the first plot."
           }
         }
       }
@@ -2785,13 +2785,13 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "접시를 누르면 요리를 시작해요.\n손님이 떨어뜨린 동전을 누르면\n팁을 받아요!"
+            "value" : "접시를 누르면 요리를 시작해요.\n요리 중에 또 누르면 더 빨리 돼요!\n손님이 떨어뜨린 동전은 팁이에요."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap a dish to start cooking.\nTap the coins customers drop\nto collect tips!"
+            "value" : "Tap a dish to start cooking.\nTap it again while it cooks to hurry it!\nCoins customers drop are tips."
           }
         }
       }
@@ -2817,13 +2817,13 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "손님을 빨리 대접하면 게이지가 차요.\n가득 차면 피버! 15초 동안 2배 수익,\n요리는 탭하면 바로 완성돼요."
+            "value" : "손님을 빨리 대접하면 게이지가 차요.\n가득 차면 피버! 15초 동안 3배 수익,\n요리는 탭하면 바로 완성돼요."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Serve customers fast to charge it.\nWhen it is full, FEVER! 15 seconds of\ndouble earnings and instant cooking."
+            "value" : "Serve customers fast to charge it.\nWhen it is full, FEVER! 15 seconds of\ntriple earnings and instant cooking."
           }
         }
       }
@@ -3607,13 +3607,13 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "피버 준비 완료! 눌러서 %d초 동안 2배로 팔아요"
+            "value" : "피버 준비 완료! 눌러서 %d초 동안 3배로 팔아요"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fever ready! Tap it to sell at double for %d seconds"
+            "value" : "Fever ready! Tap it to sell at triple for %d seconds"
           }
         }
       }
@@ -4094,6 +4094,246 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not enough coins"
+          }
+        }
+      }
+    },
+    "dot.hire.obj.1" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "알바생을"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Part-timer"
+          }
+        }
+      }
+    },
+    "dot.hire.obj.2" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이모님을"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auntie"
+          }
+        }
+      }
+    },
+    "dot.hire.obj.3" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "봄동 요리사를"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bomdong Chef"
+          }
+        }
+      }
+    },
+    "dot.hire.obj.4" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "농부를"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Farmer"
+          }
+        }
+      }
+    },
+    "dot.hire.obj.5" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "고참 알바를"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veteran Part-timer"
+          }
+        }
+      }
+    },
+    "dot.hire.placed.cook" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %2$@ 주방에 배치했어요"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ placed in the %2$@ kitchen"
+          }
+        }
+      }
+    },
+    "dot.hire.placed.cashier" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 계산대에 배치했어요"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ placed at the counter"
+          }
+        }
+      }
+    },
+    "dot.hire.placed.farm" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 밭에 배치했어요"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ placed on the field"
+          }
+        }
+      }
+    },
+    "dot.toast.coinsShort" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "코인이 부족해요 (%@ 필요)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough coins (%@ needed)"
+          }
+        }
+      }
+    },
+    "dot.warehouse.full" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "창고가 가득 찼어요!\n요리하면 비워져요"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The warehouse is full!\nCook to empty it"
+          }
+        }
+      }
+    },
+    "dot.hint.hurry" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "접시를 탭해 요리하고, 또 탭하면 더 빨리 돼요"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap a dish to cook it, tap again to hurry it"
+          }
+        }
+      }
+    },
+    "dot.hint.wake" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "졸고 있는 직원을 탭하면 깨워요"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap a sleepy worker to wake them"
+          }
+        }
+      }
+    },
+    "dot.prestige.gain" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "판매 수익 x%@ → x%@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sale earnings x%@ → x%@"
+          }
+        }
+      }
+    },
+    "dot.prestige.lastSpring" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "지난 봄: %@ 만에 달성"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last spring: reached in %@"
+          }
+        }
+      }
+    },
+    "dot.prestige.startCoins" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "새봄 시작 코인 %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New spring starts with %@"
           }
         }
       }

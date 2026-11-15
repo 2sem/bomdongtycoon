@@ -8,8 +8,8 @@ enum NotificationManager {
 
     /// Asks only while the status is `.notDetermined`, so it is safe to call
     /// from anywhere and never prompts twice. It is asked for after something the
-    /// player did (first hire, first return from the background), not on a cold
-    /// start, so the system alert never lands on a player who has not played yet.
+    /// player did (the first return from the background), not on a cold start and
+    /// not over an open sheet, so the system alert never interrupts a hire or a tap.
     /// `isRequesting` covers the async gap between reading the status and the
     /// system recording the answer, where two calls would both see
     /// `.notDetermined`.

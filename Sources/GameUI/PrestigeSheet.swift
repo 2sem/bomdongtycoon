@@ -56,16 +56,26 @@ public struct PrestigeSheet: View {
     private var rewardSection: some View {
         let current = PrestigeSystem.legacyMultiplier(prestigeCount: currentCount)
         let next = PrestigeSystem.legacyMultiplier(prestigeCount: currentCount + 1)
-        let line = String(
-            format: String(localized: "dot.prestige.multiplier"),
+        let gain = String(
+            format: String(localized: "dot.prestige.gain"),
             PrestigeSystem.multiplierNumber(current),
-            PrestigeSystem.multiplierNumber(next),
-            PrestigeSystem.multiplierNumber(next - current))
-        return HStack(spacing: 10) {
+            PrestigeSystem.multiplierNumber(next))
+        let lastSpring = String(
+            format: String(localized: "dot.prestige.lastSpring"),
+            StatsSheet.durationText(progress.runPlaySeconds))
+        let startCoins = String(
+            format: String(localized: "dot.prestige.startCoins"),
+            CoinFormat.string(PrestigeSystem.startingCoins(prestigeCount: currentCount + 1)))
+        return HStack(alignment: .top, spacing: 10) {
             DotImage("dot_ui_star", scale: 2)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(line).dotText(.bold).monospacedDigit()
+            VStack(alignment: .leading, spacing: 6) {
+                Text(gain).dotText(.title, color: DotPalette.leafDark).monospacedDigit()
                 Text(String(localized: "prestige.reward")).dotText(.caption, color: DotPalette.textSecondary)
+                Text(lastSpring).dotText(.bold)
+                HStack(spacing: 4) {
+                    DotImage("dot_ui_coin", scale: 1)
+                    Text(startCoins).dotText(.bold, color: DotPalette.goldDark)
+                }
             }
             .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)

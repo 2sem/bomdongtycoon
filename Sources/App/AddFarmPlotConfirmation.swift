@@ -20,22 +20,25 @@ struct AddFarmPlotConfirmation: ViewModifier {
         content
             .preference(key: AlertUpKey.self, value: pendingPlotCount != nil)
             .onReceive(NotificationCenter.default.publisher(for: .requestAddFarmPlot)) { _ in
-                guard FarmSystem.costForNextPlot(currentCount: store.farm.plots.count) != nil else { return }
+                guard let cost = FarmSystem.costForNextPlot(currentCount: store.farm.plots.count) else { return }
+                // Too poor to buy: a toast, not a modal that would stop the sweep of taps around it.
+                guard store.stall.coins >= cost else {
+                    DotSound.shared.play(.error)
+                    Notification.Name.postHUDToast(
+                        String(format: String(localized: "dot.toast.coinsShort"), CoinFormat.string(cost)))
+                    return
+                }
                 pendingPlotCount = store.farm.plots.count
             }
             .alert(
-                canAfford ? String(localized: "밭을 넓힐까요?") : String(localized: "dot.coins.short.title"),
+                String(localized: "밭을 넓힐까요?"),
                 isPresented: Binding(
                     get: { pendingPlotCount != nil },
                     set: { if !$0 { pendingPlotCount = nil } }
                 )
             ) {
-                if canAfford {
-                    Button(String(localized: "넓히기")) { confirm() }
-                    Button(String(localized: "취소"), role: .cancel) {}
-                } else {
-                    Button(String(localized: "확인"), role: .cancel) {}
-                }
+                Button(String(localized: "넓히기")) { confirm() }
+                Button(String(localized: "취소"), role: .cancel) {}
             } message: {
                 Text(message)
             }
@@ -56,18 +59,9 @@ struct AddFarmPlotConfirmation: ViewModifier {
         pendingPlotCount.flatMap { FarmSystem.costForNextPlot(currentCount: $0) }
     }
 
-    private var canAfford: Bool {
-        guard let cost else { return false }
-        return store.stall.coins >= cost
-    }
-
     private var message: String {
         guard let cost, let count = pendingPlotCount else { return "" }
-        let price = Self.formatted(cost)
-        if canAfford {
-            return String(format: String(localized: "dot.plot.message"), price, count, count + 1)
-        }
-        return String(format: String(localized: "dot.plot.short"), price, count + 1)
+        return String(format: String(localized: "dot.plot.message"), Self.formatted(cost), count, count + 1)
     }
 
     private func confirm() {

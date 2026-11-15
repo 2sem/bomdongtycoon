@@ -51,10 +51,10 @@ final class FunPassTests: DotWorldTestCase {
         store.startFever()
         _ = store.sellItem(menuIndex: 0)
         _ = store.sellItem(menuIndex: 0)
-        XCTAssertEqual(store.feverEarned, 120, accuracy: 1e-9)
+        XCTAssertEqual(store.feverEarned, 180, accuracy: 1e-9)
         store.tick(deltaTime: 15)
         XCTAssertFalse(store.isFeverActive)
-        XCTAssertEqual(store.feverEarned, 120, accuracy: 1e-9, "kept for the summary after fever ends")
+        XCTAssertEqual(store.feverEarned, 180, accuracy: 1e-9, "kept for the summary after fever ends")
         serve(36)
         store.startFever()
         XCTAssertEqual(store.feverEarned, 0)
@@ -63,12 +63,12 @@ final class FunPassTests: DotWorldTestCase {
     func test_fever_cropsRipenThreeTimesFaster() {
         store.farm.plots[1].isPlanted = true
         store.farm.plots[1].growth = 0
-        store.tick(deltaTime: 3)
+        store.tick(deltaTime: 2)
         let normal = store.farm.plots[1].growth
         store.farm.plots[1].growth = 0
         chargeFever()
         store.startFever()
-        store.tick(deltaTime: 3)
+        store.tick(deltaTime: 2)
         XCTAssertEqual(store.farm.plots[1].growth, normal * 3, accuracy: 1e-9)
     }
 
@@ -262,11 +262,11 @@ final class FunPassTests: DotWorldTestCase {
     }
 
     func test_renovation_costGrowsByTwentyFivePercent_roundedToTwoFigures() {
-        XCTAssertEqual(RenovationSystem.cost(forLevel: 0), 50_000)
-        XCTAssertEqual(RenovationSystem.cost(forLevel: 1), 63_000)    // 62,500
-        XCTAssertEqual(RenovationSystem.cost(forLevel: 2), 78_000)    // 78,125
-        XCTAssertEqual(RenovationSystem.cost(forLevel: 3), 98_000)    // 97,656
-        XCTAssertEqual(RenovationSystem.cost(forLevel: 4), 120_000)   // 122,070
+        XCTAssertEqual(RenovationSystem.cost(forLevel: 0), 30_000)
+        XCTAssertEqual(RenovationSystem.cost(forLevel: 1), 38_000)    // 37,500
+        XCTAssertEqual(RenovationSystem.cost(forLevel: 2), 47_000)    // 46,875
+        XCTAssertEqual(RenovationSystem.cost(forLevel: 3), 59_000)    // 58,594
+        XCTAssertEqual(RenovationSystem.cost(forLevel: 4), 73_000)    // 73,242
     }
 
     func test_renovation_unlocksAtTheFinalStallTier() {
@@ -275,28 +275,28 @@ final class FunPassTests: DotWorldTestCase {
         store.purchaseUpgrade(.renovation)
         XCTAssertEqual(store.stall.renovationLevel, 0, "locked below the final stall tier")
         maxedStall()
-        XCTAssertEqual(RenovationSystem.nextCost(for: store.stall), 50_000)
+        XCTAssertEqual(RenovationSystem.nextCost(for: store.stall), 30_000)
     }
 
     func test_renovation_purchaseChargesAndRaisesTheLevel_untilCoinsRunOut() {
         maxedStall()
-        store.stall.coins = 60_000
+        store.stall.coins = 40_000
         store.purchaseUpgrade(.renovation)
         XCTAssertEqual(store.stall.renovationLevel, 1)
         XCTAssertEqual(store.stall.coins, 10_000, accuracy: 1e-9)
         store.purchaseUpgrade(.renovation)
-        XCTAssertEqual(store.stall.renovationLevel, 1, "65,000 is out of reach")
+        XCTAssertEqual(store.stall.renovationLevel, 1, "38,000 is out of reach")
     }
 
-    func test_renovation_isFivePercentPerLevel_composedInThePricePerItem() {
+    func test_renovation_isEightPercentPerLevel_composedInThePricePerItem() {
         let base = EarningsSystem.pricePerItem(for: store.stall, menuIndex: 0)
         store.stall.renovationLevel = 4
-        XCTAssertEqual(EarningsSystem.pricePerItem(for: store.stall, menuIndex: 0), base * 1.2, accuracy: 1e-9)
-        XCTAssertEqual(EarningsSystem.salePrice(for: store.stall, menuIndex: 0, prestigeCount: 0), base * 1.2, accuracy: 1e-9)
+        XCTAssertEqual(EarningsSystem.pricePerItem(for: store.stall, menuIndex: 0), base * 1.32, accuracy: 1e-9)
+        XCTAssertEqual(EarningsSystem.salePrice(for: store.stall, menuIndex: 0, prestigeCount: 0), base * 1.32, accuracy: 1e-9)
         store.stall.menuCooks = [1, 0, 0]
         let perSecond = EarningsSystem.coinsPerSecond(for: store.stall, prestigeCount: 0)
         store.stall.renovationLevel = 0
-        XCTAssertEqual(perSecond, EarningsSystem.coinsPerSecond(for: store.stall, prestigeCount: 0) * 1.2, accuracy: 1e-9,
+        XCTAssertEqual(perSecond, EarningsSystem.coinsPerSecond(for: store.stall, prestigeCount: 0) * 1.32, accuracy: 1e-9,
                        "offline earnings read coinsPerSecond, so they inherit it")
     }
 
@@ -308,11 +308,11 @@ final class FunPassTests: DotWorldTestCase {
         s.locationTier = UpgradeDefinitions.location.count - 1
         s.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]
         XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .renovation)
-        XCTAssertEqual(EarningsSystem.nextGoalUpgrade(for: s)?.coinCost, 50_000)
+        XCTAssertEqual(EarningsSystem.nextGoalUpgrade(for: s)?.coinCost, 30_000)
         XCTAssertEqual(EarningsSystem.nextGoalLabel(for: s), .renovation)
         XCTAssertTrue(EarningsSystem.isOnlyRenovationLeft(for: s), "the new-spring capsule keeps its priority")
         s.renovationLevel = 2
-        XCTAssertEqual(EarningsSystem.nextGoalUpgrade(for: s)?.coinCost, 78_000)
+        XCTAssertEqual(EarningsSystem.nextGoalUpgrade(for: s)?.coinCost, 47_000)
 
         s.locationTier = 1
         XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .renovation, "the cheapest purchase drives the goal")

@@ -34,6 +34,8 @@ final class PixelLabel: SKNode {
     enum Alignment { case left, center, right }
 
     private let sprite = SKSpriteNode()
+    /// Width in art pixels of the text as last drawn (0 when empty).
+    private(set) var contentWidth: CGFloat = 0
     private let style: Style
     private let alignment: Alignment
     private let shadowColor: SKColor?
@@ -66,10 +68,12 @@ final class PixelLabel: SKNode {
     private func render() {
         guard !text.isEmpty, let font = UIFont(name: style.fontName, size: style.em) else {
             sprite.texture = nil
+            contentWidth = 0
             return
         }
         let size = (text as NSString).size(withAttributes: [.font: font])
         let width = Int(ceil(size.width)) + 1
+        contentWidth = CGFloat(width)
         let height = Int(ceil(font.lineHeight)) + 1
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1

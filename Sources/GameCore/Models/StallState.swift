@@ -30,7 +30,7 @@ public struct StallState: Codable {
 
     // Warehouse
     public var warehouse: Int = 5
-    public var warehouseCapacity: Int = 10
+    public var warehouseCapacity: Int = WarehouseSystem.baseCapacity
     public var menuStock: [Int] = [0, 0, 0]
 
     // Computed
@@ -89,7 +89,8 @@ public struct StallState: Codable {
         tier2IdleEnergies = c.decodeOrDefault(.tier2IdleEnergies, d.tier2IdleEnergies)
         tier3IdleEnergies = c.decodeOrDefault(.tier3IdleEnergies, d.tier3IdleEnergies)
         warehouse = c.decodeOrDefault(.warehouse, d.warehouse)
-        warehouseCapacity = c.decodeOrDefault(.warehouseCapacity, d.warehouseCapacity)
+        // A save with no capacity predates the 15-slot start.
+        warehouseCapacity = c.decodeOrDefault(.warehouseCapacity, WarehouseSystem.legacyBaseCapacity)
         menuStock = c.decodeOrDefault(.menuStock, [0, 0, 0])
         farmerCount = c.decodeOrDefault(.farmerCount, d.farmerCount)
         farmerIdleEnergies = c.decodeOrDefault(.farmerIdleEnergies, d.farmerIdleEnergies)

@@ -34,6 +34,26 @@ final class FXLayer: SKNode {
         play(frames: "dot_backdrop_rain_splash", count: 2, anchor: .pixel(3, 3), at: point, perFrame: 0.08)
     }
 
+    /// Three drops fall into a plot and splash: the raindrop and splash of the weather, close up.
+    func water(at point: CGPoint) {
+        for (i, dx) in [CGFloat(-5), 1, 6].enumerated() {
+            let land = CGPoint(x: point.x + dx, y: point.y - CGFloat(i % 2) * 2)
+            let drop = dotSprite("dot_backdrop_raindrop", anchor: .pixel(0, 5))
+            drop.position = snapped(CGPoint(x: land.x, y: land.y + 14))
+            drop.alpha = 0
+            addChild(drop)
+            let fall = SKAction.move(to: snapped(land), duration: reduceMotion ? 0.01 : 0.16)
+            fall.timingMode = .easeIn
+            drop.run(.sequence([
+                .wait(forDuration: Double(i) * 0.06),
+                .fadeIn(withDuration: 0),
+                fall,
+                .run { [weak self] in self?.rainSplash(at: land) },
+                .removeFromParent(),
+            ]))
+        }
+    }
+
     private func play(frames base: String, count: Int, anchor: DotAnchor, at point: CGPoint, perFrame: TimeInterval) {
         let sprite = dotSprite("\(base)_0", anchor: anchor)
         sprite.position = snapped(point)

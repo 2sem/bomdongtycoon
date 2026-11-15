@@ -3,10 +3,12 @@ import SwiftUI
 import UIKit
 import GameCore
 
-/// The three first-time actions the pointer teaches. Done-flags live in UserDefaults, not the save,
+/// The first-time actions the pointer teaches. Done-flags live in UserDefaults, not the save,
 /// so a prestige or a restored save never replays them.
 enum FirstRunHint: String, CaseIterable {
     case harvest, plant, cook
+    /// A second tap on a cooking dish; the pointer stays on the dish until the player has tapped it once more.
+    case hurry
     /// The first full fever gauge of an install (pointer on the button plus a toast).
     case fever
 
@@ -14,10 +16,17 @@ enum FirstRunHint: String, CaseIterable {
     var isDone: Bool { UserDefaults.standard.bool(forKey: key) }
     func markDone() { UserDefaults.standard.set(true, forKey: key) }
 
+    /// The one-line toast that goes with the cook/hurry pointer, and how many times the sleepy-worker
+    /// tip has been shown. Kept with the hints so a restored save never replays them.
+    static let hurryToastKey = "dot.hint.hurryToast"
+    static let wakeHintKey = "dot.hint.wakeCount"
+
     /// DEBUG `-dotResetHints` replays them on a seeded save.
     static func resetForDebug() {
         for hint in allCases { UserDefaults.standard.removeObject(forKey: hint.key) }
         UserDefaults.standard.removeObject(forKey: "dot.hint.missionPointerCount")
+        UserDefaults.standard.removeObject(forKey: hurryToastKey)
+        UserDefaults.standard.removeObject(forKey: wakeHintKey)
     }
 }
 

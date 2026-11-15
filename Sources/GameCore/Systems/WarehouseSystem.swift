@@ -2,12 +2,17 @@ import Foundation
 
 public enum WarehouseSystem {
     public static let expansionStep: Int = 10
-    public static let baseCapacity:  Int = 10
-    // 4 expansions max → 5 slots
+    /// What a new game opens with.
+    public static let baseCapacity:  Int = 15
+    /// Saves from before the base moved to 15 sit on 10, 20, 30...: the price ladder is still indexed
+    /// from here, so integer division maps both shapes (10/15 -> 300, 20/25 -> 800, ...) and an old
+    /// save's next expansion costs exactly what it did.
+    public static let legacyBaseCapacity: Int = 10
+    // 4 expansions max
     private static let expansionCosts: [Double] = [300, 800, 2_000, 5_000]
 
     public static func costForNextExpansion(current capacity: Int) -> Double? {
-        let step = (capacity - baseCapacity) / expansionStep
+        let step = (capacity - legacyBaseCapacity) / expansionStep
         guard step >= 0, step < expansionCosts.count else { return nil }
         return expansionCosts[step]
     }

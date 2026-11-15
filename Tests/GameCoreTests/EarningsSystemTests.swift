@@ -86,6 +86,7 @@ extension EarningsSystemTests {
         stall.locationTier = locationTier
         stall.coins = coins
         stall.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]  // endless sinks never compete
+        stall.renovationLevel = 2   // 47,000: dearer than the move, so the move is the cheapest goal
         return EarningsSystem.nextGoalUpgrade(for: stall)?.name
     }
 
@@ -131,6 +132,7 @@ extension EarningsSystemTests {
         stall.menuTier = 2
         stall.coins = 2_000
         stall.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]  // endless sinks never compete
+        stall.renovationLevel = 2   // 47,000: dearer than the move, so the move is the cheapest goal
         XCTAssertNil(EarningsSystem.nextAffordableUpgrade(for: stall))  // 이모님 locked, 식당 2,500
         stall.coins = 2_500
         XCTAssertEqual(EarningsSystem.nextAffordableUpgrade(for: stall)?.name, "봄동 식당")
@@ -143,6 +145,7 @@ extension EarningsSystemTests {
         stall.menuTier = 2
         stall.coins = 39_530
         stall.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]  // endless sinks never compete
+        stall.renovationLevel = 2   // 47,000: dearer than the move, so the move is the cheapest goal
         let text = EarningsSystem.locationGoalText(for: stall)
         XCTAssertNotNil(text)
         XCTAssertTrue(text?.contains("39,530 / 40,000") == true, text ?? "nil")
@@ -155,6 +158,7 @@ extension EarningsSystemTests {
         stall.menuTier = 2
         stall.coins = 39_530
         stall.recipeLevels = [RecipeSystem.maxLevel, RecipeSystem.maxLevel, RecipeSystem.maxLevel]  // endless sinks never compete
+        stall.renovationLevel = 2   // 47,000: dearer than the move, so the move is the cheapest goal
         let full = EarningsSystem.locationGoalText(for: stall) ?? ""
         let compact = EarningsSystem.locationGoalCompactText(for: stall)
         XCTAssertEqual(compact, "💰 39,530 / 40,000 · 시장")
