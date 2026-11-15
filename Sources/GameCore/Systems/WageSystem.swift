@@ -148,9 +148,19 @@ extension Array {
     subscript(safe index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
 }
 
-/// Per-worker levels. Every worker is hired at Lv.1; a level is bought one step at a time with coins,
-/// makes her faster and raises her daily wage, and the wage rises faster than the speed so a high
-/// level on a post that earns little is a real choice.
+/// A worker's level and the experience toward the next one; it travels with her like her energy.
+public struct StaffSkill: Equatable {
+    public var level: Int
+    /// Seconds worked toward the next level (0 at max).
+    public var exp: Double
+    public init(level: Int = 1, exp: Double = 0) { self.level = level; self.exp = exp }
+}
+
+/// Per-worker levels. Every worker is hired at Lv.1 and levels up by working: experience is working
+/// time, earned only on a post and awake (not on the bench, not asleep or on strike, not paused, not
+/// inactive, not offline), so cook, cashier and farm hand climb at the same pace and the player
+/// is never asked to pay. A level makes her faster and raises her daily wage, the wage faster than
+/// the speed, so a high level on a post that earns little still costs real money.
 ///
 /// Speed (x1.00, 1.15, 1.30, 1.45, 1.60) multiplies, per post:
 /// - a cook's dish rate;
@@ -163,10 +173,10 @@ public enum StaffLevelSystem {
     public static let speedPerLevel = 0.15
     public static let wagePerLevel = 0.25
 
-    /// Cost of Lv.N to Lv.N+1 as a share of the type's hire price, N = 1...4: 0.5x, 1x, 2x, 4x.
-    /// Rising so the last step is the dear one, and scaled from the hire price so 봄동 요리사
-    /// levels cost what a 봄동 요리사 is worth. Climbing to Lv.5 costs 7.5x the hire price in all.
-    public static let costShares: [Double] = [0.5, 1, 2, 4]
+    /// Working seconds from Lv.N to Lv.N+1, N = 1...4: 2, 4, 8 and 16 game days. Posted around the
+    /// clock that is 30 days, 7,200 s or 2 hours of play to Lv.5: the first level lands inside a
+    /// first session and the last is a long-run goal.
+    public static let secondsToNextLevel: [Double] = [2, 4, 8, 16].map { $0 * DayCycle.loopSeconds }
 
     public static func clamped(_ level: Int) -> Int { min(max(level, 1), maxLevel) }
 
@@ -178,26 +188,38 @@ public enum StaffLevelSystem {
         1 + wagePerLevel * Double(clamped(level) - 1)
     }
 
-    /// What a worker of `tier` costs to hire, the base the level costs scale from.
-    public static func hirePrice(tier: Int) -> Double {
-        switch tier {
-        case 1...3: UpgradeDefinitions.staff[tier - 1].coinCost
-        case 4: UpgradeDefinitions.farmer[0].coinCost
-        default: UpgradeDefinitions.veteranAlba[0].coinCost
+    /// Working seconds this level needs; nil at max level.
+    public static func secondsNeeded(atLevel level: Int) -> Double? {
+        level >= 1 && level < maxLevel ? secondsToNextLevel[level - 1] : nil
+    }
+
+    /// Progress to the next level, 0...1; 1 at max level.
+    public static func progress(_ skill: StaffSkill) -> Double {
+        guard let needed = secondsNeeded(atLevel: skill.level) else { return 1 }
+        return min(max(skill.exp / needed, 0), 1)
+    }
+
+    /// Adds working time. Leftover experience carries over and one long step may cross several
+    /// thresholds; at max level experience stops. Returns the levels gained.
+    @discardableResult
+    public static func work(_ skill: inout StaffSkill, seconds: Double) -> Int {
+        skill.level = clamped(skill.level)
+        guard seconds > 0 else { return 0 }
+        var left = seconds + skill.exp
+        var gained = 0
+        while let needed = secondsNeeded(atLevel: skill.level), left >= needed {
+            left -= needed
+            skill.level += 1
+            gained += 1
         }
+        skill.exp = skill.level >= maxLevel ? 0 : left
+        return gained
     }
 
-    /// nil at max level.
-    public static func cost(tier: Int, fromLevel level: Int) -> Double? {
-        guard level >= 1, level < maxLevel else { return nil }
-        return (hirePrice(tier: tier) * costShares[level - 1]).rounded()
-    }
-
-    /// Everything the sheet shows before the player pays.
+    /// What the next level brings, for the row: nil at max level.
     public struct Step: Equatable {
         public let fromLevel: Int
         public let toLevel: Int
-        public let cost: Double
         /// Whole percent faster than she is now, e.g. Lv.1 to Lv.2 is +15%.
         public let speedGainPercent: Int
         public let wageBefore: Double
@@ -205,9 +227,9 @@ public enum StaffLevelSystem {
     }
 
     public static func step(tier: Int, fromLevel level: Int) -> Step? {
-        guard let cost = cost(tier: tier, fromLevel: level) else { return nil }
+        guard level >= 1, level < maxLevel else { return nil }
         let gain = speedMultiplier(level: level + 1) / speedMultiplier(level: level) - 1
-        return Step(fromLevel: level, toLevel: level + 1, cost: cost,
+        return Step(fromLevel: level, toLevel: level + 1,
                     speedGainPercent: Int((gain * 100).rounded()),
                     wageBefore: WageSystem.wage(forTier: tier, level: level),
                     wageAfter: WageSystem.wage(forTier: tier, level: level + 1))

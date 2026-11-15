@@ -41,6 +41,14 @@ public struct StallState: Codable {
     public var tier3IdleLevels: [Int] = []
     public var farmerIdleLevels: [Int] = []
     public var veteranAlbaIdleLevels: [Int] = []
+    /// Working seconds toward the next level, parallel to the levels.
+    public var menuCookExp: [Double] = [0, 0, 0]
+    public var cashierExp: Double = 0
+    public var tier1IdleExp: [Double] = []
+    public var tier2IdleExp: [Double] = []
+    public var tier3IdleExp: [Double] = []
+    public var farmerIdleExp: [Double] = []
+    public var veteranAlbaIdleExp: [Double] = []
 
     // Warehouse
     public var warehouse: Int = 5
@@ -81,6 +89,8 @@ public struct StallState: Codable {
         case renovationLevel, recipeLevels
         case menuCookLevels, cashierLevel
         case tier1IdleLevels, tier2IdleLevels, tier3IdleLevels, farmerIdleLevels, veteranAlbaIdleLevels
+        case menuCookExp, cashierExp
+        case tier1IdleExp, tier2IdleExp, tier3IdleExp, farmerIdleExp, veteranAlbaIdleExp
     }
 
     /// Every key is optional so older saves (which predate `locationTier`) keep loading.
@@ -125,6 +135,13 @@ public struct StallState: Codable {
         tier3IdleLevels = c.decodeOrDefault(.tier3IdleLevels, [])
         farmerIdleLevels = c.decodeOrDefault(.farmerIdleLevels, [])
         veteranAlbaIdleLevels = c.decodeOrDefault(.veteranAlbaIdleLevels, [])
+        menuCookExp = c.decodeOrDefault(.menuCookExp, d.menuCookExp)
+        cashierExp = c.decodeOrDefault(.cashierExp, 0)
+        tier1IdleExp = c.decodeOrDefault(.tier1IdleExp, [])
+        tier2IdleExp = c.decodeOrDefault(.tier2IdleExp, [])
+        tier3IdleExp = c.decodeOrDefault(.tier3IdleExp, [])
+        farmerIdleExp = c.decodeOrDefault(.farmerIdleExp, [])
+        veteranAlbaIdleExp = c.decodeOrDefault(.veteranAlbaIdleExp, [])
 
         // GameStore indexes these three by menu index; a wrong length would trap there.
         let menuCount = UpgradeDefinitions.menu.count
@@ -140,6 +157,13 @@ public struct StallState: Codable {
         let clamp = StaffLevelSystem.clamped
         menuCookLevels = Self.resized(menuCookLevels, to: menuCount, padding: 1).map(clamp)
         cashierLevel = clamp(cashierLevel)
+        menuCookExp = Self.resized(menuCookExp, to: menuCount, padding: 0).map { max(0, $0) }
+        cashierExp = max(0, cashierExp)
+        tier1IdleExp = tier1IdleExp.map { max(0, $0) }
+        tier2IdleExp = tier2IdleExp.map { max(0, $0) }
+        tier3IdleExp = tier3IdleExp.map { max(0, $0) }
+        farmerIdleExp = farmerIdleExp.map { max(0, $0) }
+        veteranAlbaIdleExp = veteranAlbaIdleExp.map { max(0, $0) }
         tier1IdleLevels = tier1IdleLevels.map(clamp)
         tier2IdleLevels = tier2IdleLevels.map(clamp)
         tier3IdleLevels = tier3IdleLevels.map(clamp)

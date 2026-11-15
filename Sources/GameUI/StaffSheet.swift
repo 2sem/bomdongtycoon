@@ -151,9 +151,8 @@ public struct StaffSheet: View {
                         cashierCount: store.stall.cashierCount,
                         activeFarmPlots: FarmSystem.activePlotCount(for: store.farm),
                         farmPlots: store.farm.plots,
-                        coins: store.stall.coins,
+                        expProgress: expProgress(of: worker),
                         onReassign: { reassign(worker: worker, to: $0) },
-                        onLevelUp: { levelUp(worker) },
                         onFire: { pendingFire = worker }
                     )
                 }
@@ -182,6 +181,12 @@ public struct StaffSheet: View {
         return String(format: "%d:%02d", total / 60, total % 60)
     }
 
+    /// Progress to her next level, from her own slot (a benched worker by her row, a farm hand by her plot).
+    private func expProgress(of worker: WorkerItem) -> Double {
+        let exp = target(of: worker).flatMap { store.experience(of: $0) } ?? 0
+        return StaffLevelSystem.progress(StaffSkill(level: worker.level, exp: exp))
+    }
+
     /// Fires from the post the row shows. A farm hand is found by type, as `reassign` finds her.
     private func target(of worker: WorkerItem) -> GameStore.FireTarget? {
         switch worker.assignment {
@@ -198,15 +203,6 @@ public struct StaffSheet: View {
         play(.tap)
         AccessibilityNotification.Announcement(
             String(format: String(localized: "dot.fire.done"), staffName(worker.tier))).post()
-    }
-
-    /// Pays for one level of this worker, wherever she is. Same cue as any purchase.
-    private func levelUp(_ worker: WorkerItem) {
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        guard let target = target(of: worker), store.levelUp(target) else { return play(.error) }
-        play(.purchase)
-        AccessibilityNotification.Announcement(
-            String(format: String(localized: "dot.staff.levelup.done"), staffName(worker.tier), worker.level + 1)).post()
     }
 
     // MARK: - Hire list
@@ -459,7 +455,7 @@ public struct StaffSheet: View {
         case .farm:        liveEnergy = worker.plot.map { store.farm.plots[$0].workerEnergy } ?? 1.0
         case .unassigned:  liveEnergy = 1.0
         }
-        let level = worker.level
+        let skill = StaffSkill(level: worker.level, exp: target(of: worker).flatMap { store.experience(of: $0) } ?? 0)
         switch worker.assignment {
         case .menu(let i): store.removeMenuCook(menuIndex: i, addToIdle: false)
         case .cashier:     store.removeFromCashier(addToIdle: false)
@@ -469,11 +465,11 @@ public struct StaffSheet: View {
         }
         let activeAfter = FarmSystem.activePlotCount(for: store.farm)
         switch new {
-        case .menu(let i): store.assignMenuCook(menuIndex: i, tier: worker.tier, directEnergy: liveEnergy, directLevel: level)
-        case .cashier:     store.assignToCashier(tier: worker.tier, directEnergy: liveEnergy, directLevel: level)
+        case .menu(let i): store.assignMenuCook(menuIndex: i, tier: worker.tier, directEnergy: liveEnergy, directSkill: skill)
+        case .cashier:     store.assignToCashier(tier: worker.tier, directEnergy: liveEnergy, directSkill: skill)
         case .farm:
             if let idx = (0..<activeAfter).first(where: { !store.farm.plots[$0].hasWorker }) {
-                store.toggleFarmWorker(plotIndex: idx, workerType: .alba, directEnergy: liveEnergy, directLevel: level)
+                store.toggleFarmWorker(plotIndex: idx, workerType: .alba, directEnergy: liveEnergy, directSkill: skill)
             }
         case .unassigned: break
         }
@@ -534,7 +530,10 @@ private struct DotCaret: View {
     }
 }
 
-private func staffName(_ tier: Int) -> String {
+private func staffName(_ tier: Int) -> String { staffDisplayName(tier: tier) }
+
+/// The worker type's display name, for the HUD toast as well as the sheet.
+public func staffDisplayName(tier: Int) -> String {
     switch tier {
     case 1: DotContent.loc("알바생")
     case 2: DotContent.loc("이모님")
@@ -553,9 +552,8 @@ private struct WorkerRow: View {
     let cashierCount: Int
     let activeFarmPlots: Int
     let farmPlots: [FarmPlot]
-    let coins: Double
+    let expProgress: Double
     let onReassign: (WorkerItem.Assignment) -> Void
-    let onLevelUp: () -> Void
     let onFire: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -642,9 +640,10 @@ private struct WorkerRow: View {
                 DotMiniBar(value: worker.energy, color: StaffLook.energyColor(worker.energy))
                     .accessibilityLabel(String(localized: "dot.staff.energy"))
                     .accessibilityValue("\(Int((worker.energy * 100).rounded()))%")
+                experienceGauge
                 Text(wageText(tier: worker.tier, level: worker.level)).dotText(.caption, color: DotPalette.orangeDark)
+                nextLevelLine
                 assignmentMenu
-                levelControl
             }
         }
         .dotPanel()
@@ -694,29 +693,27 @@ private struct WorkerRow: View {
             .accessibilityHint(String(localized: "dot.staff.fire.hint"))
     }
 
-    /// The tradeoff is on screen before the coins are spent: level, speed and wage, from the GameCore tables.
-    @ViewBuilder private var levelControl: some View {
-        if let step = levelStep {
-            let wageBefore = CoinFormat.string(step.wageBefore), wageAfter = CoinFormat.string(step.wageAfter)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(String(format: String(localized: "dot.staff.levelup.tradeoff"),
-                            step.fromLevel, step.toLevel, step.speedGainPercent, wageBefore, wageAfter))
-                    .dotText(.caption, color: DotPalette.orangeDark)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityHidden(true)
-                Button(action: onLevelUp) {
-                    HStack(spacing: 4) {
-                        Text(String(localized: "dot.staff.levelup"))
-                        DotCostLabel(text: CoinFormat.string(step.cost))
-                    }
-                }
-                .buttonStyle(.dotCompact)
-                .disabled(coins < step.cost)
-                .accessibilityLabel(String(
-                    format: String(localized: "dot.staff.levelup.a11y"),
-                    staffName(worker.tier), step.toLevel, CoinFormat.string(step.cost),
-                    step.speedGainPercent, wageBefore, wageAfter))
+    /// Experience toward the next level: a blue bar, labelled, so it is never read as energy.
+    @ViewBuilder private var experienceGauge: some View {
+        if worker.level < StaffLevelSystem.maxLevel {
+            HStack(spacing: 6) {
+                Text(String(localized: "dot.staff.exp")).dotText(.caption, color: DotPalette.soilDark)
+                DotMiniBar(value: expProgress, color: DotPalette.sky)
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(String(localized: "dot.staff.exp"))
+            .accessibilityValue("\(Int((expProgress * 100).rounded()))%")
+        }
+    }
+
+    /// What the next level brings, so the automatic wage rise can be foreseen. Not interactive.
+    @ViewBuilder private var nextLevelLine: some View {
+        if let step = levelStep {
+            Text(String(format: String(localized: "dot.staff.nextLevel"),
+                        step.toLevel, step.speedGainPercent,
+                        CoinFormat.string(step.wageBefore), CoinFormat.string(step.wageAfter)))
+                .dotText(.caption, color: DotPalette.soilDark)
+                .fixedSize(horizontal: false, vertical: true)
         } else {
             Text(String(localized: "dot.staff.levelmax")).dotText(.caption, color: DotPalette.soilDark)
         }

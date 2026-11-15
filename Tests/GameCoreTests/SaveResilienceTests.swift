@@ -221,7 +221,7 @@ final class SaveResilienceTests: XCTestCase {
             "totalGourmetServed", "totalGoldenHarvested", "totalFevers", "totalTipsCollected",
             "totalWagesPaid", "lastWageDay"])
         XCTAssertEqual(try keys(FarmState()), ["plots"])
-        XCTAssertEqual(try keys(FarmPlot()), ["growth", "isPlanted", "workerType", "workerEnergy", "workerResting", "workerLevel", "isGolden"])
+        XCTAssertEqual(try keys(FarmPlot()), ["growth", "isPlanted", "workerType", "workerEnergy", "workerResting", "workerLevel", "workerExp", "isGolden"])
         XCTAssertEqual(try keys(StallState()), [
             "coins", "menuTier", "staffTier", "stallTier", "locationTier", "pendingCoins",
             "tier1Count", "tier2Count", "tier3Count", "cashierCount", "menuCooks",
@@ -231,6 +231,7 @@ final class SaveResilienceTests: XCTestCase {
             "farmerCount", "farmerIdleEnergies", "veteranAlbaCount", "veteranAlbaIdleEnergies",
             "renovationLevel", "recipeLevels",
             "menuCookLevels", "cashierLevel", "tier1IdleLevels", "tier2IdleLevels", "tier3IdleLevels",
-            "farmerIdleLevels", "veteranAlbaIdleLevels"])
+            "farmerIdleLevels", "veteranAlbaIdleLevels",
+            "menuCookExp", "cashierExp", "tier1IdleExp", "tier2IdleExp", "tier3IdleExp", "farmerIdleExp", "veteranAlbaIdleExp"])
     }
 }

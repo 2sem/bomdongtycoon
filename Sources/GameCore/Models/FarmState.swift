@@ -13,6 +13,8 @@ public struct FarmPlot: Codable {
     public var workerResting: Bool = false
     /// The worker's level (1...`StaffLevelSystem.maxLevel`); only meaningful while `hasWorker`.
     public var workerLevel: Int = 1
+    /// Working seconds toward the next level.
+    public var workerExp: Double = 0
     /// Rolled when the plot ripens; only a manual harvest pays the bonus.
     public var isGolden: Bool = false
 
@@ -28,7 +30,7 @@ public struct FarmPlot: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case growth, isPlanted, workerType, workerEnergy, workerResting, workerLevel, isGolden
+        case growth, isPlanted, workerType, workerEnergy, workerResting, workerLevel, workerExp, isGolden
         case hasWorker  // legacy read-only key for migration
     }
 
@@ -42,6 +44,7 @@ public struct FarmPlot: Codable {
         try c.encode(workerEnergy, forKey: .workerEnergy)
         try c.encode(workerResting, forKey: .workerResting)
         try c.encode(workerLevel,  forKey: .workerLevel)
+        try c.encode(workerExp,    forKey: .workerExp)
         try c.encode(isGolden,     forKey: .isGolden)
     }
 
@@ -52,6 +55,7 @@ public struct FarmPlot: Codable {
         workerEnergy = c.decodeOrDefault(.workerEnergy, 1.0)
         workerResting = c.decodeOrDefault(.workerResting, false)
         workerLevel  = StaffLevelSystem.clamped(c.decodeOrDefault(.workerLevel, 1))
+        workerExp    = max(0, c.decodeOrDefault(.workerExp, 0.0))
         isGolden     = c.decodeOrDefault(.isGolden, false)
         if let wt = c.decodeOrNil(FarmWorkerType.self, forKey: .workerType) {
             workerType = wt

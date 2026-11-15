@@ -10,7 +10,7 @@ import GameCore
 struct AutoplayState {
     var clock: Double = 0
     var nextLog: Double = 0
-    var seenServed = 0, seenStaff = 1, seenFevers = 0, seenTiers = 0, seenPayday = 0
+    var seenServed = 0, seenStaff = 1, seenFevers = 0, seenTiers = 0, seenPayday = 0, seenLevelUps = 0
     var firstSaleLogged = false
     var lastStep: Double = 0
     var readyLoggedAt = -1
@@ -162,6 +162,12 @@ extension DotWorldScene {
         if let payday = store.payday, payday.id != autoplayState.seenPayday {
             autoplayState.seenPayday = payday.id
             DotDebug.qa("event payday t=\(timeText(store)) paid=\(Int(payday.paid)) workers=\(payday.paidCount) strikes=\(payday.unpaidCount)")
+        }
+        if let ups = store.levelUps, ups.id != autoplayState.seenLevelUps {
+            autoplayState.seenLevelUps = ups.id
+            for up in ups.events {
+                DotDebug.qa("event levelup t=\(timeText(store)) tier=\(up.tier) lv=\(up.level) wage=\(Int(up.wageBefore))->\(Int(up.wageAfter)) payroll=\(Int(store.dailyPayroll))")
+            }
         }
         if store.isFeverReady, autoplayState.readyLoggedAt != p.totalFevers {
             autoplayState.readyLoggedAt = p.totalFevers

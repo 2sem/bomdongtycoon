@@ -113,6 +113,10 @@ struct GameRootView: View {
             guard let payday, !isIntroOverlayUp else { return }
             announcePayday(payday)
         }
+        .onChange(of: store.levelUps) { _, levelUps in
+            guard let levelUps, !isIntroOverlayUp else { return }
+            announceLevelUps(levelUps)
+        }
         .onChange(of: store.isFeverReady) { _, isReady in
             guard isReady, !isIntroOverlayUp, !FirstRunHint.fever.isDone else { return }
             FirstRunHint.fever.markDone()
@@ -327,6 +331,20 @@ struct GameRootView: View {
             showToast(unpaid, announcement: unpaid)
             DotSound.shared.play(.error)
         }
+    }
+
+    /// A worker levelled up by working: who, which level and the new wage, since the rise is automatic.
+    /// Several in one tick share one toast, naming the first.
+    private func announceLevelUps(_ levelUps: GameStore.LevelUps) {
+        guard let first = levelUps.events.first else { return }
+        var text = String(format: String(localized: "dot.levelup.toast"),
+                          staffDisplayName(tier: first.tier), first.level,
+                          CoinFormat.string(first.wageBefore), CoinFormat.string(first.wageAfter))
+        if levelUps.events.count > 1 {
+            text = String(format: String(localized: "dot.levelup.toast.more"), text, levelUps.events.count - 1)
+        }
+        showToast(text, announcement: text)
+        DotSound.shared.play(.missionDone)
     }
 
     private func showToast(_ text: String, announcement: String) {
