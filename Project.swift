@@ -60,6 +60,14 @@ let project = Project(
                 "NSUserNotificationUsageDescription": "봄동 가게 알림을 보내드려요 🥬",
                 "NSUserTrackingUsageDescription": "맞춤형 광고 제공 및 광고 성과 측정을 위해 추적 권한이 필요해요.",
                 "GADApplicationIdentifier": "ca-app-pub-9684378399371172~8825318408",
+                "GADUnitIdentifiers": .dictionary([
+                    "Launch": "ca-app-pub-9684378399371172/7904835004",
+                    "OfflineReward": "ca-app-pub-9684378399371172/3844454464",
+                    "FeverReward": "ca-app-pub-9684378399371172/5741927518",
+                    "MissionReward": "ca-app-pub-9684378399371172/8096628117",
+                    "BoostReward": "ca-app-pub-9684378399371172/6404272495",
+                    "GiftReward": "ca-app-pub-9684378399371172/5248917584"
+                ]),
                 "SKAdNetworkItems": .array(skAdNetworks)
             ]),
             sources: ["Sources/App/**"],
@@ -68,6 +76,7 @@ let project = Project(
                 .target(name: "GameCore"),
                 .target(name: "GameUI"),
                 .external(name: "GoogleMobileAds"),
+                .external(name: "GADManager"),
                 .external(name: "FirebaseMessaging")
             ],
             settings: .settings(base: [
