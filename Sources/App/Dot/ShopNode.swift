@@ -3,7 +3,7 @@ import GameCore
 
 /// The shop band: tier building, staff between its back and front layers, dishes with stock
 /// counts and cook progress bars on the counter.
-/// Layers: back 0, staff 1, front 2, dishes 3, bars and labels 4, fever flames 5.
+/// Layers: back 0, name board 0.5, staff 1, front 2, dishes 3, bars and labels 4, fever flames 5.
 @MainActor
 final class ShopNode: BandNode {
 
@@ -20,7 +20,36 @@ final class ShopNode: BandNode {
     /// Cash till on the counter; the manifest draws it at x 128-137.
     static let tillPoint = CGPoint(x: 132, y: 46)
 
+    /// Free text area of each tier's roof signboard in the shop image (x, y, w, h; y down),
+    /// measured in tools/dotart/MANIFEST.md, section "Shop name board".
+    private static let nameBoards: [CGRect] = [
+        CGRect(x: 40, y: 5, width: 64, height: 10),
+        CGRect(x: 38, y: 8, width: 68, height: 12),
+        CGRect(x: 35, y: 3, width: 74, height: 16),
+    ]
+
+    /// The largest style whose ink box fits `area`, trying bold, small, then tiny; if even tiny is too
+    /// wide, characters are cut from the end and "…" appended until it fits.
+    static func fitName(_ name: String, in area: CGSize,
+                        measure: (String, PixelLabel.Style) -> PixelLabel.Measure = PixelLabel.measure)
+        -> (text: String, style: PixelLabel.Style, measure: PixelLabel.Measure) {
+        func fits(_ m: PixelLabel.Measure) -> Bool { CGFloat(m.width) <= area.width && CGFloat(m.height) <= area.height }
+        for style in [PixelLabel.Style.bold, .small, .tiny] {
+            let m = measure(name, style)
+            if fits(m) { return (name, style, m) }
+        }
+        var kept = Array(name)
+        while !kept.isEmpty {
+            kept.removeLast()
+            let text = String(kept) + "…"
+            let m = measure(text, .tiny)
+            if fits(m) { return (text, .tiny, m) }
+        }
+        return ("", .tiny, PixelLabel.Measure())
+    }
+
     private struct Snapshot: Equatable {
+        var shopName = ""
         var stallTier = 0, menuTier = 0, cashierCount = 0, cashierTier = 0
         var cooks: [Int] = [], stock: [Int] = [], cooking: [Bool] = [], resting: [Bool] = [], barPx: [Int] = []
         var cashierResting = false, cashierWorking = false, fever = false
@@ -44,6 +73,7 @@ final class ShopNode: BandNode {
     private let scale: CGFloat
     private let back = dotSprite("dot_shop_tier0_back", anchor: .bottomLeft)
     private let front = dotSprite("dot_shop_tier0_front", anchor: .bottomLeft)
+    private let nameLabel = PixelLabel(style: .small, color: SKColor(hex: 0x2b1b2e), shadowColor: nil, alignment: .left)
     private let cashier = StaffFigure()
     private var slots: [DishSlot] = []
     private var flames: [SKSpriteNode] = []
@@ -61,6 +91,8 @@ final class ShopNode: BandNode {
         front.zPosition = 2
         addChild(back)
         addChild(front)
+        nameLabel.zPosition = 0.5
+        addChild(nameLabel)
         let staffLayer = SKNode(); staffLayer.zPosition = 1; addChild(staffLayer)
         let dishLayer = SKNode(); dishLayer.zPosition = 3; addChild(dishLayer)
         let barLayer = SKNode(); barLayer.zPosition = 4; addChild(barLayer)
@@ -183,6 +215,7 @@ final class ShopNode: BandNode {
         lastStock = snapshot.stock
         guard snapshot != last else { return finished }
         let tierChanged = last?.stallTier != snapshot.stallTier
+        let nameChanged = tierChanged || last?.shopName != snapshot.shopName
         last = snapshot
 
         if tierChanged {
@@ -190,6 +223,7 @@ final class ShopNode: BandNode {
             back.texture = DotTexture.named("dot_shop_tier\(tier)_back")
             front.texture = DotTexture.named("dot_shop_tier\(tier)_front")
         }
+        if nameChanged { placeName(snapshot.shopName, tier: min(max(snapshot.stallTier, 0), 2)) }
         let bobs = !reduceMotion
         for (i, slot) in slots.enumerated() {
             let unlocked = i <= snapshot.menuTier
@@ -224,6 +258,17 @@ final class ShopNode: BandNode {
         return finished
     }
 
+    private func placeName(_ name: String, tier: Int) {
+        let board = Self.nameBoards[tier]
+        let fit = Self.fitName(name, in: board.size)
+        nameLabel.style = fit.style
+        nameLabel.text = fit.text
+        let m = fit.measure
+        let inkX = board.minX + ((board.width - CGFloat(m.width)) / 2).rounded(.down)
+        let inkY = board.minY + ((board.height - CGFloat(m.height)) / 2).rounded(.down)
+        nameLabel.position = artPoint(inkX - CGFloat(m.left), inkY + CGFloat(m.ascent))
+    }
+
     private func pose(working: Bool, resting: Bool) -> StaffFigure.Pose {
         resting ? .tired : (working ? .work : .idle)
     }
@@ -231,6 +276,7 @@ final class ShopNode: BandNode {
     private func makeSnapshot(_ store: GameStore) -> Snapshot {
         let stall = store.stall
         var s = Snapshot()
+        s.shopName = store.progress.shopName
         s.stallTier = stall.stallTier
         s.menuTier = stall.menuTier
         s.cashierCount = stall.cashierCount
