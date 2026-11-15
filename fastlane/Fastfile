@@ -115,6 +115,8 @@ platform :ios do
         overwrite_screenshots: true,
         force: true,
         submit_for_review: true,
+        # Only OS-provided HTTPS (ads, Firebase): no non-exempt encryption to declare.
+        submission_information: { export_compliance_uses_encryption: false },
         run_precheck_before_submit: false
       )
     else
