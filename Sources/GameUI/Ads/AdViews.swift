@@ -125,7 +125,9 @@ public struct FeverAdButton: View {
     }
 
     public var body: some View {
-        if store.isFeverAdAvailable {
+        // No ad surface before ads are set up: the root view is mounted under the splash, and an
+        // `onAppear` prepare fired that early has no manager to load with.
+        if store.isFeverAdAvailable, ads.isAvailable {
             let isReady = ads.isReady(.fever)
             TimelineView(.periodic(from: .now, by: 0.35)) { context in
                 let hop = isPulsing && isReady && !reduceMotion
@@ -165,7 +167,7 @@ public struct BoostChip: View {
         TimelineView(.periodic(from: .now, by: 0.35)) { context in
             let active = store.boostRemaining
             let cooling = store.boostCooldownRemaining
-            if active > 0, store.isBoostExtendable {
+            if active > 0, store.isBoostExtendable, ads.isAvailable {
                 Button(action: onTap) {
                     chip(icon: AnyView(DotAdIcon())) {
                         Text(String(format: String(localized: "dot.boost.active"), Self.clock(active)))
@@ -187,7 +189,7 @@ public struct BoostChip: View {
                 chip(icon: AnyView(DotImage("dot_ui_clock", scale: 1))) { Text(Self.clock(cooling)) }
                     .opacity(0.8)
                     .accessibilityLabel(String(format: String(localized: "dot.boost.cooldown.accessibility"), Self.clock(cooling)))
-            } else if store.isBoostAvailable {
+            } else if store.isBoostAvailable, ads.isAvailable {
                 let hop = isPulsing && !reduceMotion
                     && Int(context.date.timeIntervalSinceReferenceDate / 0.35) % 2 == 0
                 Button(action: onTap) {
