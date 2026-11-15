@@ -297,6 +297,14 @@ def manifest(assets):
           f"| counter top surface | 4–139 | {shop.COUNTER_TOP}–{shop.COUNTER_FRONT - 1} | rows of the top surface |",
           f"| counter front panel | 6–137 | {shop.COUNTER_FRONT}–63 | plain; progress bars / stock counts go here |",
           f"| progress bar | dish x − 10 | {shop.BAR_Y} | 20×8 `dot_ui_bar_frame` under each dish |", "",
+          "## Shop name board (differs per tier)", "",
+          "The blank signboard on the roof. The scene draws the player's shop name inside the text "
+          "area: the board's interior, clear of its frame and top highlight.", "",
+          "| Tier | text area x | text area y | w | h |", "|---|---|---|---|---|"]
+    for n in sorted(shop.BOARDS):
+        x, y, w, h = shop.sign_area(n)
+        L.append(f"| {n} | {x}–{x + w - 1} | {y}–{y + h - 1} | {w} | {h} |")
+    L += ["",
           "Draw order: `tierN_back` → staff → `tierN_front` → dishes → bars. With that order the "
           "counter hides staff legs (sprite rows 20–23) and their heads clear the roof.", "",
           "Customers queue on the street band above the shop: anchor y = street top + 29 "

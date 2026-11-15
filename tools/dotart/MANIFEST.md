@@ -188,6 +188,16 @@ Pixel coordinates inside the 144×64 shop image, top-left origin. Place each spr
 | counter front panel | 6–137 | 52–63 | plain; progress bars / stock counts go here |
 | progress bar | dish x − 10 | 54 | 20×8 `dot_ui_bar_frame` under each dish |
 
+## Shop name board (differs per tier)
+
+The blank signboard on the roof. The scene draws the player's shop name inside the text area: the board's interior, clear of its frame and top highlight.
+
+| Tier | text area x | text area y | w | h |
+|---|---|---|---|---|
+| 0 | 40–103 | 5–14 | 64 | 10 |
+| 1 | 38–105 | 8–19 | 68 | 12 |
+| 2 | 35–108 | 3–18 | 74 | 16 |
+
 Draw order: `tierN_back` → staff → `tierN_front` → dishes → bars. With that order the counter hides staff legs (sprite rows 20–23) and their heads clear the roof.
 
 Customers queue on the street band above the shop: anchor y = street top + 29 (3 px above the shop image's top edge), x = 40, 66, 92 in the mock; the order bubble's tail tip goes 24 px above the feet (just over the hair).
@@ -266,6 +276,6 @@ The sky is a flat fill behind the backdrop; the tint is a multiply colour for ev
 | `sfx_fever_start.wav` | 0.57 | fever begins |
 | `sfx_mission_done.wav` | 0.56 | mission reward claimed |
 | `sfx_rain_start.wav` | 0.55 | rain begins |
-| `sfx_snow_start.wav` | 0.65 | snow begins |
+| `sfx_snow_start.wav` | 0.52 | snow begins |
 | `sfx_leaves_start.wav` | 0.50 | falling leaves begin |
 | `sfx_petals_start.wav` | 0.56 | blossom petals begin |

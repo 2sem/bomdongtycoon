@@ -4,7 +4,6 @@ between them; the plain `tierN` image is the two composited."""
 
 from canvas import Sprite
 from . import add
-from .cabbage import GREEN, rosette
 
 W, H = 144, 64
 
@@ -67,6 +66,10 @@ def tier0():
     roof.hline(4, 23, 136, "orange_dark")
     roof.outline("ink")
     b.blit(roof, 0, 0)
+    # name board propped on the ridge, on two short legs
+    for x in (48, 94):
+        b.rect(x, 9, 2, 10, "soil"), b.frame(x - 1, 8, 4, 12, "ink")
+    b.blit(*board(0))
 
     counter(f, 4, 139, "grey_light", "paper", "grey", "orange", "orange_dark", "red_dark", 0)
     for x in range(6, 137):
@@ -119,13 +122,34 @@ def tiled_roof():
     return r
 
 
-def emblem_board(w, h, emblem, fill="sand", edge="soil", hi="cream"):
+def name_board(w, h, fill="sand", edge="soil", hi="cream"):
+    """Blank signboard, (w+2) x (h+2) with its outline. The scene writes the player's shop
+    name on it, so nothing is drawn inside the frame."""
     s = Sprite(w + 2, h + 2)
     s.rect(1, 1, w, h, fill)
     s.frame(1, 1, w, h, edge)
     s.hline(2, 2, w - 2, hi)
-    s.blit(emblem, 1 + (w - emblem.w) // 2, 1 + (h - emblem.h) // 2)
     return s.outline("ink")
+
+
+# Signboard per tier: (blit x, blit y, w, h, fill, edge, highlight). Widths are sized for the
+# name, not the roof: 6 hangul at Galmuri9 (10 px each) is 60 px, at Galmuri11-Bold 72 px.
+BOARDS = {
+    0: (38, 2, 66, 13, "paper", "red_dark", "paper"),
+    1: (36, 5, 70, 15, "sand", "soil", "cream"),
+    2: (33, 0, 76, 19, "cream", "gold", "paper"),
+}
+
+
+def sign_area(tier):
+    """(x, y, w, h) of the rows and columns free for text: inside the frame, below the highlight."""
+    x, y, w, h = BOARDS[tier][:4]
+    return x + 2, y + 3, w - 2, h - 3
+
+
+def board(tier):
+    x, y, w, h, fill, edge, hi = BOARDS[tier]
+    return name_board(w, h, fill, edge, hi), x, y
 
 
 def tier1():
@@ -162,7 +186,7 @@ def tier1():
     b.rect(129, 29, 5, 7, "red"), b.vline(129, 30, 5, "pink"), b.hline(129, 29, 5, "red_dark")
     b.hline(129, 35, 5, "red_dark"), b.frame(128, 28, 7, 9, "ink"), b.vline(131, 26, 2, "ink")
     b.blit(tiled_roof(), 0, 0)
-    b.blit(emblem_board(34, 15, rosette(16, 10, GREEN, 6, 4)), 54, 5)
+    b.blit(*board(1))
 
     counter(f, 3, 140, "sand", "cream", "soil_light", "soil", "soil_dark", "soil_dark")
     for x in range(5, 138, 11):
@@ -209,7 +233,7 @@ def tier2():
     b.vline(0, 8, 14, "ink"), b.vline(143, 8, 14, "ink")
     for x in (14, 30, 110, 126):
         b.rect(x, 12, 4, 5, "leaf"), b.px(x, 12, "leaf_light")
-    b.blit(emblem_board(40, 19, rosette(26, 15, GREEN, 8, 5), "cream", "gold", "paper"), 51, 0)
+    b.blit(*board(2))
 
     counter(f, 2, 141, "paper", "paper", "grey_light", "leaf_dark", "leaf_deep", "leaf_deep", 0)
     f.hline(4, 54, 136, "gold")
