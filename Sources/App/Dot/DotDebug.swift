@@ -5,6 +5,7 @@ import GameCore
 ///   -dotSeed early|mid|late   start from a seeded save (volatile: never the real save, skips the intro);
 ///                       early = 골목, tier-1 stall, coins for the 시장 move and a hire; mid = 시장, 2 dishes;
 ///                       late = 강남, final tiers, ~400k coins, a measured-looking earning rate
+///   -dotShopName N      with -dotSeed: the shop name on the signboard (for localized screenshots)
 ///   -dotEmpty           empty warehouse (the crate "!" and the ripe-plot pulse)
 ///   -dotResetHints      replay the first-run pointers
 ///   -dotFever           keep fever running
@@ -180,6 +181,7 @@ enum DotDebug {
         var progress = store.progress
         progress.isFirstLaunch = false
         progress.isShopNameSet = true
+        if let name = value(after: "-dotShopName") { progress.shopName = name }
         progress.lastActiveDate = Date()
         progress.rating = late ? 4.7 : (early ? 2.5 : 3.8)
         progress.prestigeCount = late ? 1 : 0
