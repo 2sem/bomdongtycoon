@@ -22,8 +22,8 @@ final class ShopNode: BandNode {
 
     private struct Snapshot: Equatable {
         var stallTier = 0, menuTier = 0, cashierCount = 0, cashierTier = 0
-        var cooks: [Int] = [], stock: [Int] = [], cooking: [Bool] = [], tired: [Bool] = [], barPx: [Int] = []
-        var cashierTired = false, cashierWorking = false, fever = false
+        var cooks: [Int] = [], stock: [Int] = [], cooking: [Bool] = [], resting: [Bool] = [], barPx: [Int] = []
+        var cashierResting = false, cashierWorking = false, fever = false
     }
 
     @MainActor
@@ -128,7 +128,7 @@ final class ShopNode: BandNode {
     }
 
     /// The post a tap at `p` (band-local art px) lands on: a cook's or the cashier's figure. The caller
-    /// decides whether that worker is tired enough for the tap to wake them.
+    /// decides whether that worker is asleep, so the tap can hurry the nap.
     func workerTarget(atLocal p: CGPoint) -> GameStore.WorkerTarget? {
         guard p.y >= 24, p.y < 52 else { return nil }
         if abs(p.x - Self.cashierSlot.x) <= 9 { return .cashier }
@@ -211,21 +211,21 @@ final class ShopNode: BandNode {
                 slot.barFill.size = CGSize(width: CGFloat(max(snapshot.barPx[i], 2)), height: 4)
             }
             let kind = unlocked ? Self.kinds[snapshot.cooks[i]] : nil
-            slot.cook.configure(kind: kind, pose: pose(working: snapshot.cooking[i], tired: snapshot.tired[i]),
-                                isTired: snapshot.tired[i], bobs: bobs, fast: snapshot.fever)
+            slot.cook.configure(kind: kind, pose: pose(working: snapshot.cooking[i], resting: snapshot.resting[i]),
+                                isResting: snapshot.resting[i], bobs: bobs, fast: snapshot.fever)
         }
         let cashierKind = snapshot.cashierCount > 0 ? (Self.kinds[snapshot.cashierTier] ?? "alba") : nil
         cashier.configure(kind: cashierKind,
-                          pose: pose(working: snapshot.cashierWorking, tired: snapshot.cashierTired),
-                          isTired: snapshot.cashierTired, bobs: bobs, fast: snapshot.fever)
+                          pose: pose(working: snapshot.cashierWorking, resting: snapshot.cashierResting),
+                          isResting: snapshot.cashierResting, bobs: bobs, fast: snapshot.fever)
         for flame in flames {
             flame.run(.fadeAlpha(to: snapshot.fever ? 1 : 0, duration: 0.3), withKey: "fade")
         }
         return finished
     }
 
-    private func pose(working: Bool, tired: Bool) -> StaffFigure.Pose {
-        working ? .work : (tired ? .tired : .idle)
+    private func pose(working: Bool, resting: Bool) -> StaffFigure.Pose {
+        resting ? .tired : (working ? .work : .idle)
     }
 
     private func makeSnapshot(_ store: GameStore) -> Snapshot {
@@ -236,14 +236,14 @@ final class ShopNode: BandNode {
         s.cashierCount = stall.cashierCount
         s.cashierTier = stall.cashierTier
         s.fever = store.isFeverActive
-        s.cashierTired = stall.cashierEnergy < ShopStaffPresence.lowEnergyThreshold
+        s.cashierResting = store.isResting(.cashier)
         s.cashierWorking = store.cashierRecentlySold
         for i in 0..<3 {
             s.cooks.append(stall.menuCooks[i])
             s.stock.append(stall.menuStock[i])
             let cooking = store.isCooking(menuIndex: i)
             s.cooking.append(cooking)
-            s.tired.append(stall.menuCooks[i] > 0 && stall.menuCookEnergy[i] < ShopStaffPresence.lowEnergyThreshold)
+            s.resting.append(store.isResting(.cook(menuIndex: i)))
             let progress = store.cookProgress(menuIndex: i)
             s.barPx.append(cooking ? Int((progress * 16).rounded()) : 0)
         }

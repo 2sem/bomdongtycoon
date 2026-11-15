@@ -118,9 +118,9 @@ final class FarmNode: BandNode {
             setPulse(view.sprite, active: pulseRipe && plot.isReady, reduceMotion: reduceMotion)
 
             let kind = Self.workerKind(plot.workerType)
-            let tired = plot.workerEnergy < ShopStaffPresence.lowEnergyThreshold
-            let pose: StaffFigure.Pose = plot.isPlanted && !tired ? .work : (tired ? .tired : .idle)
-            view.worker.configure(kind: kind, pose: pose, isTired: tired && kind != nil,
+            let resting = plot.workerResting
+            let pose: StaffFigure.Pose = resting ? .tired : (plot.isPlanted ? .work : .idle)
+            view.worker.configure(kind: kind, pose: pose, isResting: resting && kind != nil,
                                   bobs: !reduceMotion, fast: false)
         }
 

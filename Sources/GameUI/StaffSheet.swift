@@ -9,6 +9,8 @@ private struct WorkerItem: Identifiable {
     let tier: Int;
     var assignment: Assignment;
     var energy: Double;
+    /// Asleep at a post: assigned, out of energy and not back at full yet.
+    var resting = false;
 
     enum Assignment: Hashable {
         case unassigned, farm, cashier, menu(Int)
@@ -201,16 +203,16 @@ public struct StaffSheet: View {
 
         // Farm energy cursor: map kth farm-assigned worker to kth plot with hasWorker
         var farmPlotCursor = 0;
-        func nextFarmWorkerEnergy() -> Double {
+        func nextFarmWorker() -> (energy: Double, resting: Bool) {
             while farmPlotCursor < store.farm.plots.count {
                 if store.farm.plots[farmPlotCursor].hasWorker {
-                    let e = store.farm.plots[farmPlotCursor].workerEnergy;
+                    let plot = store.farm.plots[farmPlotCursor];
                     farmPlotCursor += 1;
-                    return e;
+                    return (plot.workerEnergy, plot.workerResting);
                 }
                 farmPlotCursor += 1;
             }
-            return 1.0;
+            return (1.0, false);
         }
 
         // Idle energy cursors — parallel-index into the tier's idle pool
@@ -221,14 +223,14 @@ public struct StaffSheet: View {
         var tier3Idx = 0;
         for _ in 0..<store.stall.tier3Count {
             let a: WorkerItem.Assignment = t3.isEmpty ? .unassigned : .menu(t3.removeFirst());
-            let e: Double;
+            let e: Double; var asleep = false;
             switch a {
-            case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0
+            case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0; asleep = store.stall.menuCookResting[safe: i] ?? false
             default:
                 e = store.stall.tier3IdleEnergies[safe: t3IdleIdx] ?? 1.0
                 t3IdleIdx += 1
             }
-            items.append(WorkerItem(id: idCounter, indexInTier: tier3Idx, tier: 3, assignment: a, energy: e));
+            items.append(WorkerItem(id: idCounter, indexInTier: tier3Idx, tier: 3, assignment: a, energy: e, resting: asleep));
             idCounter += 1; tier3Idx += 1;
         }
 
@@ -240,15 +242,15 @@ public struct StaffSheet: View {
             if !t2.isEmpty                                                  { a = .menu(t2.removeFirst()) }
             else if remainingCashiers > 0 && store.stall.cashierTier == 2  { remainingCashiers -= 1; a = .cashier }
             else                                                            { a = .unassigned }
-            let e: Double;
+            let e: Double; var asleep = false;
             switch a {
-            case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0
-            case .cashier:     e = store.stall.cashierEnergy
+            case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0; asleep = store.stall.menuCookResting[safe: i] ?? false
+            case .cashier:     e = store.stall.cashierEnergy; asleep = store.stall.cashierResting
             default:
                 e = store.stall.tier2IdleEnergies[safe: t2IdleIdx] ?? 1.0
                 t2IdleIdx += 1
             }
-            items.append(WorkerItem(id: idCounter, indexInTier: tier2Idx, tier: 2, assignment: a, energy: e));
+            items.append(WorkerItem(id: idCounter, indexInTier: tier2Idx, tier: 2, assignment: a, energy: e, resting: asleep));
             idCounter += 1; tier2Idx += 1;
         }
 
@@ -262,16 +264,16 @@ public struct StaffSheet: View {
             else if albaFarmWorkers > 0                                     { albaFarmWorkers -= 1; a = .farm }
             else if remainingCashiers > 0 && store.stall.cashierTier == 1  { remainingCashiers -= 1; a = .cashier }
             else                                                            { a = .unassigned }
-            let e: Double;
+            let e: Double; var asleep = false;
             switch a {
-            case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0
-            case .cashier:     e = store.stall.cashierEnergy
-            case .farm:        e = nextFarmWorkerEnergy()
+            case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0; asleep = store.stall.menuCookResting[safe: i] ?? false
+            case .cashier:     e = store.stall.cashierEnergy; asleep = store.stall.cashierResting
+            case .farm:        (e, asleep) = nextFarmWorker()
             default:
                 e = store.stall.tier1IdleEnergies[safe: t1IdleIdx] ?? 1.0
                 t1IdleIdx += 1
             }
-            items.append(WorkerItem(id: idCounter, indexInTier: tier1Idx, tier: 1, assignment: a, energy: e));
+            items.append(WorkerItem(id: idCounter, indexInTier: tier1Idx, tier: 1, assignment: a, energy: e, resting: asleep));
             idCounter += 1; tier1Idx += 1;
         }
 
@@ -284,7 +286,8 @@ public struct StaffSheet: View {
             let e: Double = isOnFarm
                 ? farmerPlotsOnFarm[farmerIdx].workerEnergy
                 : (store.stall.farmerIdleEnergies[safe: farmerIdx - farmerPlotsOnFarm.count] ?? 1.0)
-            items.append(WorkerItem(id: idCounter, indexInTier: farmerIdx, tier: 4, assignment: a, energy: e))
+            items.append(WorkerItem(id: idCounter, indexInTier: farmerIdx, tier: 4, assignment: a, energy: e,
+                                    resting: isOnFarm && farmerPlotsOnFarm[farmerIdx].workerResting))
             idCounter += 1; farmerIdx += 1
         }
 
@@ -297,15 +300,15 @@ public struct StaffSheet: View {
             if vetIdx < vetPlotsOnFarm.count                  { a = .farm }
             else if remainingVetCashiers > 0                  { remainingVetCashiers -= 1; a = .cashier }
             else                                              { a = .unassigned }
-            let e: Double
+            let e: Double; var asleep = false
             switch a {
-            case .farm:    e = vetPlotsOnFarm[vetIdx].workerEnergy
-            case .cashier: e = store.stall.cashierEnergy
+            case .farm:    e = vetPlotsOnFarm[vetIdx].workerEnergy; asleep = vetPlotsOnFarm[vetIdx].workerResting
+            case .cashier: e = store.stall.cashierEnergy; asleep = store.stall.cashierResting
             default:
                 e = store.stall.veteranAlbaIdleEnergies[safe: vetIdleIdx] ?? 1.0
                 vetIdleIdx += 1
             }
-            items.append(WorkerItem(id: idCounter, indexInTier: vetIdx, tier: 5, assignment: a, energy: e))
+            items.append(WorkerItem(id: idCounter, indexInTier: vetIdx, tier: 5, assignment: a, energy: e, resting: asleep))
             idCounter += 1; vetIdx += 1
         }
 
@@ -496,8 +499,8 @@ private struct WorkerRow: View {
     let onReassign: (WorkerItem.Assignment) -> Void
     let onPromote: () -> Void
 
-    private var isTired: Bool { worker.energy < 0.2 }
-    private var isEmpty: Bool { worker.energy < 0.05 && worker.assignment != .unassigned }
+    /// Asleep at a post, or an idle worker still too drained to take one.
+    private var isTired: Bool { worker.resting || (worker.assignment == .unassigned && worker.energy < 0.2) }
     private var promoteCost: Double? {
         guard worker.assignment == .unassigned, worker.tier < 3 else { return nil }
         return UpgradeDefinitions.staff[safe: worker.tier]?.coinCost
@@ -540,7 +543,8 @@ private struct WorkerRow: View {
         return opts
     }
 
-    private func assignmentLabel(_ a: WorkerItem.Assignment, energy: Double = 1.0) -> String {
+    private func assignmentLabel(_ a: WorkerItem.Assignment, energy: Double = 1.0, resting: Bool = false) -> String {
+        if resting { return String(localized: "dot.staff.rest") }
         if case .unassigned = a, energy < 0.2 { return String(localized: "dot.staff.rest") }
         switch a {
         case .cashier:
@@ -557,7 +561,7 @@ private struct WorkerRow: View {
         HStack(spacing: 10) {
             StaffPortrait(tier: worker.tier, tired: isTired)
                 .overlay(alignment: .topTrailing) {
-                    if isEmpty {
+                    if worker.resting {
                         DotImage("dot_fx_zzz", scale: 1).offset(x: 4, y: -4)
                     }
                 }
@@ -596,7 +600,7 @@ private struct WorkerRow: View {
             }
         } label: {
             HStack(spacing: 6) {
-                Text(assignmentLabel(worker.assignment, energy: worker.energy))
+                Text(assignmentLabel(worker.assignment, energy: worker.energy, resting: worker.resting))
                     .dotText(.bold)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)

@@ -28,17 +28,16 @@ public enum EarningsSystem {
     }
 
     /// Design intent: a cashier at the counter is a real job, not a figure. Every sale
-    /// earns more while they work, and a tired one earns the base price until rested.
+    /// earns more while they work, and a sleeping one earns the base price until she is back to full energy.
     static let cashierSaleBonus: Double = 1.25
     /// The veteran alba (tier 5) keeps her older x1.4; it replaces the bonus, never stacks.
     static let veteranCashierSaleBonus: Double = 1.4
     static let veteranCashierTier = 5
 
-    /// Revenue multiplier of the hired cashier. 1.0 with no cashier or a tired one
-    /// (energy below `ShopStaffPresence.lowEnergyThreshold`, the same cut the figure dims at).
+    /// Revenue multiplier of the hired cashier. 1.0 with no cashier or a sleeping one.
     public static func cashierSaleMultiplier(for stall: StallState) -> Double {
         guard stall.cashierCount > 0,
-              stall.cashierEnergy >= ShopStaffPresence.lowEnergyThreshold else { return 1.0 }
+              !stall.cashierResting else { return 1.0 }
         return stall.cashierTier == veteranCashierTier ? veteranCashierSaleBonus : cashierSaleBonus
     }
 

@@ -16,7 +16,7 @@ enum FirstRunHint: String, CaseIterable {
     var isDone: Bool { UserDefaults.standard.bool(forKey: key) }
     func markDone() { UserDefaults.standard.set(true, forKey: key) }
 
-    /// The one-line toast that goes with the cook/hurry pointer, and how many times the sleepy-worker
+    /// The one-line toast that goes with the cook/hurry pointer, and how many times the sleeping-worker
     /// tip has been shown. Kept with the hints so a restored save never replays them.
     static let hurryToastKey = "dot.hint.hurryToast"
     static let wakeHintKey = "dot.hint.wakeCount"
