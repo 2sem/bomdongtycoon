@@ -7,7 +7,7 @@ import UIKit
 @MainActor
 final class PixelLabel: SKNode {
 
-    enum Style {
+    enum Style: CaseIterable {
         /// Galmuri7, 8 px em: stock counts and other numerals that sit on a 12 px counter front.
         case tiny
         /// Galmuri9, 10 px em.
@@ -36,7 +36,9 @@ final class PixelLabel: SKNode {
     private let sprite = SKSpriteNode()
     /// Width in art pixels of the text as last drawn (0 when empty).
     private(set) var contentWidth: CGFloat = 0
-    private let style: Style
+    var style: Style {
+        didSet { if style != oldValue { render() } }
+    }
     private let alignment: Alignment
     private let shadowColor: SKColor?
 
@@ -71,22 +73,8 @@ final class PixelLabel: SKNode {
             contentWidth = 0
             return
         }
-        let size = (text as NSString).size(withAttributes: [.font: font])
-        let width = Int(ceil(size.width)) + 1
+        let (image, width, height) = Self.bitmap(text, font: font, color: color, shadowColor: shadowColor)
         contentWidth = CGFloat(width)
-        let height = Int(ceil(font.lineHeight)) + 1
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        format.opaque = false
-        let image = UIGraphicsImageRenderer(size: CGSize(width: width, height: height), format: format).image { ctx in
-            ctx.cgContext.setShouldAntialias(false)
-            ctx.cgContext.setShouldSmoothFonts(false)
-            if let shadowColor {
-                (text as NSString).draw(at: CGPoint(x: 1, y: 1),
-                                        withAttributes: [.font: font, .foregroundColor: shadowColor])
-            }
-            (text as NSString).draw(at: .zero, withAttributes: [.font: font, .foregroundColor: color])
-        }
         let texture = SKTexture(image: image)
         texture.filteringMode = .nearest
         sprite.texture = texture
@@ -101,5 +89,56 @@ final class PixelLabel: SKNode {
         case .right:  shift = -CGFloat(width - 1)
         }
         sprite.position = CGPoint(x: shift, y: -(CGFloat(height) - drop))
+    }
+
+    /// Rasterised text: 1 bitmap px per art px, no anti-aliasing, with room for a 1 px shadow.
+    private static func bitmap(_ text: String, font: UIFont, color: SKColor, shadowColor: SKColor?)
+        -> (UIImage, width: Int, height: Int) {
+        let size = (text as NSString).size(withAttributes: [.font: font])
+        let width = Int(ceil(size.width)) + 1
+        let height = Int(ceil(font.lineHeight)) + 1
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = false
+        let image = UIGraphicsImageRenderer(size: CGSize(width: width, height: height), format: format).image { ctx in
+            ctx.cgContext.setShouldAntialias(false)
+            ctx.cgContext.setShouldSmoothFonts(false)
+            if let shadowColor {
+                (text as NSString).draw(at: CGPoint(x: 1, y: 1),
+                                        withAttributes: [.font: font, .foregroundColor: shadowColor])
+            }
+            (text as NSString).draw(at: .zero, withAttributes: [.font: font, .foregroundColor: color])
+        }
+        return (image, width, height)
+    }
+
+    /// Drawn extent of `text` without a shadow, in art px: the ink box, and where it sits against the
+    /// node origin (`left` right of it, `ascent` above the baseline).
+    struct Measure: Equatable {
+        var width = 0, height = 0, left = 0, ascent = 0
+    }
+
+    static func measure(_ text: String, style: Style) -> Measure {
+        guard !text.isEmpty, let font = UIFont(name: style.fontName, size: style.em) else { return Measure() }
+        let (image, width, height) = bitmap(text, font: font, color: .white, shadowColor: nil)
+        guard let cg = image.cgImage else { return Measure() }
+        var alpha = [UInt8](repeating: 0, count: width * height)
+        let drawn = alpha.withUnsafeMutableBytes { buffer -> Bool in
+            guard let ctx = CGContext(data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                                      bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(),
+                                      bitmapInfo: CGImageAlphaInfo.alphaOnly.rawValue) else { return false }
+            ctx.draw(cg, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard drawn else { return Measure() }
+        var minX = width, maxX = -1, minY = height, maxY = -1
+        for y in 0..<height {
+            for x in 0..<width where alpha[y * width + x] > 0 {
+                minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
+            }
+        }
+        guard maxX >= 0 else { return Measure() }
+        return Measure(width: maxX - minX + 1, height: maxY - minY + 1, left: minX,
+                       ascent: Int(font.ascender.rounded()) - minY)
     }
 }
