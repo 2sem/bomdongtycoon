@@ -145,6 +145,7 @@ struct GameRootView: View {
         }
         .modifier(AddFarmPlotConfirmation())
         .modifier(ExpandWarehouseConfirmation())
+        .modifier(UnlockDishConfirmation())
         .onPreferenceChange(AlertUpKey.self) { isAlertUp = $0 }
         .overlay(alignment: .top) {
             if let toast = locationToast {
