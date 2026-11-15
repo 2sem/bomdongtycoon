@@ -2,11 +2,13 @@
 # Raw App Store captures from the simulator, driven by the DEBUG launch arguments in
 # Sources/App/Dot/DotDebug.swift. Needs a Debug build installed on the device:
 #
-#   tools/screenshots/capture.sh [device-udid]     # default: iPhone 18 Pro Max (6.9", 1320x2868)
+#   tools/screenshots/capture.sh                       # iPhone 18 Pro Max (6.9", 1320x2868)
+#   tools/screenshots/capture.sh <ipad-udid> -ipad     # iPad Pro 13" (2064x2752) -> raw/<lang>-ipad/
 #   python3 tools/screenshots/compose.py
 set -euo pipefail
 
 DEVICE=${1:-39D7367E-86EA-41EA-8AC9-48F907B48F02}
+SUFFIX=${2:-}
 BUNDLE=com.leesam.bomdongtycoon
 RAW="$(cd "$(dirname "$0")" && pwd)/raw"
 
@@ -18,13 +20,13 @@ shot() {
   local lang=$1 name=$2 wait=$3; shift 3
   local locale=ko_KR shop="봄동 가게"
   if [ "$lang" = en ]; then locale=en_US; shop="Bomdong"; fi
-  mkdir -p "$RAW/$lang"
+  mkdir -p "$RAW/$lang$SUFFIX"
   xcrun simctl terminate "$DEVICE" "$BUNDLE" 2>/dev/null || true
   xcrun simctl launch "$DEVICE" "$BUNDLE" -dotNoAds -AppleLanguages "($lang)" -AppleLocale "$locale" \
     -dotShopName "$shop" "$@" >/dev/null
   sleep "$wait"
-  xcrun simctl io "$DEVICE" screenshot "$RAW/$lang/$name.png" 2>/dev/null
-  echo "$lang/$name"
+  xcrun simctl io "$DEVICE" screenshot "$RAW/$lang$SUFFIX/$name.png" 2>/dev/null
+  echo "$lang$SUFFIX/$name"
 }
 
 for lang in ko en; do

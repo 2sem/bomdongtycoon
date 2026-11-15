@@ -82,7 +82,9 @@ platform :ios do
   def resolved_ipa_path
     return @ipa_path if @ipa_path && !@ipa_path.empty?
 
-    matches = Dir[File.join(@ipa_dir, "*.ipa")]
+    # Lane code runs with fastlane/ as the working directory, while actions (and the workflow that
+    # exported the IPA) resolve paths from the repo root: glob from the root, return a root path.
+    matches = Dir.chdir("..") { Dir[File.join(@ipa_dir, "*.ipa")] }
     UI.user_error!("No IPA found in #{@ipa_dir}") if matches.empty?
 
     matches.first
@@ -106,8 +108,12 @@ platform :ios do
         ipa: ipa_path,
         api_key_path: @api_key_path,
         app_identifier: @app_bundle_id,
-        skip_metadata: true,
-        skip_screenshots: true,
+        metadata_path: "./fastlane/metadata",
+        screenshots_path: "./fastlane/screenshots",
+        skip_metadata: false,
+        skip_screenshots: false,
+        overwrite_screenshots: true,
+        force: true,
         submit_for_review: true,
         run_precheck_before_submit: false
       )

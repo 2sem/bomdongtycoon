@@ -4,8 +4,8 @@
     tools/screenshots/capture.sh          # raw captures -> tools/screenshots/raw/<lang>/
     python3 tools/screenshots/compose.py  # -> fastlane/screenshots/<locale>/NN_name.png
 
-Output is 1320x2868 (iPhone 6.9"), the one size App Store Connect scales down for every
-smaller iPhone.
+Output is 1320x2868 (iPhone 6.9") and 2064x2752 (iPad 13"), the two sizes App Store Connect
+scales down for every smaller device.
 """
 import sys
 from pathlib import Path
@@ -19,7 +19,16 @@ FONTS = ROOT / "Resources" / "Fonts"
 sys.path.insert(0, str(ROOT / "tools" / "dotart"))
 from palette import PALETTE  # noqa: E402
 
-W, H = 1320, 2868
+# Per device family: canvas, raw-capture folder suffix, output filename prefix, capture scale,
+# screen corner radius after scaling, where the frame starts, and the caption metrics.
+# Galmuri11 is drawn on a 12 px em: font sizes that are multiples of 12 stay pixel-crisp.
+FAMILIES = {
+    "iphone": dict(size=(1320, 2868), raw="", prefix="", scale=0.8, radius=96, frame_y=610,
+                   head=120, sub=60, text_y=132, caption_height=560),
+    "ipad": dict(size=(2064, 2752), raw="-ipad", prefix="ipad_", scale=0.74, radius=36, frame_y=708,
+                 head=168, sub=84, text_y=144, caption_height=660),
+}
+W, H = FAMILIES["iphone"]["size"]
 # One "dot" of the frame art. Every offset below is a multiple of it, so the caption, the
 # bezel and the confetti sit on the same grid the game's own pixels do at this size.
 DOT = 12
@@ -77,7 +86,7 @@ def background(top, bottom):
     return image
 
 
-def confetti(draw, accent, seed):
+def confetti(draw, accent, seed, height):
     """A sparse scatter of plus-shaped sparkles in the caption area; deterministic per shot."""
     state = seed * 7919 + 17
     colour = rgb(accent)
@@ -85,7 +94,7 @@ def confetti(draw, accent, seed):
         state = (state * 1103515245 + 12345) & 0x7FFFFFFF
         x = (state % (W // DOT)) * DOT
         state = (state * 1103515245 + 12345) & 0x7FFFFFFF
-        y = (state % (560 // DOT)) * DOT + DOT * 3
+        y = (state % (height // DOT)) * DOT + DOT * 3
         # Keep the centre column clear for the text.
         if W * 0.14 < x < W * 0.86:
             continue
@@ -106,11 +115,10 @@ def text_block(draw, text, font, y, fill, shadow, line_gap):
     return y
 
 
-def framed(raw):
+def framed(raw, scale, radius):
     """The capture scaled down inside a chunky ink bezel with a cream keyline."""
-    scale = 0.8
     shot = raw.convert("RGB").resize((round(raw.width * scale), round(raw.height * scale)), Image.LANCZOS)
-    radius, bezel, keyline = 96, DOT * 2, DOT // 2
+    bezel, keyline = DOT * 2, DOT // 2
     pad = bezel + keyline
     size = (shot.width + pad * 2, shot.height + pad * 2)
     frame = Image.new("RGBA", size, (0, 0, 0, 0))
@@ -124,45 +132,49 @@ def framed(raw):
     return frame
 
 
-def compose(index, shot, lang):
+def compose(index, shot, lang, family):
+    global W, H
+    f = FAMILIES[family]
+    W, H = f["size"]
     name, top, bottom, accent = shot[:4]
     locale, head_i, sub_i = LOCALES[lang]
     headline, sub = shot[head_i], shot[sub_i]
-    raw_path = RAW / lang / f"{name}.png"
+    raw_path = RAW / f"{lang}{f['raw']}" / f"{name}.png"
     if not raw_path.exists():
-        print(f"skip {lang}/{name}: no raw capture")
+        print(f"skip {family} {lang}/{name}: no raw capture")
         return
 
     image = background(top, bottom)
     draw = ImageDraw.Draw(image)
-    confetti(draw, accent, index)
+    confetti(draw, accent, index, f["caption_height"])
 
-    # Galmuri11 is drawn on a 12 px em: sizes that are multiples of 12 stay pixel-crisp.
-    head_font = ImageFont.truetype(str(FONTS / "Galmuri11-Bold.ttf"), 120)
-    sub_font = ImageFont.truetype(str(FONTS / "Galmuri11.ttf"), 60)
-    y = text_block(draw, headline, head_font, 132, rgb("paper"), rgb("ink"), 30)
+    head_font = ImageFont.truetype(str(FONTS / "Galmuri11-Bold.ttf"), f["head"])
+    sub_font = ImageFont.truetype(str(FONTS / "Galmuri11.ttf"), f["sub"])
+    y = text_block(draw, headline, head_font, f["text_y"], rgb("paper"), rgb("ink"), f["head"] // 4)
     text_block(draw, sub, sub_font, y + 18, rgb(accent), rgb("ink"), 0)
 
-    frame = framed(Image.open(raw_path))
+    frame = framed(Image.open(raw_path), f["scale"], f["radius"])
     # The frame runs off the bottom edge: the tab bar is the least interesting strip.
-    frame_y = 610
+    frame_y = f["frame_y"]
     shadow = Image.new("RGBA", frame.size, (0, 0, 0, 0))
-    ImageDraw.Draw(shadow).rounded_rectangle([0, 0, frame.width - 1, frame.height - 1], 96 + 30,
+    ImageDraw.Draw(shadow).rounded_rectangle([0, 0, frame.width - 1, frame.height - 1],
+                                             f["radius"] + 30,
                                              fill=rgb("ink") + (90,))
     x = (W - frame.width) // 2
     image.paste(shadow, (x + DOT, frame_y + DOT * 2), shadow)
     image.paste(frame, (x, frame_y), frame)
 
-    out = OUT / locale / f"{index + 1:02d}_{name}.png"
+    out = OUT / locale / f"{f['prefix']}{index + 1:02d}_{name}.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     image.save(out, optimize=True)
     print(out.relative_to(ROOT))
 
 
 def main():
-    for lang in LOCALES:
-        for index, shot in enumerate(SHOTS):
-            compose(index, shot, lang)
+    for family in FAMILIES:
+        for lang in LOCALES:
+            for index, shot in enumerate(SHOTS):
+                compose(index, shot, lang, family)
 
 
 if __name__ == "__main__":
