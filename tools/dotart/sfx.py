@@ -94,6 +94,12 @@ def build():
     for off, f in ((0.05, 1800), (0.17, 1400), (0.3, 2000), (0.4, 1500)):
         rain = mix(rain, note("triangle", f, f * 0.5, 0.04, 0.5), off)
     s["sfx_rain_start"] = rain[: int(RATE * 0.58)]
+    s["sfx_snow_start"] = seq(*[note("triangle", f, f, 0.08, 0.5, hold=0.3) for f in (C7, G6, E6, G6)],
+                              note("triangle", C6, C6, 0.2, 0.5, hold=0.2))
+    s["sfx_leaves_start"] = mix(note("noise", 700, 300, 0.5, 0.35, hold=0.2, rng=r),
+                                note("triangle", 330, 247, 0.5, 0.35, hold=0.1))
+    s["sfx_petals_start"] = seq(*[note("triangle", f, f, 0.09, 0.5, hold=0.4) for f in (C6, E6, G6, C7)],
+                                note("triangle", E6, E6, 0.2, 0.4, hold=0.3))
     return s
 
 
@@ -103,7 +109,8 @@ USES = {
     "sfx_cook_done": "a dish finishes cooking", "sfx_coin": "customer served, coin flies",
     "sfx_purchase": "upgrade / hire / plot bought", "sfx_error": "not enough coins, refused",
     "sfx_fever_start": "fever begins", "sfx_mission_done": "mission reward claimed",
-    "sfx_rain_start": "rain begins",
+    "sfx_rain_start": "rain begins", "sfx_snow_start": "snow begins",
+    "sfx_leaves_start": "falling leaves begin", "sfx_petals_start": "blossom petals begin",
 }
 _built = build()
 SOUNDS = [(name, len(data) / RATE, USES[name]) for name, data in _built.items()]

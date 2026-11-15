@@ -111,32 +111,72 @@ public struct RatingBadge: View {
     }
 }
 
-/// Always-on weather chip. Clear: the rain icon and the time until the next rain, as m:ss (hidden until it is known).
-/// Raining: seconds left and the growth bonus.
+/// Always-on weather chip. Clear: the icon of the weather that is coming and the time until it, as m:ss
+/// (hidden until it is known). Running: seconds left and what it does for the shop.
 public struct WeatherChip: View {
     @EnvironmentObject var store: GameStore
 
     public init() {}
 
     public var body: some View {
-        if store.weather == .rain {
+        let weather = store.weather
+        if weather != .clear {
             let seconds = Int(store.weatherRemaining.rounded(.up))
-            chip(icon: "dot_ui_rain", tint: DotPalette.paper) {
+            chip(icon: Self.icon(weather), tint: DotPalette.paper) {
                 Text(String(format: String(localized: "dot.weather.seconds"), seconds))
-                Text(String(localized: "dot.weather.boost"))
+                Text(Self.bonus(weather))
                     .foregroundStyle(DotPalette.goldLight)
             }
-            .accessibilityLabel(String(format: String(localized: "dot.weather.accessibility"), seconds))
+            .accessibilityLabel(Self.activeLabel(weather, seconds: seconds))
         } else {
-            let seconds = Int(store.secondsUntilRain.rounded(.up))
-            if seconds > 0 {
-                chip(icon: "dot_ui_rain", tint: DotPalette.paper) {
+            let seconds = Int(store.secondsUntilWeather.rounded(.up))
+            if seconds > 0, let upcoming = store.upcomingWeather {
+                chip(icon: Self.icon(upcoming), tint: DotPalette.paper) {
                     Text(String(format: "%d:%02d", seconds / 60, seconds % 60)).monospacedDigit()
                 }
-                .accessibilityLabel(String(format: String(localized: "dot.weather.clear.accessibility"),
-                                           seconds / 60, seconds % 60))
+                .accessibilityLabel(Self.upcomingLabel(upcoming, minutes: seconds / 60, seconds: seconds % 60))
             }
         }
+    }
+
+    static func icon(_ weather: Weather) -> String {
+        switch weather {
+        case .clear, .rain: return "dot_ui_rain"
+        case .snow:         return "dot_ui_snow"
+        case .leaves:       return "dot_ui_leaves"
+        case .petals:       return "dot_ui_petals"
+        }
+    }
+
+    private static func bonus(_ weather: Weather) -> String {
+        switch weather {
+        case .clear, .rain: return String(localized: "dot.weather.boost")
+        case .snow:         return String(localized: "dot.weather.snow.bonus")
+        case .leaves:       return String(localized: "dot.weather.leaves.bonus")
+        case .petals:       return String(localized: "dot.weather.petals.bonus")
+        }
+    }
+
+    private static func activeLabel(_ weather: Weather, seconds: Int) -> String {
+        let format: String
+        switch weather {
+        case .clear, .rain: format = String(localized: "dot.weather.accessibility")
+        case .snow:         format = String(localized: "dot.weather.snow.accessibility")
+        case .leaves:       format = String(localized: "dot.weather.leaves.accessibility")
+        case .petals:       format = String(localized: "dot.weather.petals.accessibility")
+        }
+        return String(format: format, seconds)
+    }
+
+    private static func upcomingLabel(_ weather: Weather, minutes: Int, seconds: Int) -> String {
+        let format: String
+        switch weather {
+        case .clear, .rain: format = String(localized: "dot.weather.clear.accessibility")
+        case .snow:         format = String(localized: "dot.weather.snow.clear.accessibility")
+        case .leaves:       format = String(localized: "dot.weather.leaves.clear.accessibility")
+        case .petals:       format = String(localized: "dot.weather.petals.clear.accessibility")
+        }
+        return String(format: format, minutes, seconds)
     }
 
     private func chip<Content: View>(icon: String, tint: Color, @ViewBuilder _ content: () -> Content) -> some View {

@@ -14,21 +14,21 @@ final class GoldenGourmetTests: DotWorldTestCase {
     // MARK: Golden roll
 
     func test_ripening_rollsAgainstSixPercent() {
-        script.values = [0.99, 0.05]   // first call is the weather gap
+        script.values = [0.99, 0.99, 0.05]   // the first two calls are the weather gap and kind
         ripenPlot1()
         XCTAssertTrue(store.farm.plots[1].isReady)
         XCTAssertTrue(store.farm.plots[1].isGolden)
     }
 
     func test_ripening_aboveSixPercent_isNotGolden() {
-        script.values = [0.99, 0.06]
+        script.values = [0.99, 0.99, 0.06]
         ripenPlot1()
         XCTAssertTrue(store.farm.plots[1].isReady)
         XCTAssertFalse(store.farm.plots[1].isGolden)
     }
 
     func test_rolledOnlyOncePerRipening() {
-        script.values = [0.99, 0.99]
+        script.values = [0.99, 0.99, 0.99]
         ripenPlot1()
         let calls = script.calls
         store.tick(deltaTime: 1)

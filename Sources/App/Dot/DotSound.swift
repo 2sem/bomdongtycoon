@@ -17,6 +17,9 @@ final class DotSound {
         case feverStart = "sfx_fever_start"
         case missionDone = "sfx_mission_done"
         case rainStart = "sfx_rain_start"
+        case snowStart = "sfx_snow_start"
+        case leavesStart = "sfx_leaves_start"
+        case petalsStart = "sfx_petals_start"
     }
 
     static let enabledKey = "settings.soundEnabled"

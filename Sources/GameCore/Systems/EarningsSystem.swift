@@ -53,17 +53,18 @@ public enum EarningsSystem {
     /// cashier and legacy bonuses are already inside the rate and must not be applied again there.
     /// `prestigeCount` 0 multiplies by exactly 1.0, so a first-run player's prices are untouched.
     /// Required, not defaulted: a caller that forgot it would silently price a prestiged save at x1.
-    /// `feverMultiplier`, `boostMultiplier` and `gourmetMultiplier` are active-play bonuses: only `sellItem` passes
+    /// `feverMultiplier`, `boostMultiplier`, `gourmetMultiplier` and `weatherMultiplier` are active-play bonuses: only `sellItem` passes
     /// them, so `coinsPerSecond`, the golden bonus and offline earnings stay on the base economy.
     public static func salePrice(for stall: StallState, menuIndex: Int, prestigeCount: Int,
                                  feverMultiplier: Double = 1, gourmetMultiplier: Double = 1,
-                                 boostMultiplier: Double = 1) -> Double {
+                                 boostMultiplier: Double = 1, weatherMultiplier: Double = 1) -> Double {
         pricePerItem(for: stall, menuIndex: menuIndex)
             * cashierSaleMultiplier(for: stall)
             * PrestigeSystem.legacyMultiplier(prestigeCount: prestigeCount)
             * feverMultiplier
             * boostMultiplier
             * gourmetMultiplier
+            * weatherMultiplier
     }
 
     public static let gourmetMultiplier: Double = 3

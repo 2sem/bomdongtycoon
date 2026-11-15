@@ -143,6 +143,15 @@ def _head(s, spec, hy, facing, tired):
         s.px(8, hy - 2, SHADE[c])
         s.px(5, hy, LIGHT[c]), s.px(4, hy + 1, LIGHT[c])
         s.px(12, hy + 2, SHADE[c])
+    elif hat == "beanie":
+        c = spec.get("hat_colour", "red")
+        s.hline(5, hy - 1, 6, c)
+        s.hline(4, hy, 8, c)
+        s.rect(3, hy + 1, 10, 2, c)
+        s.hline(3, hy + 3, 10, SHADE.get(c, c))
+        s.px(5, hy, LIGHT.get(c, c)), s.px(6, hy, LIGHT.get(c, c))
+        s.rect(7, hy - 3, 2, 2, "paper")
+        s.px(8, hy - 2, "grey_light")
     elif hat == "headband":
         c = spec.get("hat_colour", "red")
         rows(2, 2, c=c)
@@ -150,6 +159,13 @@ def _head(s, spec, hy, facing, tired):
             s.px(13, hy + 2, c), s.px(13, hy + 3, c), s.px(14, hy + 4, c)
         else:
             s.px(7, hy + 3, c), s.px(8, hy + 4, c)
+
+    flower = spec.get("flower")
+    if flower:
+        fx, fy = (11, hy + 1) if hat == "beret" else (10, hy)
+        for dx, dy in ((1, 0), (0, 1), (2, 1), (1, 2)):
+            s.px(fx + dx, fy + dy, flower)
+        s.px(fx + 1, fy + 1, "gold")
 
     if facing == "down":
         if tired:
@@ -266,6 +282,14 @@ def draw(spec, pose):
                 s.vline(11, ty + 2, hand_r - ty - 2, "skin_shade")
             s.px(11, hand_r, skin)
 
+    if spec.get("puffer"):
+        quilt = SHADE[shirt]
+        if facing == "side":
+            s.hline(6, ty + 2, 4, quilt)
+        else:
+            s.hline(5, ty + 2, 6, quilt)
+            s.hline(4, ty + 2, 1, quilt), s.hline(11, ty + 2, 1, quilt)
+
     scarf = spec.get("scarf")
     hd = 2 if tired else 0
     _head(s, spec, hy + hd, facing, tired)
@@ -283,8 +307,32 @@ def draw(spec, pose):
         s.px(9, ty + 3, "gold_light"), s.px(10, ty + 3, spec["pin"]), s.px(9, ty + 4, spec["pin"])
     if tired:
         s.px(14, hy + 4, "sky"), s.px(14, hy + 5, "sky")
+    if spec.get("umbrella"):
+        _umbrella(s, spec["umbrella"], hy, ty, facing)
     s.outline("ink")
     return s
+
+
+def _umbrella(s, c, hy, ty, facing):
+    """Canopy over the head and a pole in the right hand. Everything stays inside the 16x24
+    canvas, so the anchor does not move and the order bubble clears it (the bubble tail is
+    24 px above the feet, the canopy top is 21 px up for adults and 19 for kids)."""
+    s.hline(6, hy - 2, 7, c)
+    s.hline(4, hy - 1, 11, c)
+    s.hline(2, hy, 14, c)
+    s.hline(2, hy + 1, 14, SHADE[c])
+    for x in (3, 6, 9, 12):
+        s.px(x, hy + 1, None)
+    s.px(5, hy - 1, LIGHT.get(c, c)), s.px(7, hy - 2, LIGHT.get(c, c)), s.px(4, hy, LIGHT.get(c, c))
+    s.px(9, hy, SHADE[c]), s.px(12, hy - 1, SHADE[c])
+    s.px(9, hy - 3, "grey_dark")
+    hand = ty + 2
+    s.vline(13, hy + 2, hand - hy - 2, "grey_dark")
+    s.px(13, hand, "skin"), s.px(13, hand + 1, "soil")
+    if facing == "side":
+        s.hline(8, hand, 5, "skin_shade")
+    else:
+        s.px(12, hand, "skin_shade")
 
 
 def _tool(s, tool, hx, hy, up):
@@ -342,6 +390,46 @@ STAFF = {
                          sleeve="short", tool="ladle"),
 }
 
+# What each look wears when it spawns during a weather: overrides merged into the base spec.
+# `umbrella`, `puffer`, `flower` and the `beanie` hat are drawn by draw(); the canvas, the
+# anchor and the walk frames are the base character's.
+WEATHERS = ["rain", "snow", "leaves", "petals"]
+OUTFITS = {
+    "rain": {
+        "man": dict(umbrella="blue"), "woman": dict(umbrella="red"),
+        "kid_boy": dict(umbrella="gold"), "kid_girl": dict(umbrella="pink"),
+        "elder_man": dict(umbrella="leaf"), "elder_woman": dict(umbrella="mauve"),
+        "gourmet": dict(umbrella="orange"),
+    },
+    "snow": {
+        "man": dict(hat="beanie", hat_colour="red", scarf="paper", shirt="blue", puffer=True),
+        "woman": dict(hat="beanie", hat_colour="paper", scarf="pink", shirt="mauve", puffer=True),
+        "kid_boy": dict(hat="beanie", hat_colour="red", scarf="red", shirt="gold", puffer=True, sleeve="long"),
+        "kid_girl": dict(hat="beanie", hat_colour="paper", scarf="red", shirt="pink", puffer=True),
+        "elder_man": dict(hat="beanie", hat_colour="leaf_dark", scarf="gold", shirt="soil", puffer=True),
+        "elder_woman": dict(hat="beanie", hat_colour="gold", scarf="paper", shirt="mauve", puffer=True),
+        "gourmet": dict(scarf="paper", shirt="plum", puffer=True),
+    },
+    "leaves": {
+        "man": dict(shirt="soil", scarf="orange"),
+        "woman": dict(shirt="orange_dark", scarf="gold", skirt="soil_dark"),
+        "kid_boy": dict(shirt="orange", scarf="gold", sleeve="long"),
+        "kid_girl": dict(shirt="orange_dark", scarf="gold", skirt="soil"),
+        "elder_man": dict(shirt="soil", scarf="red", hat="cap", hat_colour="soil"),
+        "elder_woman": dict(shirt="orange_dark", scarf="paper"),
+        "gourmet": dict(shirt="orange_dark", scarf="orange"),
+    },
+    "petals": {
+        "man": dict(shirt="sky", pants="sand", flower="pink"),
+        "woman": dict(shirt="paper", skirt="pink", flower="pink"),
+        "kid_boy": dict(shirt="leaf_light", flower="pink"),
+        "kid_girl": dict(shirt="paper", skirt="pink", flower="red"),
+        "elder_man": dict(shirt="leaf_light", flower="pink"),
+        "elder_woman": dict(shirt="pink", skirt="mauve", flower="paper"),
+        "gourmet": dict(flower="pink"),
+    },
+}
+
 # Bottom-centre: feet are on row 22, the ink under them is row 23.
 ANCHOR = (8, 23)
 
@@ -352,3 +440,8 @@ for name, spec in CUSTOMERS.items():
 for name, spec in STAFF.items():
     add("char", name, [(p, draw(spec, p)) for p in STAFF_POSES], anchor=ANCHOR,
         duration=0.3, kind="poses", note="work_0/1 loop while busy; tired replaces idle")
+for weather in WEATHERS:
+    for name, spec in CUSTOMERS.items():
+        dressed = {**spec, **OUTFITS[weather][name]}
+        add("char", f"{name}_{weather}", [(p, draw(dressed, p)) for p in CUSTOMER_POSES], anchor=ANCHOR,
+            duration=0.18, kind="poses", note=f"{name} dressed for {weather}; same poses and anchor as the base look")

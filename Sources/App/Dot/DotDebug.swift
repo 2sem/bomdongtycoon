@@ -8,7 +8,7 @@ import GameCore
 ///   -dotEmpty           empty warehouse (the crate "!" and the ripe-plot pulse)
 ///   -dotResetHints      replay the first-run pointers
 ///   -dotFever           keep fever running
-///   -dotRain            keep it raining
+///   -dotWeather W       keep weather W on: rain, snow, leaves or petals (-dotRain is the same as -dotWeather rain)
 ///   -dotFeverReady      keep the fever gauge full (the FEVER! button) without starting it
 ///   -dotGolden          every plot that ripens turns golden (the sparkle, chime and toast)
 ///   -dotTips            every served customer leaves a tip coin that never fades
@@ -130,7 +130,16 @@ enum DotDebug {
     static var wantsDemo: Bool { arguments.contains("-dotDemo") }
     private static var wantsFever: Bool { arguments.contains("-dotFever") }
     private static var wantsGolden: Bool { arguments.contains("-dotGolden") }
-    private static var wantsRain: Bool { arguments.contains("-dotRain") }
+    private static var wantedWeather: Weather? {
+        if arguments.contains("-dotRain") { return .rain }
+        switch value(after: "-dotWeather") {
+        case "rain": return .rain
+        case "snow": return .snow
+        case "leaves": return .leaves
+        case "petals": return .petals
+        default: return nil
+        }
+    }
     private static var wantsFeverReady: Bool { arguments.contains("-dotFeverReady") }
     #endif
 
@@ -233,7 +242,7 @@ enum DotDebug {
         #endif
     }
 
-    /// Called every frame; re-arms fever and rain so a screenshot can be taken at leisure.
+    /// Called every frame; re-arms fever and weather so a screenshot can be taken at leisure.
     @MainActor
     static func keepAlive(_ store: GameStore) {
         #if DEBUG
@@ -257,13 +266,7 @@ enum DotDebug {
                 store.farm.plots[i].isGolden = true
             }
         }
-        if wantsRain, store.weather == .clear {
-            var guardCount = 0
-            while store.weather == .clear, guardCount < 60 {
-                store.tick(deltaTime: 10)
-                guardCount += 1
-            }
-        }
+        if let wanted = wantedWeather, store.weather != wanted { store.debugStartWeather(wanted) }
         #endif
     }
 }
