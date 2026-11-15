@@ -69,7 +69,7 @@ final class DotWorldScene: SKScene {
     #endif
     private let feverTally = PixelLabel(style: .bold, color: SKColor(hex: 0xffe680))
     private var knownGolden: Set<Int>?
-    private var rain: RainNode?
+    private var weatherFX: WeatherNode?
     private var tint: SKSpriteNode?
     private var feverGlow: SKSpriteNode?
     private var hintArrow: HintArrowNode?
@@ -82,7 +82,7 @@ final class DotWorldScene: SKScene {
     private var appliedLocation: Int?
     private var lastPrestige: Int?
     private var isRunTransitionActive = false
-    private var wasRaining = false
+    private var lastWeather: Weather = .clear
     private var wasFever = false
     private var wasGiftPresent = false
     private var giftSparkleClock: TimeInterval = 0
@@ -152,7 +152,7 @@ final class DotWorldScene: SKScene {
             self?.sound.play(.error)
         }
         director.onSparkle = { [weak self] point in self?.fx?.sparkle(at: point) }
-        let rain = RainNode(layout: layout, fx: fx)
+        let weatherFX = WeatherNode(layout: layout, fx: fx)
         let tips = TipLayer()
         feverTally.removeFromParent()
         feverTally.position = CGPoint(x: CGFloat(DotWorldLayout.width) / 2, y: -CGFloat(layout.shopTop - 8))
@@ -174,11 +174,11 @@ final class DotWorldScene: SKScene {
 
         let hint = HintArrowNode()
         hint.zPosition = 5900
-        for node in [backdrop, ground, shop, street, yard, farm, decor, rain, tint, glow, labels, tips, hint, fx] as [SKNode] { root.addChild(node) }
+        for node in [backdrop, ground, shop, street, yard, farm, decor, weatherFX, tint, glow, labels, tips, hint, fx] as [SKNode] { root.addChild(node) }
         hintArrow = hint
         tipLayer = tips
         self.fx = fx; self.backdrop = backdrop; groundNode = ground; self.shop = shop
-        self.yard = yard; self.farm = farm; self.director = director; self.rain = rain
+        self.yard = yard; self.farm = farm; self.director = director; self.weatherFX = weatherFX
         self.tint = tint; feverGlow = glow
     }
 
@@ -226,19 +226,28 @@ final class DotWorldScene: SKScene {
         #endif
     }
 
+    private static func startSound(_ weather: Weather) -> DotSound.Effect? {
+        switch weather {
+        case .clear:  return nil
+        case .rain:   return .rainStart
+        case .snow:   return .snowStart
+        case .leaves: return .leavesStart
+        case .petals: return .petalsStart
+        }
+    }
+
     private func applyState(_ store: GameStore, delta: TimeInterval) {
-        guard let backdrop, let shop, let yard, let farm, let rain, let tint, let feverGlow, let fx else { return }
+        guard let backdrop, let shop, let yard, let farm, let weatherFX, let tint, let feverGlow, let fx else { return }
         let reduce = reduceMotion
         let progress = DotDebug.dayProgress ?? DayCycle.progress(playSeconds: store.progress.totalPlaySeconds)
         let look = DayLook.at(progress: progress)
         backdrop.update(delta: delta, progress: progress, look: look, reduceMotion: reduce)
 
-        let raining = store.weather == .rain
-        if raining, !wasRaining { sound.play(.rainStart) }
-        wasRaining = raining
-        rain.update(delta: delta, isRaining: raining, animated: !reduce)
-        let drizzle = SKColor(hex: 0xb4bfd6)
-        tint.color = look.tint.mixed(with: look.tint.multiplied(by: drizzle), rain.amount)
+        let weather = store.weather
+        if weather != lastWeather, let cue = Self.startSound(weather) { sound.play(cue) }
+        lastWeather = weather
+        weatherFX.update(delta: delta, weather: weather, animated: !reduce)
+        tint.color = look.tint.mixed(with: look.tint.multiplied(by: weatherFX.tint.color), weatherFX.tint.amount)
 
         let fever = store.isFeverActive
         if fever, !wasFever { sound.play(.feverStart) }

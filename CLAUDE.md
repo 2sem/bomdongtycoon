@@ -23,7 +23,7 @@ python3 tools/dotart/build.py --no-install  # review images and manifest only
 - Always nearest-neighbour: `.nearest` textures in SpriteKit, `.interpolation(.none)` in SwiftUI,
   integer device pixels per art pixel.
 - QA launch arguments (DEBUG only) live in `Sources/App/Dot/DotDebug.swift` (`-dotSeed`,
-  `-dotSheet`, `-dotFever`, `-dotRain`, `-dotPhase`).
+  `-dotSheet`, `-dotFever`, `-dotWeather rain|snow|leaves|petals` (`-dotRain` is an alias), `-dotPhase`).
 
 The 2.5D pipeline below (`tools/isorender/` and its four agents) produced the pre-3.0 isometric
 art. Nothing in the shipping app uses it any more; it stays for reference.

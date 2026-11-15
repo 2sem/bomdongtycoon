@@ -7,6 +7,7 @@ final class CustomerNode: SKNode {
 
     enum Facing { case up, down, left, right }
 
+    /// Base look, or `look_weather` for the outfit worn since spawning (`dot_char_man_snow_*`).
     let look: String
     private let body: SKSpriteNode
     private let bubble = SKNode()
@@ -24,7 +25,8 @@ final class CustomerNode: SKNode {
         addChild(body)
 
         // Bubble tail tip is 24 px above the feet, just over the hair; the dish sits at bubble px (3, 2).
-        bubble.position = CGPoint(x: 0, y: 24)
+        // An umbrella pole tip reaches the top row of the sprite, so the bubble rises 2 px above it.
+        bubble.position = CGPoint(x: 0, y: look.hasSuffix("_rain") ? 26 : 24)
         bubble.zPosition = 50
         bubble.addChild(dotSprite("dot_fx_bubble", anchor: .pixel(10, 21)))
         let dish = dotSprite(wantedDish)

@@ -46,7 +46,7 @@ final class CustomerDirector {
     private static let maxConcurrent = 3
     private static let maxConcurrentFever = 5
     private static let pollInterval: TimeInterval = 0.5
-    private static let maxWait: TimeInterval = 12
+    private static let basePatience: TimeInterval = 12
     private static let reactionPause: TimeInterval = 0.6
     /// Bubble shows this long on arrival before the first sale attempt, so an order is always seen.
     private static let orderingPause: TimeInterval = 0.7
@@ -86,7 +86,7 @@ final class CustomerDirector {
             spawnTimer -= delta
             if spawnTimer <= 0 { trySpawn(store: store, isFever: isFever) }
         }
-        let speed: CGFloat = isFever ? 56 : 30
+        let speed: CGFloat = (isFever ? 56 : 30) * CGFloat(store.customerWalkSpeedMultiplier)
         for session in sessions {
             advance(session, delta: delta, speed: speed, store: store)
         }
@@ -97,7 +97,8 @@ final class CustomerDirector {
         guard sessions.count < (isFever ? Self.maxConcurrentFever : Self.maxConcurrent) else { spawnTimer = 1; return }
         let menu = store.rollOrderedMenu()
         let isGourmet = store.rollGourmet()
-        let look = isGourmet ? "gourmet" : (Self.looks.randomElement() ?? "man")
+        let base = isGourmet ? "gourmet" : (Self.looks.randomElement() ?? "man")
+        let look = Self.outfit(base, weather: store.weather)
         let node = CustomerNode(look: look, wantedDish: "dot_dish_\(Self.dishNames[menu])")
         let held = Set(sessions.map(\.slot))
         let slot = Self.slotOrder.first { !held.contains($0) } ?? 0
@@ -110,6 +111,17 @@ final class CustomerDirector {
         sessions.append(session)
         let interval = store.customerSpawnInterval
         spawnTimer = TimeInterval.random(in: (interval * 0.9)...(interval * 1.1))
+    }
+
+    /// The weather's outfit, worn from spawn to exit even if the weather ends meanwhile.
+    private static func outfit(_ look: String, weather: Weather) -> String {
+        switch weather {
+        case .clear:  return look
+        case .rain:   return look + "_rain"
+        case .snow:   return look + "_snow"
+        case .leaves: return look + "_leaves"
+        case .petals: return look + "_petals"
+        }
     }
 
     private func advance(_ s: Session, delta: TimeInterval, speed: CGFloat, store: GameStore) {
@@ -133,7 +145,7 @@ final class CustomerDirector {
             if let price = store.sellItem(menuIndex: s.menu, isGourmet: s.isGourmet) {
                 store.recordServed(waitTime: s.waited, isGourmet: s.isGourmet)
                 finishServed(s, price: price)
-            } else if s.waited >= Self.maxWait {
+            } else if s.waited >= Self.basePatience * store.customerPatienceMultiplier {
                 store.recordFailed(isGourmet: s.isGourmet)
                 s.node.setBubbleVisible(false)
                 s.node.showFront()
