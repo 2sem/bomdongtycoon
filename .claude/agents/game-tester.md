@@ -25,14 +25,16 @@ You review; you do not fix. You do **not** write or edit Swift, specs, art or wo
 
 **Build once.** `/usr/bin/xcodebuild -workspace BomDongTycoon.xcworkspace -scheme BomDongTycoon -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 18 Pro' -derivedDataPath /private/tmp/claude-501/dd IPHONEOS_DEPLOYMENT_TARGET=17.0 build` (bare `xcodebuild` is shadowed in this shell; `mise` is at `/opt/homebrew/bin/mise`; do not regenerate the project). Install and launch with `xcrun simctl` (bundle id `com.leesam.bomdongtycoon`). There is no Simulator.app here; the sim is headless (DeviceHub.app shows it).
 
+Debug builds now run ads (Google test units) by default: pass `-dotNoAds` on every launch for screenshots, recordings and autoplay, or the app open ad and ATT prompt cover the screen.
+
 **Then pick the cheapest tool that answers the question** — the DEBUG launch arguments in `Sources/App/Dot/DotDebug.swift` are the source of truth; read that file first:
 
 | Question | Tool | Cost |
 |---|---|---|
-| Economy, pacing, balance, "is there a dead stretch" | `-dotAutoplay -dotSpeed 8` on a fresh install, read the `[DotQA]` log lines (`xcrun simctl spawn booted log stream --predicate 'eventMessage CONTAINS "[DotQA]"'`) | one launch, one log read for 12 game-minutes |
-| How a screen looks (any sheet, any progress point, fever, rain, night, en) | `-dotSeed early\|mid\|late` + `-dotSheet …` / `-dotFever` / `-dotRain` / `-dotPhase …`, one screenshot each | 2 calls per screen |
+| Economy, pacing, balance, "is there a dead stretch" | `-dotAutoplay -dotSpeed 8 -dotNoAds` on a fresh install, read the `[DotQA]` log lines (`xcrun simctl spawn booted log stream --predicate 'eventMessage CONTAINS "[DotQA]"'`) | one launch, one log read for 12 game-minutes |
+| How a screen looks (any sheet, any progress point, fever, rain, night, en) | `-dotSeed early\|mid\|late -dotNoAds` + `-dotSheet …` / `-dotFever` / `-dotRain` / `-dotPhase …`, one screenshot each | 2 calls per screen |
 | Does a tap land, does a flow connect (purchase, hire, assign, alerts, transitions) | real taps: `mcp__xcode__XcodeOpenWorkspace` once, then `DeviceInteractionStartSession` / `DeviceInteractionSynthesize` | keep to the flows the brief names |
-| Motion (pulse, shake, pops) | `xcrun simctl io booted recordVideo` for a few seconds, then extract 3–4 frames | not screenshot-per-frame |
+| Motion (pulse, shake, pops) | `xcrun simctl io booted recordVideo` (launch with `-dotNoAds`) for a few seconds, then extract 3–4 frames | not screenshot-per-frame |
 
 Rules that save the most time:
 - Launch several states back to back in ONE shell command (launch, sleep, screenshot, terminate, next), then look at the images together — make a contact-sheet montage with Pillow and read one image instead of ten.

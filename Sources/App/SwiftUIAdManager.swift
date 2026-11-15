@@ -8,15 +8,15 @@ import UIKit
 final class SwiftUIAdManager: NSObject, ObservableObject {
 
     #if DEBUG
-    /// Debug builds run without ads so they don't interrupt feature work; `-dotAdsLive` turns real
-    /// ads (Google test units) back on.
-    private static let adsDisabledForDevelopment = !ProcessInfo.processInfo.arguments.contains("-dotAdsLive")
+    /// `-dotNoAds` turns ads off entirely, for screenshots and recordings; Debug otherwise runs
+    /// Google test units.
+    private static let adsDisabledByArgument = ProcessInfo.processInfo.arguments.contains("-dotNoAds")
     /// `-dotAdsGrant`: every rewarded request succeeds at once with no ad, so reward flows can be driven and screenshot.
     private static let grantsWithoutAds = ProcessInfo.processInfo.arguments.contains("-dotAdsGrant")
     private static let isTesting = true
     private static let appOpenInterval: TimeInterval = 60
     #else
-    private static let adsDisabledForDevelopment = false
+    private static let adsDisabledByArgument = false
     private static let grantsWithoutAds = false
     private static let isTesting = false
     private static let appOpenInterval: TimeInterval = 4 * 3600
@@ -44,7 +44,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
 
     /// Called by the splash as it appears, before the SDK starts: from then on the manager exists.
     func setup() {
-        guard !Self.adsDisabledForDevelopment, manager == nil else { return }
+        guard !Self.adsDisabledByArgument, manager == nil else { return }
         guard let window else {
             assertionFailure("the splash is on screen, so its window must exist")
             return
@@ -68,7 +68,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
 
     /// GADManager does not check for a load in flight, so a second call would start a second load.
     private func prepareRewarded(_ placement: AdPlacement) {
-        guard !Self.adsDisabledForDevelopment, !Self.grantsWithoutAds else { return }
+        guard !Self.adsDisabledByArgument, !Self.grantsWithoutAds else { return }
         guard let manager, isSDKStarted else { return }
         guard preparedPlacements.insert(placement).inserted else { return }
         print("[RewardAd] preparing \(placement.rawValue)")

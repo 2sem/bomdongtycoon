@@ -19,8 +19,8 @@ import GameCore
 ///   -dotAutoplayIdle    like -dotAutoplay but never touches the world: only buys goals, claims missions and starts fever
 ///   -dotNoFever         with -dotAutoplay: never press the fever button (isolates the base economy)
 ///   -dotGift            keep a gift crate in the yard
+///   -dotNoAds           no ads at all, for screenshots and recordings
 ///   -dotAdsGrant        every rewarded request succeeds at once, with no ad (also marks every placement ready)
-///   -dotAdsLive         real ads in Debug (Google test units), overriding the Debug "ads off" default
 ///   -dotAutoplayAds     with -dotAutoplay: also take the ad rewards (fever recharge, x2 missions, boost, gift)
 ///   -dotDemo            tap a ripe plot, an empty plot and a dish in turn
 ///   -dotPhase morning|noon|dusk|night   freeze the time of day
