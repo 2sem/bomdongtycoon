@@ -66,6 +66,7 @@ public struct StatsSheet: View {
             row("dot.stats.golden", Self.count(progress.totalGoldenHarvested))
             row("dot.stats.fevers", Self.count(progress.totalFevers))
             row("dot.stats.tips", Self.count(progress.totalTipsCollected))
+            row("dot.stats.wages", CoinFormat.string(progress.totalWagesPaid))
             row("dot.stats.renovation", Self.count(store.stall.renovationLevel))
             row("stats.playTime", Self.durationText(progress.totalPlaySeconds))
         }

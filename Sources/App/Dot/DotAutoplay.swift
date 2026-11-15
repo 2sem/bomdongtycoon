@@ -10,7 +10,7 @@ import GameCore
 struct AutoplayState {
     var clock: Double = 0
     var nextLog: Double = 0
-    var seenServed = 0, seenStaff = 1, seenFevers = 0, seenTiers = 0
+    var seenServed = 0, seenStaff = 1, seenFevers = 0, seenTiers = 0, seenPayday = 0
     var firstSaleLogged = false
     var lastStep: Double = 0
     var readyLoggedAt = -1
@@ -127,7 +127,9 @@ extension DotWorldScene {
         let coins = store.stall.coins
         switch type {
         case .staff:
-            guard coins >= goal.coinCost else { return }
+            // A hire must leave a day's payroll (with the new wage) in hand, or it would strike at once.
+            let wage = WageSystem.wage(forTier: store.stall.staffTier + 1)
+            guard coins >= goal.coinCost + store.dailyPayroll + wage else { return }
             store.hireWorker(tier: store.stall.staffTier + 1)
             notePurchase(store)
             DotDebug.qa("event hire t=\(timeText(store)) staff=\(store.stall.staffCount)")
@@ -156,6 +158,10 @@ extension DotWorldScene {
         if p.totalFevers > autoplayState.seenFevers {
             autoplayState.seenFevers = p.totalFevers
             DotDebug.qa("event fever_start t=\(timeText(store)) n=\(p.totalFevers)")
+        }
+        if let payday = store.payday, payday.id != autoplayState.seenPayday {
+            autoplayState.seenPayday = payday.id
+            DotDebug.qa("event payday t=\(timeText(store)) paid=\(Int(payday.paid)) workers=\(payday.paidCount) strikes=\(payday.unpaidCount)")
         }
         if store.isFeverReady, autoplayState.readyLoggedAt != p.totalFevers {
             autoplayState.readyLoggedAt = p.totalFevers

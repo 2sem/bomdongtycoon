@@ -109,6 +109,10 @@ struct GameRootView: View {
             guard new > old, !isIntroOverlayUp else { return }
             announceMissionDone()
         }
+        .onChange(of: store.payday) { _, payday in
+            guard let payday, !isIntroOverlayUp else { return }
+            announcePayday(payday)
+        }
         .onChange(of: store.isFeverReady) { _, isReady in
             guard isReady, !isIntroOverlayUp, !FirstRunHint.fever.isDone else { return }
             FirstRunHint.fever.markDone()
@@ -308,6 +312,21 @@ struct GameRootView: View {
         showToast(
             String(format: String(localized: "prestige.toast"), multiplier),
             announcement: String(format: String(localized: "prestige.toast.accessibility"), multiplier))
+    }
+
+    /// Payday: the amount now, and when some went unpaid the strike notice right after, since a
+    /// toast holds one line and the second must not replace the first before it is read.
+    private func announcePayday(_ payday: GameStore.Payday) {
+        let paid = String(format: String(localized: "dot.payday.paid"), CoinFormat.string(payday.paid), payday.paidCount)
+        showToast(paid, announcement: paid)
+        DotSound.shared.play(payday.paid > 0 ? .coin : .error)
+        guard payday.unpaidCount > 0 else { return }
+        let unpaid = String(format: String(localized: "dot.payday.unpaid"), payday.unpaidCount)
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.7))
+            showToast(unpaid, announcement: unpaid)
+            DotSound.shared.play(.error)
+        }
     }
 
     private func showToast(_ text: String, announcement: String) {

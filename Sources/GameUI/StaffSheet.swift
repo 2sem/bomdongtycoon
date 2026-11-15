@@ -11,6 +11,8 @@ private struct WorkerItem: Identifiable {
     var energy: Double;
     /// Asleep at a post: assigned, out of energy and not back at full yet.
     var resting = false;
+    /// Position in the tier's idle pool; only meaningful while unassigned.
+    var idleIndex = 0;
 
     enum Assignment: Hashable {
         case unassigned, farm, cashier, menu(Int)
@@ -42,6 +44,7 @@ public struct StaffSheet: View {
     @Binding public var tab: StaffTab
     @State private var placementToast: String?
     @State private var toastTask: Task<Void, Never>?
+    @State private var pendingFire: WorkerItem?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(isPresented: Binding<Bool>, tab: Binding<StaffTab>) {
@@ -58,6 +61,17 @@ public struct StaffSheet: View {
                 case .hire: hireList
                 }
             }
+        }
+        .alert(
+            String(localized: "dot.fire.title"),
+            isPresented: Binding(get: { pendingFire != nil }, set: { if !$0 { pendingFire = nil } }),
+            presenting: pendingFire
+        ) { worker in
+            Button(String(localized: "dot.fire.confirm"), role: .destructive) { fire(worker) }
+            Button(String(localized: "취소"), role: .cancel) {}
+        } message: { worker in
+            Text(String(format: String(localized: "dot.fire.message"),
+                        staffName(worker.tier), CoinFormat.string(WageSystem.wage(forTier: worker.tier))))
         }
         .overlay(alignment: .top) {
             if let placementToast {
@@ -125,6 +139,7 @@ public struct StaffSheet: View {
                 .padding(.vertical, 24)
             } else {
                 DotSectionHeader(String(localized: "직원 목록"))
+                payrollSummary
                 ForEach(workers) { worker in
                     WorkerRow(
                         worker: worker,
@@ -135,11 +150,51 @@ public struct StaffSheet: View {
                         farmPlots: store.farm.plots,
                         coins: store.stall.coins,
                         onReassign: { reassign(worker: worker, to: $0) },
-                        onPromote: { promote(worker) }
+                        onPromote: { promote(worker) },
+                        onFire: { pendingFire = worker }
                     )
                 }
             }
         }
+    }
+
+    /// Total of the next payday and the time left to it; it counts down with the play clock.
+    private var payrollSummary: some View {
+        let payroll = store.dailyPayroll
+        let time = Self.clockText(store.secondsUntilPayday)
+        let paydayText = String(format: String(localized: "dot.staff.payday"), time)
+        let payrollText = String(format: String(localized: "dot.staff.payroll"), CoinFormat.string(payroll))
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(payrollText).dotText(.bold).monospacedDigit()
+            Text(paydayText).dotText(.caption, color: DotPalette.soilDark).monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .dotPanel()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(payrollText), \(paydayText)")
+    }
+
+    private static func clockText(_ seconds: Double) -> String {
+        let total = max(0, Int(seconds.rounded(.up)))
+        return String(format: "%d:%02d", total / 60, total % 60)
+    }
+
+    /// Fires from the post the row shows. A farm hand is found by type, as `reassign` finds her.
+    private func fire(_ worker: WorkerItem) {
+        let target: GameStore.FireTarget?
+        switch worker.assignment {
+        case .menu(let i): target = .cook(menuIndex: i)
+        case .cashier: target = .cashier
+        case .farm:
+            let type = farmWorkerType(for: worker.tier)
+            target = store.farm.plots.firstIndex(where: { $0.workerType == type }).map { .farm(plotIndex: $0) }
+        case .unassigned: target = .idle(tier: worker.tier, index: worker.idleIndex)
+        }
+        guard let target, store.fireWorker(target) else { return play(.error) }
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        play(.tap)
+        AccessibilityNotification.Announcement(
+            String(format: String(localized: "dot.fire.done"), staffName(worker.tier))).post()
     }
 
     /// Promotion used to be a leading swipe; a visible button is easier to find and to reach.
@@ -223,14 +278,15 @@ public struct StaffSheet: View {
         var tier3Idx = 0;
         for _ in 0..<store.stall.tier3Count {
             let a: WorkerItem.Assignment = t3.isEmpty ? .unassigned : .menu(t3.removeFirst());
-            let e: Double; var asleep = false;
+            let e: Double; var asleep = false; var idle = 0;
             switch a {
             case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0; asleep = store.stall.menuCookResting[safe: i] ?? false
             default:
                 e = store.stall.tier3IdleEnergies[safe: t3IdleIdx] ?? 1.0
+                idle = t3IdleIdx
                 t3IdleIdx += 1
             }
-            items.append(WorkerItem(id: idCounter, indexInTier: tier3Idx, tier: 3, assignment: a, energy: e, resting: asleep));
+            items.append(WorkerItem(id: idCounter, indexInTier: tier3Idx, tier: 3, assignment: a, energy: e, resting: asleep, idleIndex: idle));
             idCounter += 1; tier3Idx += 1;
         }
 
@@ -242,15 +298,16 @@ public struct StaffSheet: View {
             if !t2.isEmpty                                                  { a = .menu(t2.removeFirst()) }
             else if remainingCashiers > 0 && store.stall.cashierTier == 2  { remainingCashiers -= 1; a = .cashier }
             else                                                            { a = .unassigned }
-            let e: Double; var asleep = false;
+            let e: Double; var asleep = false; var idle = 0;
             switch a {
             case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0; asleep = store.stall.menuCookResting[safe: i] ?? false
             case .cashier:     e = store.stall.cashierEnergy; asleep = store.stall.cashierResting
             default:
                 e = store.stall.tier2IdleEnergies[safe: t2IdleIdx] ?? 1.0
+                idle = t2IdleIdx
                 t2IdleIdx += 1
             }
-            items.append(WorkerItem(id: idCounter, indexInTier: tier2Idx, tier: 2, assignment: a, energy: e, resting: asleep));
+            items.append(WorkerItem(id: idCounter, indexInTier: tier2Idx, tier: 2, assignment: a, energy: e, resting: asleep, idleIndex: idle));
             idCounter += 1; tier2Idx += 1;
         }
 
@@ -264,16 +321,17 @@ public struct StaffSheet: View {
             else if albaFarmWorkers > 0                                     { albaFarmWorkers -= 1; a = .farm }
             else if remainingCashiers > 0 && store.stall.cashierTier == 1  { remainingCashiers -= 1; a = .cashier }
             else                                                            { a = .unassigned }
-            let e: Double; var asleep = false;
+            let e: Double; var asleep = false; var idle = 0;
             switch a {
             case .menu(let i): e = store.stall.menuCookEnergy[safe: i] ?? 1.0; asleep = store.stall.menuCookResting[safe: i] ?? false
             case .cashier:     e = store.stall.cashierEnergy; asleep = store.stall.cashierResting
             case .farm:        (e, asleep) = nextFarmWorker()
             default:
                 e = store.stall.tier1IdleEnergies[safe: t1IdleIdx] ?? 1.0
+                idle = t1IdleIdx
                 t1IdleIdx += 1
             }
-            items.append(WorkerItem(id: idCounter, indexInTier: tier1Idx, tier: 1, assignment: a, energy: e, resting: asleep));
+            items.append(WorkerItem(id: idCounter, indexInTier: tier1Idx, tier: 1, assignment: a, energy: e, resting: asleep, idleIndex: idle));
             idCounter += 1; tier1Idx += 1;
         }
 
@@ -287,7 +345,8 @@ public struct StaffSheet: View {
                 ? farmerPlotsOnFarm[farmerIdx].workerEnergy
                 : (store.stall.farmerIdleEnergies[safe: farmerIdx - farmerPlotsOnFarm.count] ?? 1.0)
             items.append(WorkerItem(id: idCounter, indexInTier: farmerIdx, tier: 4, assignment: a, energy: e,
-                                    resting: isOnFarm && farmerPlotsOnFarm[farmerIdx].workerResting))
+                                    resting: isOnFarm && farmerPlotsOnFarm[farmerIdx].workerResting,
+                                    idleIndex: max(0, farmerIdx - farmerPlotsOnFarm.count)))
             idCounter += 1; farmerIdx += 1
         }
 
@@ -300,15 +359,16 @@ public struct StaffSheet: View {
             if vetIdx < vetPlotsOnFarm.count                  { a = .farm }
             else if remainingVetCashiers > 0                  { remainingVetCashiers -= 1; a = .cashier }
             else                                              { a = .unassigned }
-            let e: Double; var asleep = false
+            let e: Double; var asleep = false; var idle = 0
             switch a {
             case .farm:    e = vetPlotsOnFarm[vetIdx].workerEnergy; asleep = vetPlotsOnFarm[vetIdx].workerResting
             case .cashier: e = store.stall.cashierEnergy; asleep = store.stall.cashierResting
             default:
                 e = store.stall.veteranAlbaIdleEnergies[safe: vetIdleIdx] ?? 1.0
+                idle = vetIdleIdx
                 vetIdleIdx += 1
             }
-            items.append(WorkerItem(id: idCounter, indexInTier: vetIdx, tier: 5, assignment: a, energy: e, resting: asleep))
+            items.append(WorkerItem(id: idCounter, indexInTier: vetIdx, tier: 5, assignment: a, energy: e, resting: asleep, idleIndex: idle))
             idCounter += 1; vetIdx += 1
         }
 
@@ -498,6 +558,7 @@ private struct WorkerRow: View {
     let coins: Double
     let onReassign: (WorkerItem.Assignment) -> Void
     let onPromote: () -> Void
+    let onFire: () -> Void
 
     /// Asleep at a post, or an idle worker still too drained to take one.
     private var isTired: Bool { worker.resting || (worker.assignment == .unassigned && worker.energy < 0.2) }
@@ -575,8 +636,12 @@ private struct WorkerRow: View {
                 DotMiniBar(value: worker.energy, color: StaffLook.energyColor(worker.energy))
                     .accessibilityLabel(String(localized: "dot.staff.energy"))
                     .accessibilityValue("\(Int((worker.energy * 100).rounded()))%")
+                Text(wageText(tier: worker.tier)).dotText(.caption, color: DotPalette.orangeDark)
                 assignmentMenu
-                if let cost = promoteCost { promoteButton(cost: cost) }
+                HStack(spacing: 8) {
+                    if let cost = promoteCost { promoteButton(cost: cost) }
+                    fireButton
+                }
             }
         }
         .dotPanel()
@@ -614,6 +679,13 @@ private struct WorkerRow: View {
         }
         .accessibilityLabel(String(localized: "dot.staff.assignment"))
         .accessibilityValue(assignmentLabel(worker.assignment, energy: worker.energy))
+    }
+
+    private var fireButton: some View {
+        Button(action: onFire) { Text(String(localized: "dot.staff.fire")) }
+            .buttonStyle(.dotCompact)
+            .accessibilityLabel(String(format: String(localized: "dot.staff.fire.a11y"), staffName(worker.tier)))
+            .accessibilityHint(String(localized: "dot.staff.fire.hint"))
     }
 
     private func promoteButton(cost: Double) -> some View {
@@ -667,6 +739,7 @@ private struct HireTierRow: View {
     private var lines: [HireLine] {
         var result = [HireLine(DotContent.loc(def.description), color: DotPalette.textSecondary)]
         if tier <= 2 { result.append(HireLine(cashierHireHint(tier: tier), color: DotPalette.blue)) }
+        result.append(wageLine(tier: tier))
         result.append(HireLine(String(format: String(localized: "staff_current_count"), count),
                                color: DotPalette.soilDark))
         return result
@@ -734,6 +807,7 @@ private struct HireFarmWorkerRow: View {
                             String(format: "%.1f", def.productionMultiplier)), color: DotPalette.leafDark)
         ]
         if let cashierHint { result.append(HireLine(cashierHint, color: DotPalette.blue)) }
+        result.append(wageLine(tier: tier))
         result.append(HireLine(String(format: String(localized: "staff_current_count"), count),
                                color: DotPalette.soilDark))
         return result
@@ -745,6 +819,16 @@ private struct HireFarmWorkerRow: View {
         onHire()
         play(store.stall.coins < before ? .purchase : .error)
     }
+}
+
+// MARK: - Wage copy
+
+private func wageText(tier: Int) -> String {
+    String(format: String(localized: "dot.staff.wage"), CoinFormat.string(WageSystem.wage(forTier: tier)))
+}
+
+private func wageLine(tier: Int) -> HireLine {
+    HireLine(wageText(tier: tier), color: DotPalette.orangeDark)
 }
 
 // MARK: - Shared hire layout
