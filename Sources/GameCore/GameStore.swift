@@ -470,7 +470,8 @@ public final class GameStore: ObservableObject {
             for: stall, menuIndex: menuIndex, prestigeCount: progress.prestigeCount,
             feverMultiplier: FeverSystem.isActive(transients.fever) ? FeverSystem.priceMultiplier : 1,
             gourmetMultiplier: isGourmet ? EarningsSystem.gourmetMultiplier : 1,
-            boostMultiplier: isBoostActive ? AdBoostSystem.priceMultiplier : 1)
+            boostMultiplier: isBoostActive ? AdBoostSystem.priceMultiplier : 1,
+            weatherMultiplier: weatherEffect.price)
         if stall.cashierCount > 0, !stall.cashierResting {
             stall.cashierEnergy = max(0, stall.cashierEnergy - Self.energyPerCashierSale)
             if stall.cashierEnergy < Self.exhaustedEnergy { stall.cashierResting = true }
@@ -553,7 +554,7 @@ public final class GameStore: ObservableObject {
     /// Whether a served customer leaves a tip coin on the street. Gourmets always do and consume no roll.
     public func rollTip(isGourmet: Bool) -> Bool {
         if isGourmet { return true }
-        return random() < (isFeverActive ? Self.tipFeverChance : Self.tipChance)
+        return random() < (isFeverActive ? Self.tipFeverChance : Self.tipChance) + weatherEffect.tipChance
     }
 
     public static func tipAmount(forSale price: Double, isGourmet: Bool) -> Double {
@@ -713,15 +714,28 @@ public final class GameStore: ObservableObject {
 
     public var weather: Weather { transients.weather.weather }
 
-    /// Seconds of rain left; 0 while clear.
+    /// Seconds left of the running event; 0 while clear.
     public var weatherRemaining: Double {
-        transients.weather.weather == .rain ? transients.weather.timer ?? 0 : 0
+        transients.weather.weather == .clear ? 0 : transients.weather.timer ?? 0
     }
 
-    /// Seconds until the next rain starts; 0 while raining or before the first roll.
-    public var secondsUntilRain: Double {
+    /// Seconds until the next event starts; 0 while one is running or before the first roll.
+    public var secondsUntilWeather: Double {
         transients.weather.weather == .clear ? transients.weather.timer ?? 0 : 0
     }
+
+    /// The event the current clear gap leads into; nil while one is running or before the first roll.
+    public var upcomingWeather: Weather? {
+        transients.weather.weather == .clear ? transients.weather.upcoming : nil
+    }
+
+    public var weatherEffect: WeatherEffect { WeatherEffect.effect(for: transients.weather.weather) }
+
+    /// Scales how long a queued customer waits.
+    public var customerPatienceMultiplier: Double { weatherEffect.patience }
+
+    /// Scales how fast customers walk on the street.
+    public var customerWalkSpeedMultiplier: Double { weatherEffect.walkSpeed }
 
     // MARK: - Missions
 
@@ -777,6 +791,11 @@ public final class GameStore: ObservableObject {
 
     /// QA only (`-dotGift`): puts a crate in the yard now.
     public func debugSpawnGift() { transients.giftRemaining = GiftSystem.lifetime }
+
+    /// QA only (`-dotWeather`): starts `weather` now with a full event timer.
+    public func debugStartWeather(_ weather: Weather) {
+        transients.weather = WeatherState(weather: weather, timer: WeatherSystem.eventDuration)
+    }
 
     /// QA only: re-rolls today's missions from the current stall and earning rate (a seed changes both after init).
     public func debugRerollMissions() {
@@ -861,7 +880,7 @@ public final class GameStore: ObservableObject {
     /// Base spawn interval in seconds, driven by shop rating (0.5-step tiers).
     /// 1.0=20s  1.5=16s  2.0=12s  2.5=8s  3.0=5s  3.5=3.5s  4.0=2.5s  4.5=1.8s  5.0=1.2s
     public var customerSpawnInterval: Double {
-        baseSpawnInterval * (isFeverActive ? FeverSystem.spawnIntervalMultiplier : 1)
+        baseSpawnInterval * (isFeverActive ? FeverSystem.spawnIntervalMultiplier : 1) * weatherEffect.spawnInterval
     }
 
     private var baseSpawnInterval: Double {

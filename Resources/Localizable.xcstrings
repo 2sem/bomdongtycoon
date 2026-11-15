@@ -4417,6 +4417,150 @@
           }
         }
       }
+    },
+    "dot.weather.snow.bonus" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Price +15%"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "가격 +15%"
+          }
+        }
+      }
+    },
+    "dot.weather.leaves.bonus" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guests +25%"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "손님 +25%"
+          }
+        }
+      }
+    },
+    "dot.weather.petals.bonus" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tips +15%"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "팁 +15%"
+          }
+        }
+      }
+    },
+    "dot.weather.snow.accessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Snowing, %d seconds left, sale prices up 15 percent, customers are slower and fewer"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "눈이 와요, %d초 남았어요, 판매 가격 15% 상승, 손님은 느리고 드물어요"
+          }
+        }
+      }
+    },
+    "dot.weather.leaves.accessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Falling leaves, %d seconds left, more customers and they wait longer"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "낙엽이 날려요, %d초 남았어요, 손님이 늘고 더 오래 기다려요"
+          }
+        }
+      }
+    },
+    "dot.weather.petals.accessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blossom petals, %d seconds left, many more customers and tips come more often"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "꽃잎이 날려요, %d초 남았어요, 손님이 많이 늘고 팁이 더 자주 나와요"
+          }
+        }
+      }
+    },
+    "dot.weather.snow.clear.accessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Snow in %dm %ds"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다음 눈까지 %d분 %d초"
+          }
+        }
+      }
+    },
+    "dot.weather.leaves.clear.accessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Falling leaves in %dm %ds"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다음 낙엽까지 %d분 %d초"
+          }
+        }
+      }
+    },
+    "dot.weather.petals.clear.accessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blossom petals in %dm %ds"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다음 꽃잎까지 %d분 %d초"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
