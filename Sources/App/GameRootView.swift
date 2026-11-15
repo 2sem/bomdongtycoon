@@ -124,6 +124,11 @@ struct GameRootView: View {
         .onChange(of: store.isGiftPresent) { _, isPresent in
             if isPresent { ads.prepare(.gift) }
         }
+        // A boost that runs out under the extend dialog leaves nothing to offer: without this the flag
+        // stays set, the storefront stays held and the dialog reopens by itself after the cooldown.
+        .onChange(of: store.isBoostAvailable || store.isBoostExtendable) { _, isOffered in
+            if !isOffered { showBoostOffer = false }
+        }
         .onChange(of: store.isFeverAdAvailable) { _, isAvailable in
             if !isAvailable { showFeverOffer = false }
         }
