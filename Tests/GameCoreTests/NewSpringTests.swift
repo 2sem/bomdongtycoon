@@ -278,7 +278,7 @@ final class NewSpringTests: XCTestCase {
         let stallReset: Set<String> = [
             "coins", "menuTier", "staffTier", "stallTier", "locationTier", "pendingCoins",
             "tier1Count", "tier2Count", "tier3Count", "cashierCount", "menuCooks", "menuCookEnergy",
-            "cashierEnergy", "cashierTier", "tier1IdleEnergies", "tier2IdleEnergies",
+            "cashierEnergy", "cashierTier", "menuCookResting", "cashierResting", "tier1IdleEnergies", "tier2IdleEnergies",
             "tier3IdleEnergies", "warehouse", "warehouseCapacity", "menuStock", "farmerCount",
             "farmerIdleEnergies", "veteranAlbaCount", "veteranAlbaIdleEnergies", "renovationLevel", "recipeLevels"]
         let stallTransient: Set<String> = []   // none today: RunTransients lives on GameStore

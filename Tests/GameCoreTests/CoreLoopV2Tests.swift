@@ -231,39 +231,43 @@ final class CoreLoopV2Tests: DotWorldTestCase {
     private func tiredCook() {
         store.stall.menuCooks = [1, 0, 0]
         store.stall.menuCookEnergy = [0.1, 1, 1]
+        store.stall.menuCookResting = [true, false, false]
     }
 
-    func test_wake_addsHalfAnEnergyBar_toATiredCook() {
+    func test_wake_addsHalfAnEnergyBar_toASleepingCook_whoKeepsSleeping() {
         tiredCook()
-        XCTAssertTrue(store.isTired(.cook(menuIndex: 0)))
+        XCTAssertTrue(store.isResting(.cook(menuIndex: 0)))
         XCTAssertTrue(store.wakeWorker(.cook(menuIndex: 0)))
         XCTAssertEqual(store.stall.menuCookEnergy[0], 0.6, accuracy: 1e-9)
-        XCTAssertFalse(store.isTired(.cook(menuIndex: 0)))
+        XCTAssertTrue(store.isResting(.cook(menuIndex: 0)), "only full energy ends the nap")
     }
 
     func test_wake_coversCashierAndFarmWorkers() {
         store.stall.cashierCount = 1
         store.stall.cashierEnergy = 0.0
+        store.stall.cashierResting = true
         XCTAssertTrue(store.wakeWorker(.cashier))
         XCTAssertEqual(store.stall.cashierEnergy, 0.5, accuracy: 1e-9)
         store.farm.plots[1].workerType = .alba
         store.farm.plots[1].workerEnergy = 0.2
+        store.farm.plots[1].workerResting = true
         XCTAssertTrue(store.wakeWorker(.farm(plotIndex: 1)))
         XCTAssertEqual(store.farm.plots[1].workerEnergy, 0.7, accuracy: 1e-9)
     }
 
-    func test_wake_capsAtFull_andRefusesRested_andEmptyPosts() {
+    func test_wake_capsAtFull_endsTheNap_andRefusesAwake_andEmptyPosts() {
         store.stall.cashierCount = 1
-        store.stall.cashierEnergy = 0.24
+        store.stall.cashierEnergy = 0.74
+        store.stall.cashierResting = true
         XCTAssertTrue(store.wakeWorker(.cashier))
-        XCTAssertEqual(store.stall.cashierEnergy, 0.74, accuracy: 1e-9)
-        XCTAssertFalse(store.wakeWorker(.cashier), "not tired any more")
+        XCTAssertEqual(store.stall.cashierEnergy, 1, accuracy: 1e-9)
+        XCTAssertFalse(store.stall.cashierResting, "reaching full energy wakes her")
+        XCTAssertFalse(store.wakeWorker(.cashier), "not asleep any more")
         XCTAssertFalse(store.wakeWorker(.cook(menuIndex: 0)), "nobody cooks there")
         XCTAssertFalse(store.wakeWorker(.farm(plotIndex: 0)), "nobody farms there")
         XCTAssertFalse(store.wakeWorker(.farm(plotIndex: 99)))
         store.stall.cashierEnergy = 0.0
-        store.stall.menuCooks = [1, 0, 0]
-        store.stall.menuCookEnergy = [0.0, 1, 1]
+        store.stall.cashierResting = true
         XCTAssertFalse(store.wakeWorker(.cashier), "thirty seconds have not passed")
     }
 
@@ -274,6 +278,7 @@ final class CoreLoopV2Tests: DotWorldTestCase {
         XCTAssertFalse(store.wakeWorker(.cook(menuIndex: 0)))
         store.stall.menuCooks = [1, 1, 0]
         store.stall.menuCookEnergy = [0.0, 0.0, 1]
+        store.stall.menuCookResting = [true, true, false]
         XCTAssertTrue(store.wakeWorker(.cook(menuIndex: 1)), "a different worker is not held")
         store.tick(deltaTime: 29)
         store.stall.menuCookEnergy[0] = 0.0
