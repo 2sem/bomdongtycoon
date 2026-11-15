@@ -24,10 +24,11 @@ struct SplashView: View {
     }
 
     private func setup() {
-        GADMobileAds.sharedInstance().start { [self] status in
+        MobileAds.shared.start { [self] status in
             print("[AdMob] SDK started — adapters: \(status.adapterStatusesByClassName.count)")
-            adManager.preload()
             Task { @MainActor in
+                adManager.setup()
+                adManager.preload()
                 let deadline = Date().addingTimeInterval(3)
                 while !adManager.isAppOpenReady && Date() < deadline {
                     try? await Task.sleep(nanoseconds: 100_000_000)

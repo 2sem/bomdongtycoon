@@ -3,17 +3,6 @@ import Foundation
 /// One rewarded ad surface. Each has its own ad unit so reporting is per placement.
 public enum AdPlacement: String, CaseIterable, Codable, Sendable {
     case offline, fever, mission, boost, gift
-
-    /// Production rewarded unit per placement; the one table the App reads. Debug builds use Google's test unit.
-    public var releaseUnitID: String {
-        switch self {
-        case .offline: "ca-app-pub-9684378399371172/3844454464"
-        case .fever:   "ca-app-pub-9684378399371172/5741927518"
-        case .mission: "ca-app-pub-9684378399371172/8096628117"
-        case .boost:   "ca-app-pub-9684378399371172/6404272495"
-        case .gift:    "ca-app-pub-9684378399371172/5248917584"
-        }
-    }
 }
 
 /// Which rewarded prompt may animate: never more than one at a time, the most urgent first.

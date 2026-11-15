@@ -531,12 +531,4 @@ final class AdPlacementTests: DotWorldTestCase {
         XCTAssertFalse(gate.fire(now: t.addingTimeInterval(19)))
         XCTAssertTrue(gate.fire(now: t.addingTimeInterval(20)))
     }
-
-    func test_everyPlacementHasItsOwnProductionUnit() {
-        let pattern = #"^ca-app-pub-9684378399371172/\d+$"#
-        let ids = AdPlacement.allCases.map(\.releaseUnitID)
-        for id in ids { XCTAssertNotNil(id.range(of: pattern, options: .regularExpression), id) }
-        XCTAssertEqual(Set(ids).count, AdPlacement.allCases.count, "one unit per placement")
-        XCTAssertEqual(AdPlacement.offline.releaseUnitID, "ca-app-pub-9684378399371172/3844454464")
-    }
 }
