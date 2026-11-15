@@ -1,6 +1,2 @@
 [tools]
 tuist = "4.158.2"
-
-[tasks.generate]
-description = "Generate the Xcode project and lift package deployment targets Xcode 27 rejects"
-run = "tuist generate --no-open && tools/fix-package-deployment-targets.sh"
