@@ -274,3 +274,33 @@ add("backdrop", "moon", moon(), anchor=(8, 8))
 add("backdrop", "star", STAR, anchor=(1, 1), note="night sky; blink by alpha")
 add("backdrop", "raindrop", DROP, anchor=(0, 5), note="falls slightly leftward")
 add("backdrop", "rain_splash", SPLASH, anchor=(3, 3), duration=0.08, note="play once on ground")
+
+# Weather particles. Nearest-neighbour and unoutlined: at this size an outline would be the sprite.
+SNOW = [Sprite.ascii(a) for a in ("""
+WW
+WW
+""", """
+.W.
+WWW
+.W.
+""")]
+LEAF_ART = """
+..OO.
+.OOOo
+OOOo.
+.oo..
+"""
+LEAVES = [Sprite.ascii(LEAF_ART).swap({"orange": o, "orange_dark": d})
+          for o, d in (("orange", "orange_dark"), ("red", "red_dark"), ("gold", "gold_dark"))]
+PETALS = [Sprite.ascii(a) for a in ("""
+.kk
+kkr
+""", """
+.Wk
+kkk
+""")]
+add("backdrop", "snow_s", SNOW[0], anchor=(1, 1), note="weather particle, far flake; drifts down with sway")
+add("backdrop", "snow_l", SNOW[1], anchor=(1, 1), note="weather particle, near flake; drifts down with sway")
+add("backdrop", "leaf", LEAVES, kind="variants", anchor=(2, 2),
+    note="weather particle; orange / red / gold, flip x while tumbling")
+add("backdrop", "petal", PETALS, kind="variants", anchor=(1, 1), note="weather particle; floats down and sideways")

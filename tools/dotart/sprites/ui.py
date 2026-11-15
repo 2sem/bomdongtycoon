@@ -1,6 +1,8 @@
 """HUD icons (16x16, fill drawn inside a 1px margin then inked), 9-slice sources
 and the mascot logo."""
 
+import math
+
 from canvas import Sprite
 from . import add
 from .cabbage import GREEN, face, rosette
@@ -169,6 +171,49 @@ RAIN = icon("""
 .....Uc..Uc.....
 .....U...U......
 """)
+SNOW_ICON = icon("""
+................
+.......W........
+...W...W...W....
+....W..W..W.....
+.....W.W.W......
+......WcW.......
+.WWWWWcccWWWWW..
+......WcW.......
+.....W.W.W......
+....W..W..W.....
+...W...W...W....
+.......W........
+................
+""")
+def leaves_icon():
+    s = Sprite(16, 16)
+    r2 = 2 ** 0.5
+    for y in range(16):
+        for x in range(16):
+            dx, dy = x - 7.5, y - 7.5
+            u, v = (dx - dy) / r2, (dx + dy) / r2
+            if abs(u) <= 6.2 and abs(v) <= 4.2 * (1 - (u / 6.8) ** 2):
+                s.px(x, y, "orange_dark" if v > 1.6 else "gold" if v < -2.2 else "orange")
+                if abs(v) < 0.6 and u < 5:
+                    s.px(x, y, "red_dark")
+    s.px(3, 12, "soil"), s.px(2, 13, "soil")
+    return s.outline("ink")
+
+
+def petals_icon():
+    s = Sprite(16, 16)
+    for i in range(5):
+        a = math.radians(-90 + 72 * i)
+        s.ellipse(8 + 3.4 * math.cos(a), 7.6 + 3.4 * math.sin(a), 2.6, 2.6, "pink")
+    s.ellipse(8, 7.6, 1.8, 1.8, "gold")
+    s.px(7, 7, "gold_light")
+    for x, y in ((4, 10), (11, 10), (8, 12), (6, 11), (10, 11)):
+        if s.get(x, y) == "pink":
+            s.px(x, y, "red")
+    return s.outline("ink")
+
+
 SEED = icon("""
 ................
 ........ll......
@@ -282,7 +327,7 @@ C = (8, 8)
 for name, spr in [("coin", coin()), ("cabbage", cabbage_icon()), ("star", STAR),
                   ("staff", staff_icon()), ("upgrade", UPGRADE), ("mission", MISSION),
                   ("stats", STATS), ("fever", FLAME.copy()), ("sound_on", SOUND_ON),
-                  ("sound_off", SOUND_OFF), ("lock", LOCK), ("check", CHECK), ("rain", RAIN),
+                  ("sound_off", SOUND_OFF), ("lock", LOCK), ("check", CHECK), ("rain", RAIN), ("snow", SNOW_ICON), ("leaves", leaves_icon()), ("petals", petals_icon()),
                   ("seed", SEED), ("clock", CLOCK)]:
     add("ui", name, spr, anchor=C, note="icon")
 
