@@ -32,6 +32,16 @@ public struct StallState: Codable {
     public var tier2IdleEnergies: [Double] = []
     public var tier3IdleEnergies: [Double] = []
 
+    /// Worker levels (1...`StaffLevelSystem.maxLevel`), parallel to the energy fields above: a level
+    /// belongs to the individual worker and travels with her between posts and the bench.
+    public var menuCookLevels: [Int] = [1, 1, 1]
+    public var cashierLevel: Int = 1
+    public var tier1IdleLevels: [Int] = []
+    public var tier2IdleLevels: [Int] = []
+    public var tier3IdleLevels: [Int] = []
+    public var farmerIdleLevels: [Int] = []
+    public var veteranAlbaIdleLevels: [Int] = []
+
     // Warehouse
     public var warehouse: Int = 5
     public var warehouseCapacity: Int = WarehouseSystem.baseCapacity
@@ -69,6 +79,8 @@ public struct StallState: Codable {
         case farmerCount, farmerIdleEnergies
         case veteranAlbaCount, veteranAlbaIdleEnergies
         case renovationLevel, recipeLevels
+        case menuCookLevels, cashierLevel
+        case tier1IdleLevels, tier2IdleLevels, tier3IdleLevels, farmerIdleLevels, veteranAlbaIdleLevels
     }
 
     /// Every key is optional so older saves (which predate `locationTier`) keep loading.
@@ -106,6 +118,14 @@ public struct StallState: Codable {
         renovationLevel = max(0, c.decodeOrDefault(.renovationLevel, d.renovationLevel))
         recipeLevels = c.decodeOrDefault(.recipeLevels, d.recipeLevels)
 
+        menuCookLevels = c.decodeOrDefault(.menuCookLevels, d.menuCookLevels)
+        cashierLevel = c.decodeOrDefault(.cashierLevel, d.cashierLevel)
+        tier1IdleLevels = c.decodeOrDefault(.tier1IdleLevels, [])
+        tier2IdleLevels = c.decodeOrDefault(.tier2IdleLevels, [])
+        tier3IdleLevels = c.decodeOrDefault(.tier3IdleLevels, [])
+        farmerIdleLevels = c.decodeOrDefault(.farmerIdleLevels, [])
+        veteranAlbaIdleLevels = c.decodeOrDefault(.veteranAlbaIdleLevels, [])
+
         // GameStore indexes these three by menu index; a wrong length would trap there.
         let menuCount = UpgradeDefinitions.menu.count
         menuCooks      = Self.resized(menuCooks, to: menuCount, padding: 0)
@@ -114,6 +134,17 @@ public struct StallState: Codable {
         menuStock      = Self.resized(menuStock, to: menuCount, padding: 0)
         recipeLevels   = Self.resized(recipeLevels, to: menuCount, padding: 0)
             .map { min(max($0, 0), RecipeSystem.maxLevel) }
+
+        // An old save has no levels: every worker is Lv.1. A level pool is not resized to its energy
+        // pool here (a damaged key must not change another); `GameStore` pads it on every use.
+        let clamp = StaffLevelSystem.clamped
+        menuCookLevels = Self.resized(menuCookLevels, to: menuCount, padding: 1).map(clamp)
+        cashierLevel = clamp(cashierLevel)
+        tier1IdleLevels = tier1IdleLevels.map(clamp)
+        tier2IdleLevels = tier2IdleLevels.map(clamp)
+        tier3IdleLevels = tier3IdleLevels.map(clamp)
+        farmerIdleLevels = farmerIdleLevels.map(clamp)
+        veteranAlbaIdleLevels = veteranAlbaIdleLevels.map(clamp)
     }
 
     private static func resized<T>(_ array: [T], to count: Int, padding: T) -> [T] {

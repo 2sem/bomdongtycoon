@@ -389,4 +389,233 @@ final class WageTests: DotWorldTestCase {
         XCTAssertEqual(reloaded.stall.tier1Count, 1)
         XCTAssertEqual(reloaded.stall.tier1IdleEnergies.count, 1)
     }
+
+    // MARK: Worker levels
+
+    /// Every level of every worker the store holds: posts, farm plots and the five benches.
+    private func allLevels() -> [Int] {
+        let st = store.stall
+        var out = st.menuCooks.indices.filter { st.menuCooks[$0] > 0 }.map { st.menuCookLevels[$0] }
+        if st.cashierCount > 0 { out.append(st.cashierLevel) }
+        out += store.farm.plots.filter(\.hasWorker).map(\.workerLevel)
+        out += st.tier1IdleLevels + st.tier2IdleLevels + st.tier3IdleLevels
+        out += st.farmerIdleLevels + st.veteranAlbaIdleLevels
+        return out
+    }
+
+    func test_everyTypeStartsAtLevelOne() {
+        XCTAssertEqual(store.farm.plots[0].workerLevel, 1, "the free starting 알바생")
+        emptyStall(coins: 1_000_000)
+        store.stall.stallTier = 2
+        for tier in 1...3 { XCTAssertNotNil(store.hireWorker(tier: tier)) }
+        XCTAssertNotNil(store.hireFarmer())
+        XCTAssertNotNil(store.hireVeteranAlba())
+        XCTAssertEqual(allLevels().count, 5)
+        XCTAssertTrue(allLevels().allSatisfy { $0 == 1 })
+    }
+
+    func test_oldSaveWithoutLevels_decodesToLevelOne() throws {
+        emptyStall(); benchAlba(2)
+        store.stall.menuCooks[0] = 1; store.stall.tier1Count += 1
+        var stallJSON = try JSONSerialization.jsonObject(with: JSONEncoder().encode(store.stall)) as! [String: Any]
+        for key in ["menuCookLevels", "cashierLevel", "tier1IdleLevels", "tier2IdleLevels", "tier3IdleLevels",
+                    "farmerIdleLevels", "veteranAlbaIdleLevels"] { stallJSON[key] = nil }
+        let stall = try JSONDecoder().decode(StallState.self, from: JSONSerialization.data(withJSONObject: stallJSON))
+        XCTAssertEqual(stall.menuCookLevels, [1, 1, 1])
+        XCTAssertEqual(stall.cashierLevel, 1)
+        XCTAssertEqual(stall.tier1IdleLevels, [], "read as Lv.1 and padded to the energy pool on use")
+
+        var plotJSON = try JSONSerialization.jsonObject(with: JSONEncoder().encode(store.farm.plots[0])) as! [String: Any]
+        plotJSON["workerLevel"] = nil
+        let plot = try JSONDecoder().decode(FarmPlot.self, from: JSONSerialization.data(withJSONObject: plotJSON))
+        XCTAssertEqual(plot.workerLevel, 1)
+    }
+
+    func test_levelTable_isStrictlyFasterAndBetterPaid_everyStep_everyType() {
+        for level in 1..<StaffLevelSystem.maxLevel {
+            XCTAssertGreaterThan(StaffLevelSystem.speedMultiplier(level: level + 1),
+                                 StaffLevelSystem.speedMultiplier(level: level))
+            for tier in 1...5 {
+                XCTAssertGreaterThan(WageSystem.wage(forTier: tier, level: level + 1),
+                                     WageSystem.wage(forTier: tier, level: level), "tier \(tier) Lv.\(level)")
+                let step = StaffLevelSystem.step(tier: tier, fromLevel: level)!
+                XCTAssertGreaterThan(step.speedGainPercent, 0)
+                XCTAssertGreaterThan(step.wageAfter, step.wageBefore)
+                XCTAssertEqual(step.cost, StaffLevelSystem.cost(tier: tier, fromLevel: level))
+                if level > 1 {
+                    XCTAssertGreaterThan(step.cost, StaffLevelSystem.cost(tier: tier, fromLevel: level - 1)!,
+                                         "each step costs more than the last")
+                }
+            }
+            XCTAssertGreaterThan(EarningsSystem.cashierMultiplier(tier: 1, level: level + 1),
+                                 EarningsSystem.cashierMultiplier(tier: 1, level: level))
+            XCTAssertGreaterThan(EarningsSystem.cashierMultiplier(tier: 5, level: level + 1),
+                                 EarningsSystem.cashierMultiplier(tier: 5, level: level))
+        }
+        XCTAssertNil(StaffLevelSystem.step(tier: 1, fromLevel: StaffLevelSystem.maxLevel))
+        XCTAssertEqual(StaffLevelSystem.wageMultiplier(level: 1), 1)
+        XCTAssertEqual(WageSystem.wage(forTier: 1, level: 2), 63)
+    }
+
+    func test_pay_risesFasterThanSpeed() {
+        for level in 2...StaffLevelSystem.maxLevel {
+            XCTAssertGreaterThan(StaffLevelSystem.wageMultiplier(level: level) - 1,
+                                 StaffLevelSystem.speedMultiplier(level: level) - 1)
+        }
+    }
+
+    func test_cook_producesMoreAtAHigherLevel() {
+        func dishes(level: Int) -> Int {
+            emptyStall(); benchAlba(1)
+            store.stall.warehouse = 100
+            store.stall.menuStock = [0, 0, 0]
+            store.assignMenuCook(menuIndex: 0, tier: 1)
+            store.stall.menuCookLevels[0] = level
+            run(20)
+            return store.stall.menuStock[0]
+        }
+        XCTAssertGreaterThan(dishes(level: StaffLevelSystem.maxLevel), dishes(level: 1))
+    }
+
+    func test_farmHand_growsCropsFasterAtAHigherLevel() {
+        func growth(level: Int) -> Double {
+            emptyStall(); benchAlba(1)
+            store.toggleFarmWorker(plotIndex: 0, workerType: .alba)
+            store.farm.plots[0].isPlanted = true
+            store.farm.plots[0].growth = 0
+            store.farm.plots[0].workerLevel = level
+            run(2)
+            return store.farm.plots[0].growth
+        }
+        XCTAssertGreaterThan(growth(level: StaffLevelSystem.maxLevel), growth(level: 1))
+    }
+
+    func test_cashier_levelRaisesTheSaleBonus() {
+        emptyStall(); benchAlba(1)
+        store.assignToCashier(tier: 1)
+        let base = EarningsSystem.cashierSaleMultiplier(for: store.stall)
+        store.stall.cashierLevel = StaffLevelSystem.maxLevel
+        XCTAssertGreaterThan(EarningsSystem.cashierSaleMultiplier(for: store.stall), base)
+    }
+
+    func test_levelUp_chargesTheCostAndRaisesOnlyThatWorker() {
+        emptyStall(coins: 1_000); benchAlba(2)
+        let cost = StaffLevelSystem.cost(tier: 1, fromLevel: 1)!
+        XCTAssertTrue(store.levelUp(.idle(tier: 1, index: 1)))
+        XCTAssertEqual(store.stall.coins, 1_000 - cost)
+        XCTAssertEqual(store.stall.tier1IdleLevels, [1, 2])
+        XCTAssertEqual(store.level(of: .idle(tier: 1, index: 1)), 2)
+    }
+
+    func test_levelUp_isBlockedWhenShortAndAtMax() {
+        emptyStall(coins: 10); benchAlba(1)
+        XCTAssertFalse(store.levelUp(.idle(tier: 1, index: 0)))
+        XCTAssertEqual(store.stall.coins, 10)
+        XCTAssertEqual(store.stall.tier1IdleLevels, [1])
+
+        store.stall.coins = 1_000_000
+        for _ in 1..<StaffLevelSystem.maxLevel { XCTAssertTrue(store.levelUp(.idle(tier: 1, index: 0))) }
+        let coins = store.stall.coins
+        XCTAssertFalse(store.levelUp(.idle(tier: 1, index: 0)))
+        XCTAssertEqual(store.stall.coins, coins)
+        XCTAssertEqual(store.level(of: .idle(tier: 1, index: 0)), StaffLevelSystem.maxLevel)
+        XCTAssertFalse(store.levelUp(.cashier), "nobody at the counter")
+    }
+
+    func test_levelUp_worksOnEveryPost() {
+        emptyStall(coins: 1_000_000); benchAlba(3)
+        store.assignMenuCook(menuIndex: 0, tier: 1)
+        store.assignToCashier(tier: 1)
+        store.toggleFarmWorker(plotIndex: 0, workerType: .alba)
+        XCTAssertTrue(store.levelUp(.cook(menuIndex: 0)))
+        XCTAssertTrue(store.levelUp(.cashier))
+        XCTAssertTrue(store.levelUp(.farm(plotIndex: 0)))
+        XCTAssertEqual(store.stall.menuCookLevels[0], 2)
+        XCTAssertEqual(store.stall.cashierLevel, 2)
+        XCTAssertEqual(store.farm.plots[0].workerLevel, 2)
+    }
+
+    func test_level_followsTheWorkerThroughPostsAndTheBench() {
+        emptyStall(coins: 1_000_000); benchAlba(2)
+        XCTAssertTrue(store.levelUp(.idle(tier: 1, index: 1)))
+        XCTAssertTrue(store.levelUp(.idle(tier: 1, index: 1)))   // second alba is Lv.3, the first Lv.1
+
+        store.assignMenuCook(menuIndex: 0, tier: 1, idleIndex: 1)
+        XCTAssertEqual(store.stall.menuCookLevels[0], 3, "taken by her own row, not the oldest")
+        XCTAssertEqual(store.stall.tier1IdleLevels, [1])
+
+        store.removeMenuCook(menuIndex: 0)
+        XCTAssertEqual(store.stall.tier1IdleLevels, [1, 3], "back on the bench with her level")
+        XCTAssertEqual(store.stall.menuCookLevels[0], 1, "the empty post resets")
+
+        store.assignToCashier(tier: 1, idleIndex: 1)
+        XCTAssertEqual(store.stall.cashierLevel, 3)
+        // Post to post, skipping the bench.
+        store.stall.menuTier = 1
+        store.removeFromCashier(displayedEnergy: 0.7, addToIdle: false)
+        store.assignMenuCook(menuIndex: 1, tier: 1, directEnergy: 0.7, directLevel: 3)
+        XCTAssertEqual(store.stall.menuCookLevels[1], 3)
+        XCTAssertEqual(store.stall.tier1IdleLevels, [1], "the bench is untouched")
+
+        store.toggleFarmWorker(plotIndex: 0, workerType: .alba)
+        XCTAssertEqual(store.farm.plots[0].workerLevel, 1)
+        store.toggleFarmWorker(plotIndex: 0, workerType: .alba, addToIdle: true)
+        XCTAssertEqual(store.stall.tier1IdleLevels, [1], "a worker keeps one entry per bench place")
+        XCTAssertEqual(store.stall.tier1IdleLevels.count, store.stall.tier1IdleEnergies.count)
+    }
+
+    func test_farmerAndVeteran_keepTheirLevelOnAndOffTheFarm() {
+        emptyStall(coins: 1_000_000)
+        store.hireFarmer(); store.hireVeteranAlba()
+        for (type, tier) in [(FarmWorkerType.farmer, 4), (.veteranAlba, 5)] {
+            if type == .veteranAlba { store.removeFromCashier() }   // she took the till on hire
+            if !store.farm.plots.contains(where: { $0.workerType == type }) {
+                store.toggleFarmWorker(plotIndex: 1, workerType: type)
+            }
+            guard let plot = store.farm.plots.firstIndex(where: { $0.workerType == type }) else { return XCTFail() }
+            XCTAssertTrue(store.levelUp(.farm(plotIndex: plot)))
+            store.toggleFarmWorker(plotIndex: plot, workerType: type, addToIdle: true)
+            XCTAssertEqual(store.level(of: .idle(tier: tier, index: 0)), 2)
+            store.toggleFarmWorker(plotIndex: plot, workerType: type)
+            XCTAssertEqual(store.farm.plots[plot].workerLevel, 2)
+        }
+    }
+
+    func test_payroll_usesLevels() {
+        emptyStall(coins: 100_000); benchAlba(2)
+        XCTAssertEqual(store.dailyPayroll, 100)
+        store.levelUp(.idle(tier: 1, index: 0))
+        XCTAssertEqual(store.dailyPayroll, 50 + WageSystem.wage(forTier: 1, level: 2))
+        store.assignMenuCook(menuIndex: 0, tier: 1)
+        XCTAssertEqual(store.dailyPayroll, 50 + 63, "posted or benched, the same wage")
+        store.tick(deltaTime: day + 1)
+        XCTAssertEqual(store.payday?.paid, 113)
+    }
+
+    func test_fire_dropsTheLevel() {
+        emptyStall(coins: 1_000_000); benchAlba(2)
+        store.levelUp(.idle(tier: 1, index: 0))
+        XCTAssertTrue(store.fireWorker(.idle(tier: 1, index: 0)))
+        XCTAssertEqual(store.stall.tier1IdleLevels, [1])
+
+        store.assignMenuCook(menuIndex: 0, tier: 1)
+        store.levelUp(.cook(menuIndex: 0))
+        XCTAssertTrue(store.fireWorker(.cook(menuIndex: 0)))
+        XCTAssertEqual(store.stall.menuCookLevels[0], 1)
+        XCTAssertNotNil(store.hireWorker(tier: 1))
+        XCTAssertTrue(allLevels().allSatisfy { $0 == 1 }, "a new hire starts again at Lv.1")
+    }
+
+    func test_level_survivesAReload() {
+        emptyStall(coins: 1_000_000); benchAlba(3)
+        store.assignMenuCook(menuIndex: 0, tier: 1)                 // bench [1, 1]
+        store.levelUp(.cook(menuIndex: 0))                          // cook Lv.2
+        store.levelUp(.idle(tier: 1, index: 0)); store.levelUp(.idle(tier: 1, index: 0))   // bench [3, 1]
+        store.toggleFarmWorker(plotIndex: 1, workerType: .alba)     // takes the oldest, Lv.3; bench [1]
+        store.levelUp(.farm(plotIndex: 1))                          // Lv.4
+        let reloaded = makeStore()
+        XCTAssertEqual(reloaded.stall.menuCookLevels[0], 2)
+        XCTAssertEqual(reloaded.stall.tier1IdleLevels, [1])
+        XCTAssertEqual(reloaded.farm.plots[1].workerLevel, 4)
+    }
 }

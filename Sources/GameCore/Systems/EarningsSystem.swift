@@ -38,13 +38,19 @@ public enum EarningsSystem {
     public static func cashierSaleMultiplier(for stall: StallState) -> Double {
         guard stall.cashierCount > 0,
               !stall.cashierResting else { return 1.0 }
-        return stall.cashierTier == veteranCashierTier ? veteranCashierSaleBonus : cashierSaleBonus
+        return cashierMultiplier(tier: stall.cashierTier, level: stall.cashierLevel)
+    }
+
+    /// The counter has no speed to scale, so a level scales the bonus itself by the level's speed
+    /// multiplier: alba Lv.1 +25%, Lv.5 +40%; veteran Lv.1 +40%, Lv.5 +64%.
+    public static func cashierMultiplier(tier: Int, level: Int = 1) -> Double {
+        let base = tier == veteranCashierTier ? veteranCashierSaleBonus : cashierSaleBonus
+        return 1 + (base - 1) * StaffLevelSystem.speedMultiplier(level: level)
     }
 
     /// The bonus a cashier of `tier` brings when rested, in whole percent (for copy).
-    public static func cashierSaleBonusPercent(tier: Int) -> Int {
-        let m = tier == veteranCashierTier ? veteranCashierSaleBonus : cashierSaleBonus
-        return Int(((m - 1) * 100).rounded())
+    public static func cashierSaleBonusPercent(tier: Int, level: Int = 1) -> Int {
+        Int(((cashierMultiplier(tier: tier, level: level) - 1) * 100).rounded())
     }
 
     /// What a sale actually pays: the one place every revenue multiplier composes
@@ -104,6 +110,7 @@ public enum EarningsSystem {
             let cookTier = i < stall.menuCooks.count ? stall.menuCooks[i] : 0
             guard cookTier > 0, cookTier <= UpgradeDefinitions.staff.count else { continue }
             let rate  = baseProductionRate * UpgradeDefinitions.staff[cookTier - 1].productionMultiplier
+                * StaffLevelSystem.speedMultiplier(level: i < stall.menuCookLevels.count ? stall.menuCookLevels[i] : 1)
             let price = salePrice(for: stall, menuIndex: i, prestigeCount: prestigeCount)
             total += rate * price
         }

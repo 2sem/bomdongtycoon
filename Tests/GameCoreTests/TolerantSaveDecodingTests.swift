@@ -169,7 +169,7 @@ final class TolerantSaveDecodingTests: XCTestCase {
             "totalGourmetServed", "totalGoldenHarvested", "totalFevers", "totalTipsCollected",
             "totalWagesPaid", "lastWageDay"])
         XCTAssertEqual(Set(try json(FarmState()).keys), ["plots"])
-        XCTAssertEqual(Set(try json(FarmPlot()).keys), ["growth", "isPlanted", "workerType", "workerEnergy", "workerResting", "isGolden"])
+        XCTAssertEqual(Set(try json(FarmPlot()).keys), ["growth", "isPlanted", "workerType", "workerEnergy", "workerResting", "workerLevel", "isGolden"])
     }
 
     // MARK: (e) 1.0.1-era save

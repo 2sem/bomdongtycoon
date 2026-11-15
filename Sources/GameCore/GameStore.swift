@@ -199,29 +199,51 @@ public final class GameStore: ObservableObject {
         max(0.2, energy);   // minimum 20% speed when exhausted
     }
 
-    /// Pop the oldest idle energy for a tier (returns 1.0 if pool is empty).
-    @discardableResult
-    private func popIdleEnergy(for tier: Int) -> Double {
+    /// A tier's idle pools: energy and level, always the same length (one entry per benched worker).
+    private func idlePools(_ tier: Int) -> (energies: WritableKeyPath<StallState, [Double]>,
+                                            levels: WritableKeyPath<StallState, [Int]>)? {
         switch tier {
-        case 1: return stall.tier1IdleEnergies.isEmpty ? 1.0 : stall.tier1IdleEnergies.removeFirst()
-        case 2: return stall.tier2IdleEnergies.isEmpty ? 1.0 : stall.tier2IdleEnergies.removeFirst()
-        case 3: return stall.tier3IdleEnergies.isEmpty ? 1.0 : stall.tier3IdleEnergies.removeFirst()
-        case 5: return stall.veteranAlbaIdleEnergies.isEmpty ? 1.0 : stall.veteranAlbaIdleEnergies.removeFirst()
-        default: return 1.0
+        case 1: (\.tier1IdleEnergies, \.tier1IdleLevels)
+        case 2: (\.tier2IdleEnergies, \.tier2IdleLevels)
+        case 3: (\.tier3IdleEnergies, \.tier3IdleLevels)
+        case 4: (\.farmerIdleEnergies, \.farmerIdleLevels)
+        case 5: (\.veteranAlbaIdleEnergies, \.veteranAlbaIdleLevels)
+        default: nil
         }
     }
 
-    /// Push a worker's current energy into the idle pool for their tier.
+    /// Pads a level pool to its energy pool, so a pool written without levels reads as Lv.1.
+    private func alignLevels(_ pools: (energies: WritableKeyPath<StallState, [Double]>,
+                                       levels: WritableKeyPath<StallState, [Int]>)) {
+        let missing = stall[keyPath: pools.energies].count - stall[keyPath: pools.levels].count
+        if missing > 0 { stall[keyPath: pools.levels] += Array(repeating: 1, count: missing) }
+        else if missing < 0 { stall[keyPath: pools.levels].removeLast(-missing) }
+    }
+
+    /// Takes one benched worker of `tier` out of the pools: the oldest, or the one at `index`
+    /// (the row the player tapped, since levels make workers differ). An empty pool gives a fresh Lv.1.
+    @discardableResult
+    private func popIdle(for tier: Int, at index: Int = 0) -> (energy: Double, level: Int) {
+        guard let pools = idlePools(tier), !stall[keyPath: pools.energies].isEmpty else { return (1.0, 1) }
+        alignLevels(pools)
+        let i = min(max(index, 0), stall[keyPath: pools.energies].count - 1)
+        return (stall[keyPath: pools.energies].remove(at: i), stall[keyPath: pools.levels].remove(at: i))
+    }
+
+    /// The worker a post receives: carried straight from another post when `directEnergy` is given,
+    /// otherwise taken from the bench.
+    private func takeWorker(tier: Int, idleIndex: Int, directEnergy: Double?, directLevel: Int?) -> (energy: Double, level: Int) {
+        if let directEnergy { return (directEnergy, StaffLevelSystem.clamped(directLevel ?? 1)) }
+        return popIdle(for: tier, at: idleIndex)
+    }
+
+    /// Benches a worker with her current energy and level.
     /// Values below 5% are snapped to exactly 0.0 so the bar shows cleanly empty.
-    private func pushIdleEnergy(_ energy: Double, for tier: Int) {
-        let snapped = energy < 0.05 ? 0.0 : energy
-        switch tier {
-        case 1: stall.tier1IdleEnergies.append(snapped)
-        case 2: stall.tier2IdleEnergies.append(snapped)
-        case 3: stall.tier3IdleEnergies.append(snapped)
-        case 5: stall.veteranAlbaIdleEnergies.append(snapped)
-        default: break
-        }
+    private func pushIdle(energy: Double, level: Int, for tier: Int) {
+        guard let pools = idlePools(tier) else { return }
+        alignLevels(pools)
+        stall[keyPath: pools.energies].append(tier == 4 || energy >= 0.05 ? energy : 0.0)
+        stall[keyPath: pools.levels].append(StaffLevelSystem.clamped(level))
     }
 
     /// Fix any pool size mismatch left by old bugs: trim excess (oldest entries) or pad with 1.0.
@@ -246,6 +268,8 @@ public final class GameStore: ObservableObject {
         let expectedVetAlbas = max(0, stall.veteranAlbaCount - veteranAlbasAssigned - cashier5)
         normalize(pool: &stall.farmerIdleEnergies,      to: expectedFarmers)
         normalize(pool: &stall.veteranAlbaIdleEnergies, to: expectedVetAlbas)
+
+        for tier in 1...5 { if let pools = idlePools(tier) { alignLevels(pools) } }
     }
 
     private func normalize(pool: inout [Double], to expected: Int) {
@@ -327,7 +351,9 @@ public final class GameStore: ObservableObject {
             case .veteranAlba: boost = UpgradeDefinitions.veteranAlba[0].productionMultiplier
             default:           boost = 1.0
             }
-            farm.plots[i].growth = min(farm.plots[i].growth + growRate * boost * deltaTime, 1.0)
+            let skill = farm.plots[i].hasWorker
+                ? StaffLevelSystem.speedMultiplier(level: farm.plots[i].workerLevel) : 1.0
+            farm.plots[i].growth = min(farm.plots[i].growth + growRate * boost * skill * deltaTime, 1.0)
             if farm.plots[i].isReady, random() < Self.goldenChance { farm.plots[i].isGolden = true }
         }
         advanceGoldenAges(deltaTime: deltaTime)
@@ -362,7 +388,8 @@ public final class GameStore: ObservableObject {
             guard canAutoCook(menuIndex: i, maxStock: maxStock) else { continue }
             let tier = stall.menuCooks[i]
             let energy = i < stall.menuCookEnergy.count ? stall.menuCookEnergy[i] : 1.0;
-            transients.cookAccumulators[i] += cookRate(forTier: tier) * energyMultiplier(energy) * deltaTime;
+            let skill = StaffLevelSystem.speedMultiplier(level: stall.menuCookLevels[safe: i] ?? 1)
+            transients.cookAccumulators[i] += cookRate(forTier: tier) * skill * energyMultiplier(energy) * deltaTime;
             while transients.cookAccumulators[i] >= 1.0,
                   !stall.menuCookResting[i],
                   stall.warehouse > 0,
@@ -439,7 +466,7 @@ public final class GameStore: ObservableObject {
     }
 
     /// What the next payday will cost with today's staff.
-    public var dailyPayroll: Double { WageSystem.payroll(stall: stall) }
+    public var dailyPayroll: Double { WageSystem.payroll(stall: stall, farm: farm) }
 
     /// Play seconds until the next payday.
     public var secondsUntilPayday: Double { DayCycle.secondsUntilNextDay(playSeconds: progress.totalPlaySeconds) }
@@ -1192,7 +1219,7 @@ public final class GameStore: ObservableObject {
         guard stall.coins >= cost else { return nil }
         stall.coins -= cost
         stall.farmerCount += 1
-        stall.farmerIdleEnergies.append(1.0)
+        pushIdle(energy: 1.0, level: 1, for: 4)
         let placement = autoPlace(tier: 4)
         save()
         return HireResult(tier: 4, placement: placement)
@@ -1204,53 +1231,62 @@ public final class GameStore: ObservableObject {
         guard stall.coins >= cost else { return nil }
         stall.coins -= cost
         stall.veteranAlbaCount += 1
-        stall.veteranAlbaIdleEnergies.append(1.0)
+        pushIdle(energy: 1.0, level: 1, for: 5)
         let placement = autoPlace(tier: 5)
         save()
         return HireResult(tier: 5, placement: placement)
     }
 
-    /// Toggle a farm worker of any type on/off a plot.
-    public func toggleFarmWorker(plotIndex: Int, workerType: FarmWorkerType = .alba, displayedEnergy: Double? = nil, addToIdle: Bool = true, directEnergy: Double? = nil) {
+    /// Toggle a farm worker of any type on/off a plot. Putting one on takes the oldest benched worker of
+    /// the type, or the one at `idleIndex`; `directEnergy` and `directLevel` carry a worker straight
+    /// from another post instead.
+    public func toggleFarmWorker(plotIndex: Int, workerType: FarmWorkerType = .alba, displayedEnergy: Double? = nil, addToIdle: Bool = true, directEnergy: Double? = nil, idleIndex: Int = 0, directLevel: Int? = nil) {
         guard plotIndex < farm.plots.count else { return }
         if farm.plots[plotIndex].hasWorker {
             let energy = displayedEnergy ?? farm.plots[plotIndex].workerEnergy
             if addToIdle {
+                let tier: Int
                 switch farm.plots[plotIndex].workerType {
-                case .alba:        pushIdleEnergy(energy, for: 1)
-                case .farmer:      stall.farmerIdleEnergies.append(energy)
-                case .veteranAlba: stall.veteranAlbaIdleEnergies.append(energy)
-                case .none: break
+                case .alba:        tier = 1
+                case .farmer:      tier = 4
+                case .veteranAlba: tier = 5
+                case .none:        tier = 0
                 }
+                pushIdle(energy: energy, level: farm.plots[plotIndex].workerLevel, for: tier)
             }
             farm.plots[plotIndex].workerEnergy = 1.0
             farm.plots[plotIndex].workerResting = false
+            farm.plots[plotIndex].workerLevel = 1
             farm.plots[plotIndex].workerType   = .none
         } else {
-            let energy: Double
+            let tier: Int
             switch workerType {
             case .alba:
                 guard availableForFarm > 0 else { return }
-                energy = directEnergy ?? popIdleEnergy(for: 1)
+                tier = 1
             case .farmer:
                 guard availableFarmers > 0 else { return }
-                energy = directEnergy ?? (stall.farmerIdleEnergies.isEmpty ? 1.0 : stall.farmerIdleEnergies.removeFirst())
+                tier = 4
             case .veteranAlba:
                 guard availableVeteranAlbas > 0 else { return }
-                energy = directEnergy ?? (stall.veteranAlbaIdleEnergies.isEmpty ? 1.0 : stall.veteranAlbaIdleEnergies.removeFirst())
+                tier = 5
             case .none: return
             }
-            farm.plots[plotIndex].workerEnergy = energy
-            farm.plots[plotIndex].workerResting = Self.startsResting(energy)
+            let worker = takeWorker(tier: tier, idleIndex: idleIndex, directEnergy: directEnergy, directLevel: directLevel)
+            farm.plots[plotIndex].workerEnergy = worker.energy
+            farm.plots[plotIndex].workerResting = Self.startsResting(worker.energy)
+            farm.plots[plotIndex].workerLevel = worker.level
             farm.plots[plotIndex].workerType   = workerType
         }
         save()
     }
 
-    public func assignToCashier(tier: Int = 0, directEnergy: Double? = nil) {
+    public func assignToCashier(tier: Int = 0, directEnergy: Double? = nil, idleIndex: Int = 0, directLevel: Int? = nil) {
         let t = tier > 0 ? tier : 1
         guard unassignedCount(for: t) > 0, stall.cashierCount == 0 else { return }
-        stall.cashierEnergy = directEnergy ?? popIdleEnergy(for: t)
+        let worker = takeWorker(tier: t, idleIndex: idleIndex, directEnergy: directEnergy, directLevel: directLevel)
+        stall.cashierEnergy = worker.energy
+        stall.cashierLevel = worker.level
         stall.cashierResting = Self.startsResting(stall.cashierEnergy)
         stall.cashierTier   = t
         stall.cashierCount += 1
@@ -1260,7 +1296,8 @@ public final class GameStore: ObservableObject {
     public func removeFromCashier(displayedEnergy: Double? = nil, addToIdle: Bool = true) {
         guard stall.cashierCount > 0 else { return }
         let energy = displayedEnergy ?? stall.cashierEnergy
-        if addToIdle { pushIdleEnergy(energy, for: stall.cashierTier) }
+        if addToIdle { pushIdle(energy: energy, level: stall.cashierLevel, for: stall.cashierTier) }
+        stall.cashierLevel = 1
         stall.cashierEnergy = 1.0
         stall.cashierResting = false
         transients.cashierBusyRemaining = 0
@@ -1279,13 +1316,15 @@ public final class GameStore: ObservableObject {
     }
 
     /// Assign a worker of a specific tier directly to a menu slot.
-    public func assignMenuCook(menuIndex: Int, tier: Int, directEnergy: Double? = nil) {
+    public func assignMenuCook(menuIndex: Int, tier: Int, directEnergy: Double? = nil, idleIndex: Int = 0, directLevel: Int? = nil) {
         guard menuIndex <= stall.menuTier,
               menuIndex < stall.menuCooks.count,
               stall.menuCooks[menuIndex] == 0 else { return }
         guard unassignedCount(for: tier) > 0 else { return }
         stall.menuCooks[menuIndex] = tier
-        stall.menuCookEnergy[menuIndex] = directEnergy ?? popIdleEnergy(for: tier)
+        let worker = takeWorker(tier: tier, idleIndex: idleIndex, directEnergy: directEnergy, directLevel: directLevel)
+        stall.menuCookLevels[menuIndex] = worker.level
+        stall.menuCookEnergy[menuIndex] = worker.energy
         stall.menuCookResting[menuIndex] = Self.startsResting(stall.menuCookEnergy[menuIndex])
         save()
     }
@@ -1313,7 +1352,8 @@ public final class GameStore: ObservableObject {
               stall.menuCooks[menuIndex] > 0 else { return }
         let tier = stall.menuCooks[menuIndex]
         let energy = displayedEnergy ?? stall.menuCookEnergy[menuIndex]
-        if addToIdle { pushIdleEnergy(energy, for: tier) }
+        if addToIdle { pushIdle(energy: energy, level: stall.menuCookLevels[safe: menuIndex] ?? 1, for: tier) }
+        stall.menuCookLevels[menuIndex] = 1
         stall.menuCookEnergy[menuIndex] = 1.0
         stall.menuCookResting[menuIndex] = false
         stall.menuCooks[menuIndex] = 0
@@ -1342,11 +1382,12 @@ public final class GameStore: ObservableObject {
         guard stall.coins >= cost else { return nil }
         stall.coins -= cost
         switch tier {
-        case 1: stall.tier1Count += 1; stall.tier1IdleEnergies.append(1.0)
-        case 2: stall.tier2Count += 1; stall.tier2IdleEnergies.append(1.0)
-        case 3: stall.tier3Count += 1; stall.tier3IdleEnergies.append(1.0)
+        case 1: stall.tier1Count += 1
+        case 2: stall.tier2Count += 1
+        case 3: stall.tier3Count += 1
         default: break
         }
+        pushIdle(energy: 1.0, level: 1, for: tier)
         stall.staffTier = max(stall.staffTier, tier)
         let placement = autoPlace(tier: tier)
         save()
@@ -1413,17 +1454,7 @@ public final class GameStore: ObservableObject {
     }
 
     private func removeIdleEntry(tier: Int, index: Int) {
-        func drop(_ pool: inout [Double]) {
-            guard !pool.isEmpty else { return }
-            pool.remove(at: min(max(index, 0), pool.count - 1))
-        }
-        switch tier {
-        case 1: drop(&stall.tier1IdleEnergies)
-        case 2: drop(&stall.tier2IdleEnergies)
-        case 3: drop(&stall.tier3IdleEnergies)
-        case 4: drop(&stall.farmerIdleEnergies)
-        default: drop(&stall.veteranAlbaIdleEnergies)
-        }
+        popIdle(for: tier, at: index)
     }
 
     private func decrementCount(for tier: Int) {
@@ -1436,35 +1467,56 @@ public final class GameStore: ObservableObject {
         }
     }
 
-    /// Upgrade one idle worker from `tier` to `tier + 1`, paying the target tier's hire cost.
-    /// The worker must be idle (unassigned). `energy` is the displayed energy to preserve.
-    public func upgradeWorker(fromTier tier: Int, preservingEnergy energy: Double) {
-        let targetTier = tier + 1
-        guard targetTier <= 3 else { return }
-        let cost = UpgradeDefinitions.staff[targetTier - 1].coinCost
-        guard stall.coins >= cost else { return }
+    // MARK: - Levels
 
+    /// A worker's tier and level, nil when the target holds nobody.
+    private func tierAndLevel(of target: FireTarget) -> (tier: Int, level: Int)? {
+        switch target {
+        case .cook(let i):
+            guard stall.menuCooks.indices.contains(i), stall.menuCooks[i] > 0 else { return nil }
+            return (stall.menuCooks[i], stall.menuCookLevels[safe: i] ?? 1)
+        case .cashier:
+            return stall.cashierCount > 0 ? (stall.cashierTier, stall.cashierLevel) : nil
+        case .farm(let i):
+            guard farm.plots.indices.contains(i), farm.plots[i].hasWorker else { return nil }
+            let tier: Int
+            switch farm.plots[i].workerType {
+            case .alba: tier = 1
+            case .farmer: tier = 4
+            case .veteranAlba: tier = 5
+            case .none: return nil
+            }
+            return (tier, farm.plots[i].workerLevel)
+        case .idle(let tier, let index):
+            guard benchedCount(tier: tier) > 0, let pools = idlePools(tier) else { return nil }
+            alignLevels(pools)
+            let count = stall[keyPath: pools.levels].count
+            guard count > 0 else { return nil }
+            return (tier, stall[keyPath: pools.levels][min(max(index, 0), count - 1)])
+        }
+    }
+
+    public func level(of target: FireTarget) -> Int? { tierAndLevel(of: target)?.level }
+
+    /// Pays `StaffLevelSystem.cost` to raise one worker a level: faster and better paid from now on.
+    /// False, changing nothing, at max level, when coins fall short, or when the target holds nobody.
+    @discardableResult
+    public func levelUp(_ target: FireTarget) -> Bool {
+        guard let (tier, level) = tierAndLevel(of: target),
+              let cost = StaffLevelSystem.cost(tier: tier, fromLevel: level),
+              stall.coins >= cost else { return false }
         stall.coins -= cost
-
-        // Remove one idle slot from old tier (any entry, workers are fungible)
-        switch tier {
-        case 1:
-            if !stall.tier1IdleEnergies.isEmpty { stall.tier1IdleEnergies.removeFirst() }
-            stall.tier1Count -= 1
-        case 2:
-            if !stall.tier2IdleEnergies.isEmpty { stall.tier2IdleEnergies.removeFirst() }
-            stall.tier2Count -= 1
-        default: return
+        switch target {
+        case .cook(let i): stall.menuCookLevels[i] = level + 1
+        case .cashier: stall.cashierLevel = level + 1
+        case .farm(let i): farm.plots[i].workerLevel = level + 1
+        case .idle(let t, let index):
+            guard let pools = idlePools(t) else { return false }
+            let count = stall[keyPath: pools.levels].count
+            stall[keyPath: pools.levels][min(max(index, 0), count - 1)] = level + 1
         }
-
-        // Add upgraded worker using the caller-supplied energy (what the player saw)
-        switch targetTier {
-        case 2: stall.tier2Count += 1; stall.tier2IdleEnergies.append(energy)
-        case 3: stall.tier3Count += 1; stall.tier3IdleEnergies.append(energy)
-        default: break
-        }
-        stall.staffTier = max(stall.staffTier, targetTier)
         save()
+        return true
     }
 
     // MARK: - Offline

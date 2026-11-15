@@ -4849,6 +4849,86 @@
           }
         }
       }
+    },
+    "dot.staff.levelup" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Level up"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "레벨업"
+          }
+        }
+      }
+    },
+    "dot.staff.levelup.tradeoff" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lv.%1$d → Lv.%2$d · Speed +%3$d%% · Wage %4$@ → %5$@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lv.%1$d → Lv.%2$d · 속도 +%3$d%% · 일당 %4$@ → %5$@"
+          }
+        }
+      }
+    },
+    "dot.staff.levelup.a11y" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Level up %1$@ to level %2$d for %3$@ coins. Speed up %4$d percent. Daily wage rises from %5$@ to %6$@."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 레벨 %2$d(으)로 올리기, %3$@ 코인. 속도 %4$d퍼센트 증가, 일당 %5$@에서 %6$@(으)로 인상."
+          }
+        }
+      }
+    },
+    "dot.staff.levelup.done" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ is now level %2$d"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 레벨 %2$d 달성"
+          }
+        }
+      }
+    },
+    "dot.staff.levelmax" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Max level"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "최대 레벨"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

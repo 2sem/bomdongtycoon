@@ -281,7 +281,10 @@ final class NewSpringTests: XCTestCase {
             "tier1Count", "tier2Count", "tier3Count", "cashierCount", "menuCooks", "menuCookEnergy",
             "cashierEnergy", "cashierTier", "menuCookResting", "cashierResting", "tier1IdleEnergies", "tier2IdleEnergies",
             "tier3IdleEnergies", "warehouse", "warehouseCapacity", "menuStock", "farmerCount",
-            "farmerIdleEnergies", "veteranAlbaCount", "veteranAlbaIdleEnergies", "renovationLevel", "recipeLevels"]
+            "farmerIdleEnergies", "veteranAlbaCount", "veteranAlbaIdleEnergies", "renovationLevel", "recipeLevels",
+            // Worker levels start over with the workers.
+            "menuCookLevels", "cashierLevel", "tier1IdleLevels", "tier2IdleLevels", "tier3IdleLevels",
+            "farmerIdleLevels", "veteranAlbaIdleLevels"]
         let stallTransient: Set<String> = []   // none today: RunTransients lives on GameStore
         let stallLabels = Mirror(reflecting: store.stall).children.compactMap(\.label)
         XCTAssertEqual(Set(stallLabels), stallReset.union(stallTransient),
