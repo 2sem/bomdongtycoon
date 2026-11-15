@@ -23,6 +23,10 @@ public struct StallState: Codable {
     public var cashierEnergy: Double = 1.0;
     public var cashierTier: Int = 0;   // which tier worker is in the cashier slot
 
+    /// Asleep: set when a post's energy hits 0, cleared only at full energy. A sleeping worker does no work.
+    public var menuCookResting: [Bool] = [false, false, false]
+    public var cashierResting: Bool = false
+
     // Idle energy pools — one Double per unassigned worker of each tier
     public var tier1IdleEnergies: [Double] = []
     public var tier2IdleEnergies: [Double] = []
@@ -59,6 +63,7 @@ public struct StallState: Codable {
         case tier1Count, tier2Count, tier3Count
         case cashierCount, menuCooks
         case menuCookEnergy, cashierEnergy, cashierTier
+        case menuCookResting, cashierResting
         case tier1IdleEnergies, tier2IdleEnergies, tier3IdleEnergies
         case warehouse, warehouseCapacity, menuStock
         case farmerCount, farmerIdleEnergies
@@ -85,6 +90,8 @@ public struct StallState: Codable {
         menuCookEnergy = c.decodeOrDefault(.menuCookEnergy, d.menuCookEnergy)
         cashierEnergy = c.decodeOrDefault(.cashierEnergy, d.cashierEnergy)
         cashierTier = c.decodeOrDefault(.cashierTier, d.cashierTier)
+        menuCookResting = c.decodeOrDefault(.menuCookResting, d.menuCookResting)
+        cashierResting = c.decodeOrDefault(.cashierResting, d.cashierResting)
         tier1IdleEnergies = c.decodeOrDefault(.tier1IdleEnergies, d.tier1IdleEnergies)
         tier2IdleEnergies = c.decodeOrDefault(.tier2IdleEnergies, d.tier2IdleEnergies)
         tier3IdleEnergies = c.decodeOrDefault(.tier3IdleEnergies, d.tier3IdleEnergies)
@@ -103,6 +110,7 @@ public struct StallState: Codable {
         let menuCount = UpgradeDefinitions.menu.count
         menuCooks      = Self.resized(menuCooks, to: menuCount, padding: 0)
         menuCookEnergy = Self.resized(menuCookEnergy, to: menuCount, padding: 1.0)
+        menuCookResting = Self.resized(menuCookResting, to: menuCount, padding: false)
         menuStock      = Self.resized(menuStock, to: menuCount, padding: 0)
         recipeLevels   = Self.resized(recipeLevels, to: menuCount, padding: 0)
             .map { min(max($0, 0), RecipeSystem.maxLevel) }

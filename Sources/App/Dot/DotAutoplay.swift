@@ -56,15 +56,15 @@ extension DotWorldScene {
             && store.stall.warehouse < store.stall.warehouseCapacity {
             handleFarmTap(.plot(i), store: store); taps -= 1
         }
-        var tired: [GameStore.WorkerTarget] = (0..<3).map { .cook(menuIndex: $0) } + [.cashier]
-        tired += store.farm.plots.indices.map { .farm(plotIndex: $0) }
-        for target in tired where taps > 0 && store.isTired(target) && handleWake(target, store: store) {
+        var sleepers: [GameStore.WorkerTarget] = (0..<3).map { .cook(menuIndex: $0) } + [.cashier]
+        sleepers += store.farm.plots.indices.map { .farm(plotIndex: $0) }
+        for target in sleepers where taps > 0 && store.isResting(target) && handleWake(target, store: store) {
             autoplayState.wakes += 1; taps -= 1
         }
         let low = store.isFeverActive ? EarningsSystem.maxStock(for: store.stall) : 3
         for menu in 0...min(store.stall.menuTier, 2) where taps > 0
             && store.stall.menuStock[menu] < low && store.stall.warehouse > 0
-            && !(store.stall.menuCooks[menu] > 0) && !store.isManualCookRunning(menuIndex: menu) {
+            && (!(store.stall.menuCooks[menu] > 0) || store.isResting(.cook(menuIndex: menu))) && !store.isManualCookRunning(menuIndex: menu) {
             handleDishTap(menu, store: store); taps -= 1
         }
         for i in store.farm.plots.indices where taps > 0 && store.farm.plots[i].stage == .empty

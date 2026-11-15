@@ -69,31 +69,50 @@ final class ShopStaffPresenceTests: XCTestCase {
         XCTAssertEqual(presence.cook?.isWorking, false)
     }
 
-    func testTiredBelowThresholdOnly() {
-        let rested = ShopStaffPresence(stall: stall {
+    func testRestingFollowsTheSleepFlagNotTheEnergyLevel() {
+        let awake = ShopStaffPresence(stall: stall {
             $0.cashierCount = 1
-            $0.cashierEnergy = 0.25
+            $0.cashierEnergy = 0.1
             $0.menuCooks = [1, 0, 0]
-            $0.menuCookEnergy = [0.25, 1, 1]
+            $0.menuCookEnergy = [0.1, 1, 1]
         })
-        XCTAssertEqual(rested.cashier?.isTired, false)
-        XCTAssertEqual(rested.cook?.isTired, false)
+        XCTAssertEqual(awake.cashier?.isResting, false)
+        XCTAssertEqual(awake.cook?.isResting, false)
 
-        let tired = ShopStaffPresence(stall: stall {
+        let asleep = ShopStaffPresence(stall: stall {
             $0.cashierCount = 1
-            $0.cashierEnergy = 0.24
+            $0.cashierEnergy = 0.6
+            $0.cashierResting = true
+            $0.pendingCoins = 5
             $0.menuCooks = [1, 0, 0]
-            $0.menuCookEnergy = [0.24, 1, 1]
+            $0.menuCookEnergy = [0.6, 1, 1]
+            $0.menuCookResting = [true, false, false]
+            $0.warehouse = 5
+            $0.menuStock = [0, 0, 0]
         })
-        XCTAssertEqual(tired.cashier?.isTired, true)
-        XCTAssertEqual(tired.cook?.isTired, true)
+        XCTAssertEqual(asleep.cashier?.isResting, true)
+        XCTAssertEqual(asleep.cashier?.isWorking, false, "a sleeping figure never shows the working pose")
+        XCTAssertEqual(asleep.cook?.isResting, true)
+        XCTAssertEqual(asleep.cook?.isWorking, false)
     }
 
-    func testUnhiredCookEnergyDoesNotTireTheFigure() {
+    func testCookFigureSleepsOnlyWhenEveryHiredCookDoes() {
+        let presence = ShopStaffPresence(stall: stall {
+            $0.menuCooks = [1, 1, 0]
+            $0.menuCookResting = [true, false, false]
+            $0.menuTier = 1
+            $0.warehouse = 5
+            $0.menuStock = [0, 0, 0]
+        })
+        XCTAssertEqual(presence.cook?.isResting, false)
+        XCTAssertEqual(presence.cook?.isWorking, true)
+    }
+
+    func testUnhiredCookRestingDoesNotSleepTheFigure() {
         let presence = ShopStaffPresence(stall: stall {
             $0.menuCooks = [1, 0, 0]
-            $0.menuCookEnergy = [1, 0, 0]
+            $0.menuCookResting = [false, true, true]
         })
-        XCTAssertEqual(presence.cook?.isTired, false)
+        XCTAssertEqual(presence.cook?.isResting, false)
     }
 }

@@ -14,6 +14,7 @@ final class TolerantSaveDecodingTests: XCTestCase {
         s.tier1Count = 3; s.tier2Count = 2; s.tier3Count = 1
         s.cashierCount = 1; s.menuCooks = [1, 2, 0]
         s.menuCookEnergy = [0.5, 0.6, 0.7]; s.cashierEnergy = 0.4; s.cashierTier = 2
+        s.menuCookResting = [true, false, true]; s.cashierResting = true
         s.tier1IdleEnergies = [0.9]; s.tier2IdleEnergies = [0.8, 0.7]; s.tier3IdleEnergies = [0.3]
         s.warehouse = 9; s.warehouseCapacity = 40; s.menuStock = [4, 5, 6]
         s.farmerCount = 2; s.farmerIdleEnergies = [0.2, 0.3]
@@ -23,7 +24,7 @@ final class TolerantSaveDecodingTests: XCTestCase {
 
     private func samplePlot() -> FarmPlot {
         var p = FarmPlot()
-        p.growth = 0.7; p.isPlanted = true; p.workerType = .farmer; p.workerEnergy = 0.4
+        p.growth = 0.7; p.isPlanted = true; p.workerType = .farmer; p.workerEnergy = 0.4; p.workerResting = true
         return p
     }
 
@@ -123,7 +124,7 @@ final class TolerantSaveDecodingTests: XCTestCase {
 
     func test_farmPlot() throws {
         // A missing workerType triggers the legacy hasWorker migration, which resets energy.
-        try exercise(FarmPlot.self, sample: samplePlot(), sideEffects: ["workerType": ["workerEnergy"]])
+        try exercise(FarmPlot.self, sample: samplePlot(), sideEffects: ["workerType": ["workerEnergy", "workerResting"]])
     }
 
     func test_farmState() throws {
@@ -167,7 +168,7 @@ final class TolerantSaveDecodingTests: XCTestCase {
             "runBaselineServed", "runBaselineFailed", "bestRating", "hasSeenPrestigeIntro",
             "totalGourmetServed", "totalGoldenHarvested", "totalFevers", "totalTipsCollected"])
         XCTAssertEqual(Set(try json(FarmState()).keys), ["plots"])
-        XCTAssertEqual(Set(try json(FarmPlot()).keys), ["growth", "isPlanted", "workerType", "workerEnergy", "isGolden"])
+        XCTAssertEqual(Set(try json(FarmPlot()).keys), ["growth", "isPlanted", "workerType", "workerEnergy", "workerResting", "isGolden"])
     }
 
     // MARK: (e) 1.0.1-era save

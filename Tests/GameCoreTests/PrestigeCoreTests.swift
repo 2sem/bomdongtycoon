@@ -64,14 +64,14 @@ final class PrestigeCoreTests: XCTestCase {
         XCTAssertEqual(price, 30 * 6.0 * 4.0 * 1.25 * legacy, accuracy: 0.0001)
     }
 
-    func test_salePrice_veteranReplacesBonus_tiredLosesIt_legacyStays() {
+    func test_salePrice_veteranReplacesBonus_sleepingLosesIt_legacyStays() {
         var stall = StallState()
         stall.cashierCount = 1
         stall.cashierTier = EarningsSystem.veteranCashierTier
         stall.cashierEnergy = 1
         let legacy = PrestigeSystem.legacyMultiplier(prestigeCount: 1)
         XCTAssertEqual(EarningsSystem.salePrice(for: stall, menuIndex: 0, prestigeCount: 1), 30 * 1.4 * legacy, accuracy: 0.0001)
-        stall.cashierEnergy = ShopStaffPresence.lowEnergyThreshold - 0.01
+        stall.cashierResting = true
         XCTAssertEqual(EarningsSystem.salePrice(for: stall, menuIndex: 0, prestigeCount: 1), 30 * legacy, accuracy: 0.0001)
     }
 

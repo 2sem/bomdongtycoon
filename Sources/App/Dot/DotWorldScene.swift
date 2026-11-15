@@ -356,15 +356,15 @@ final class DotWorldScene: SKScene {
         Notification.Name.postHUDToast(String(localized: "dot.hint.hurry"))
     }
 
-    /// A worker has dozed off: tell the player, twice per install, that a tap wakes them.
+    /// A worker has dozed off: tell the player, twice per install, how to get the post working again.
     private func hintWakeIfNeeded(_ store: GameStore) {
         guard !store.progress.isFirstLaunch, store.progress.isShopNameSet, !isRunTransitionActive else { return }
         let count = UserDefaults.standard.integer(forKey: FirstRunHint.wakeHintKey)
         let now = CACurrentMediaTime()
         guard count < 2, now - lastWakeHint > 60 else { return }
-        let tired = store.farm.plots.indices.contains { store.isTired(.farm(plotIndex: $0)) }
-            || (0..<3).contains { store.isTired(.cook(menuIndex: $0)) } || store.isTired(.cashier)
-        guard tired else { return }
+        let sleeping = store.farm.plots.indices.contains { store.isResting(.farm(plotIndex: $0)) }
+            || (0..<3).contains { store.isResting(.cook(menuIndex: $0)) } || store.isResting(.cashier)
+        guard sleeping else { return }
         lastWakeHint = now
         UserDefaults.standard.set(count + 1, forKey: FirstRunHint.wakeHintKey)
         Notification.Name.postHUDToast(String(localized: "dot.hint.wake"))
@@ -481,7 +481,7 @@ final class DotWorldScene: SKScene {
         } else if let hit = farm.hit(local: farm.local(fromRoot: p), plotCount: store.farm.plots.count, canAdd: canAddPlot(store)) {
             handleFarmTap(hit, store: store)
         } else if let target = shop.workerTarget(atLocal: shop.local(fromRoot: p)),
-                  store.isTired(target), handleWake(target, store: store) {
+                  store.isResting(target), handleWake(target, store: store) {
             DotDebug.tapLog("wake ok")
         } else if let menu = shop.menuIndex(atLocal: shop.local(fromRoot: p)) {
             handleDishTap(menu, store: store)
@@ -552,7 +552,7 @@ final class DotWorldScene: SKScene {
         return min(1.7, 1 + 0.1 * Float(streak.count))
     }
 
-    /// A tap on a tired cook, cashier or farm hand. False when the store refuses (rested, or woken lately).
+    /// A tap on a sleeping cook, cashier or farm hand. False when the store refuses (awake, or hurried lately).
     @discardableResult
     func handleWake(_ target: GameStore.WorkerTarget, store: GameStore) -> Bool {
         guard let fx, let shop, let farm, store.wakeWorker(target) else { return false }
@@ -599,7 +599,7 @@ final class DotWorldScene: SKScene {
             case .ready:
                 harvest(index, store: store)
             case .sprout, .growing:
-                if store.isTired(.farm(plotIndex: index)), handleWake(.farm(plotIndex: index), store: store) { return }
+                if store.isResting(.farm(plotIndex: index)), handleWake(.farm(plotIndex: index), store: store) { return }
                 water(index, store: store)
             }
         }

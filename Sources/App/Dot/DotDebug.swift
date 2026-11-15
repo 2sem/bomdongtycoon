@@ -191,6 +191,7 @@ enum DotDebug {
         stall.cashierTier = late ? 3 : 1
         stall.menuCooks = late ? [3, 3, 2] : (early ? [0, 0, 0] : [1, 2, 0])
         stall.menuCookEnergy = late ? [1, 0.15, 1] : [1, 1, 1]
+        stall.menuCookResting = late ? [false, true, false] : [false, false, false]
         stall.warehouseCapacity = late ? 50 : 30
         stall.warehouse = late ? 46 : (early ? 6 : 12)
         stall.menuStock = late ? [9, 12, 0] : (early ? [0, 0, 0] : [3, 0, 0])
@@ -212,6 +213,7 @@ enum DotDebug {
             if late { plot.workerType = [.alba, .farmer, .veteranAlba, .none][i % 4] }
             else if i < (early ? 0 : 2) { plot.workerType = .alba }
             plot.workerEnergy = i == 1 ? 0.1 : 1
+            plot.workerResting = i == 1 && plot.hasWorker
             return plot
         }
         store.farm = farm

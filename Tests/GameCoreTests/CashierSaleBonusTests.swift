@@ -21,10 +21,11 @@ final class CashierSaleBonusTests: XCTestCase {
         try await super.tearDown()
     }
 
-    private func hireCashier(tier: Int = 1, energy: Double = 1.0) {
+    private func hireCashier(tier: Int = 1, energy: Double = 1.0, resting: Bool = false) {
         store.stall.cashierCount = 1
         store.stall.cashierTier = tier
         store.stall.cashierEnergy = energy
+        store.stall.cashierResting = resting
     }
 
     // MARK: Sale price
@@ -38,13 +39,13 @@ final class CashierSaleBonusTests: XCTestCase {
         XCTAssertEqual(store.sellItem(menuIndex: 0) ?? 0, 30 * 1.25, accuracy: 0.001)
     }
 
-    func test_tiredCashier_paysBasePrice() {
-        hireCashier(energy: ShopStaffPresence.lowEnergyThreshold - 0.01)
+    func test_sleepingCashier_paysBasePrice() {
+        hireCashier(energy: 0.4, resting: true)
         XCTAssertEqual(store.sellItem(menuIndex: 0) ?? 0, 30, accuracy: 0.001)
     }
 
-    func test_cashierAtThreshold_stillGetsBonus() {
-        hireCashier(energy: ShopStaffPresence.lowEnergyThreshold)
+    func test_lowEnergyButAwakeCashier_stillGetsBonus() {
+        hireCashier(energy: 0.05)
         XCTAssertEqual(store.sellItem(menuIndex: 0) ?? 0, 30 * 1.25, accuracy: 0.001)
     }
 
@@ -53,8 +54,8 @@ final class CashierSaleBonusTests: XCTestCase {
         XCTAssertEqual(store.sellItem(menuIndex: 0) ?? 0, 30 * 1.4, accuracy: 0.001)
     }
 
-    func test_tiredVeteran_paysBasePrice() {
-        hireCashier(tier: 5, energy: 0.1)
+    func test_sleepingVeteran_paysBasePrice() {
+        hireCashier(tier: 5, energy: 0.1, resting: true)
         XCTAssertEqual(store.sellItem(menuIndex: 0) ?? 0, 30, accuracy: 0.001)
     }
 
@@ -106,15 +107,16 @@ final class CashierSaleBonusTests: XCTestCase {
         XCTAssertEqual(store.stall.cashierEnergy, 0.5, accuracy: 0.0001)
     }
 
-    func test_nonstopSales_tireTheCashierAndLoseTheBonus() {
+    func test_nonstopSales_sendTheCashierToSleepAndLoseTheBonus() {
         hireCashier()
         var last = 0.0
-        for _ in 0..<60 {
+        for sale in 1...60 {
             last = store.sellItem(menuIndex: 0) ?? 0
+            XCTAssertEqual(last, 30 * 1.25, accuracy: 0.001, "sale \(sale) is still paid with the bonus")
             store.tick(deltaTime: 0.5)
         }
-        XCTAssertLessThan(store.stall.cashierEnergy, ShopStaffPresence.lowEnergyThreshold)
-        XCTAssertEqual(last, 30, accuracy: 0.001)
+        XCTAssertTrue(store.stall.cashierResting)
+        XCTAssertEqual(store.sellItem(menuIndex: 0) ?? 0, 30, accuracy: 0.001)
     }
 
     func test_energy_doesNotRestoreWhileSellingButRestoresWhenIdle() {
@@ -127,10 +129,12 @@ final class CashierSaleBonusTests: XCTestCase {
         XCTAssertGreaterThan(store.stall.cashierEnergy, afterSale + 0.05)
     }
 
-    func test_tiredCashier_recoversTheBonusAfterRest() {
-        hireCashier(energy: 0.1)
-        XCTAssertEqual(store.sellItem(menuIndex: 0) ?? 0, 30, accuracy: 0.001)
-        for _ in 0..<30 { store.tick(deltaTime: 1.0) }
+    func test_sleepingCashier_recoversTheBonusOnlyAtFullEnergy() {
+        hireCashier(energy: 0.1, resting: true)
+        for _ in 0..<60 { store.tick(deltaTime: 1.0) }
+        XCTAssertEqual(store.sellItem(menuIndex: 0) ?? 0, 30, accuracy: 0.001, "0.77 energy is still asleep")
+        for _ in 0..<60 { store.tick(deltaTime: 1.0) }
+        XCTAssertFalse(store.stall.cashierResting)
         XCTAssertEqual(store.sellItem(menuIndex: 0) ?? 0, 30 * 1.25, accuracy: 0.001)
     }
 

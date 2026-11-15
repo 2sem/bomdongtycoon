@@ -4359,13 +4359,13 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "졸고 있는 직원을 탭하면 깨워요"
+            "value" : "자는 직원은 탭하면 조금 빨리 쉬어요. 쉰 직원과 교대시켜 보세요"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap a sleepy worker to wake them"
+            "value" : "Tap a sleeping worker to hurry the nap, or swap in a rested one"
           }
         }
       }

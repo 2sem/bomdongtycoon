@@ -2,16 +2,16 @@ import Foundation
 
 /// What the shop scene should show of the hired staff: at most one cashier
 /// and one cook figure (the shop has one counter and one prep table), each
-/// idle or working, optionally dimmed when tired. Derived from `StallState`
+/// idle or working, or asleep. Derived from `StallState`
 /// alone so the scene can diff it and touch nodes only when it changes.
 public struct ShopStaffPresence: Equatable {
 
-    /// Energy below this reads as "tired" — the scene dims the figure.
+    /// A worker assigned with less energy than this starts asleep instead of working.
     public static let lowEnergyThreshold: Double = 0.25
 
     public struct Figure: Equatable {
         public let isWorking: Bool
-        public let isTired: Bool
+        public let isResting: Bool
     }
 
     /// `nil` when nobody is hired for the role.
@@ -23,8 +23,8 @@ public struct ShopStaffPresence: Equatable {
     public init(stall: StallState, cashierRecentlySold: Bool = false) {
         if stall.cashierCount > 0 {
             cashier = Figure(
-                isWorking: cashierRecentlySold || stall.pendingCoins > 0,
-                isTired: stall.cashierEnergy < Self.lowEnergyThreshold
+                isWorking: !stall.cashierResting && (cashierRecentlySold || stall.pendingCoins > 0),
+                isResting: stall.cashierResting
             )
         } else {
             cashier = nil
@@ -39,18 +39,20 @@ public struct ShopStaffPresence: Equatable {
             // that menu's stock is not full.
             let maxStock = EarningsSystem.maxStock(for: stall)
             let isWorking = hiredMenus.contains { menu in
-                menu <= stall.menuTier
+                !Self.isCookResting(stall, menu)
+                    && menu <= stall.menuTier
                     && stall.warehouse > 0
                     && stall.menuStock.indices.contains(menu)
                     && stall.menuStock[menu] < maxStock
             }
-            // One figure stands for every hired cook, so it is tired as
-            // soon as any of them is.
-            let isTired = hiredMenus.contains {
-                stall.menuCookEnergy.indices.contains($0)
-                    && stall.menuCookEnergy[$0] < Self.lowEnergyThreshold
-            }
-            cook = Figure(isWorking: isWorking, isTired: isTired)
+            // One figure stands for every hired cook, so it sleeps only when
+            // all of them do; one awake cook keeps it on its feet.
+            let isResting = hiredMenus.allSatisfy { Self.isCookResting(stall, $0) }
+            cook = Figure(isWorking: isWorking, isResting: isResting)
         }
+    }
+
+    private static func isCookResting(_ stall: StallState, _ menu: Int) -> Bool {
+        stall.menuCookResting.indices.contains(menu) && stall.menuCookResting[menu]
     }
 }

@@ -2,7 +2,8 @@ import XCTest
 @testable import GameCore
 
 /// A prestige-0 player must see exactly the numbers main produced. `expected` was captured by
-/// running this same driver on main (b989142) before the prestige change.
+/// running this same driver on main (b989142) before the prestige change; the coin figures were
+/// re-captured when a cashier started keeping her bonus until she falls asleep at 0 energy (was: below 0.25).
 @MainActor
 final class PrestigeParityTests: XCTestCase {
 
@@ -50,7 +51,7 @@ final class PrestigeParityTests: XCTestCase {
 
     func test_prestige0_300TickRun_matchesMain() {
         // coins, totalEarned, pendingCoins, sum of sale prices, rating, served, failed, coins/s
-        let expected: [Double] = [26007.5, 21007.5, 0.0, 21007.5, 3.4166708930929497, 100.0, 18.0, 1140.0]
+        let expected: [Double] = [26720.0, 21720.0, 0.0, 21720.0, 3.4166708930929497, 100.0, 18.0, 1140.0]
         XCTAssertEqual(run300Ticks(), expected)
     }
 }

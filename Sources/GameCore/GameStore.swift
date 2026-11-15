@@ -97,6 +97,8 @@ public final class GameStore: ObservableObject {
     private static let energyPerCashierSale:   Double = 1.0 / 60.0   // 60 sales per full bar
     private static let cashierBusyWindow:      Double = 2.0          // no restore this long after a sale
     private static let energyPerHarvest:       Double = 1.0 / 8.0     // 8 harvests per full bar
+    /// Drained energy is a sum of fractions, so "reached 0" is a tolerance, not an exact compare.
+    private static let exhaustedEnergy:        Double = 1e-6
 
     // MARK: - Offline constants
     static let maxOfflineHours: Double = 8
@@ -285,19 +287,22 @@ public final class GameStore: ObservableObject {
             // Restore when unassigned OR warehouse empty (no work to do)
             // Depletion happens per item cooked (see auto-cook loop below)
             let isWorking = i < stall.menuCooks.count && stall.menuCooks[i] > 0 && stall.warehouse > 0
-            if !isWorking {
+            if !isWorking || stall.menuCookResting[i] {
                 stall.menuCookEnergy[i] = min(1, stall.menuCookEnergy[i] + Self.energyRestoreRate * deltaTime)
+                if stall.menuCookResting[i], stall.menuCookEnergy[i] >= 1 { stall.menuCookResting[i] = false }
             }
         }
         // Cashier restores once no sale landed for `cashierBusyWindow`; depletion is per sale (see `sellItem`)
         transients.cashierBusyRemaining = max(0, transients.cashierBusyRemaining - deltaTime)
-        if stall.cashierCount == 0 || transients.cashierBusyRemaining == 0 {
+        if stall.cashierCount == 0 || stall.cashierResting || transients.cashierBusyRemaining == 0 {
             stall.cashierEnergy = min(1, stall.cashierEnergy + Self.energyRestoreRate * deltaTime)
+            if stall.cashierResting, stall.cashierEnergy >= 1 { stall.cashierResting = false }
         }
         for i in 0..<farm.plots.count {
-            if !farm.plots[i].hasWorker || !farm.plots[i].isPlanted || !farm.plots[i].isReady {
-                // Restore when unassigned OR waiting for crop to grow
+            if !farm.plots[i].hasWorker || farm.plots[i].workerResting || !farm.plots[i].isPlanted || !farm.plots[i].isReady {
+                // Restore when unassigned, asleep, OR waiting for crop to grow
                 farm.plots[i].workerEnergy = min(1, farm.plots[i].workerEnergy + Self.energyRestoreRate * deltaTime)
+                if farm.plots[i].workerResting, farm.plots[i].workerEnergy >= 1 { farm.plots[i].workerResting = false }
             }
             // Depletion happens per harvest (see auto-harvest loop below)
         }
@@ -318,7 +323,7 @@ public final class GameStore: ObservableObject {
 
         // Farm workers (tier1 only) auto-harvest and replant
         for i in 0..<min(activePlots, farm.plots.count) {
-            guard farm.plots[i].hasWorker else { continue }
+            guard farm.plots[i].hasWorker, !farm.plots[i].workerResting else { continue }
             if farm.plots[i].isReady {
                 guard stall.warehouse < stall.warehouseCapacity else { continue }
                 // A golden crop waits for the player's finger; its bonus only pays on a manual harvest.
@@ -329,6 +334,7 @@ public final class GameStore: ObservableObject {
                 farm.plots[i].isGolden = false
                 advanceMissions(.harvest)
                 farm.plots[i].workerEnergy = max(0, farm.plots[i].workerEnergy - Self.energyPerHarvest)
+                if farm.plots[i].workerEnergy < Self.exhaustedEnergy { farm.plots[i].workerResting = true; continue }
             }
             // A worker replants only while one more seed stays in hand
             // afterwards, so an idle fresh save settles at seedCost coins
@@ -347,6 +353,7 @@ public final class GameStore: ObservableObject {
             let energy = i < stall.menuCookEnergy.count ? stall.menuCookEnergy[i] : 1.0;
             transients.cookAccumulators[i] += cookRate(forTier: tier) * energyMultiplier(energy) * deltaTime;
             while transients.cookAccumulators[i] >= 1.0,
+                  !stall.menuCookResting[i],
                   stall.warehouse > 0,
                   stall.menuStock[i] < maxStock {
                 transients.cookAccumulators[i] -= 1.0
@@ -354,6 +361,7 @@ public final class GameStore: ObservableObject {
                 stall.menuStock[i] += 1
                 advanceMissions(.cookDishes)
                 stall.menuCookEnergy[i] = max(0, stall.menuCookEnergy[i] - Self.energyPerCook)
+                if stall.menuCookEnergy[i] < Self.exhaustedEnergy { stall.menuCookResting[i] = true }
             }
         }
 
@@ -361,7 +369,7 @@ public final class GameStore: ObservableObject {
         // A session keeps producing portion after portion (see `settleManualCook`); a hired cook
         // takes over the dish, so a session left running for it ends.
         for menuIndex in transients.manualCookProgress.keys.sorted() {
-            if menuIndex < stall.menuCooks.count, stall.menuCooks[menuIndex] > 0 {
+            if hasWorkingCook(menuIndex: menuIndex) {
                 transients.manualCookProgress[menuIndex] = nil
                 continue
             }
@@ -463,8 +471,9 @@ public final class GameStore: ObservableObject {
             feverMultiplier: FeverSystem.isActive(transients.fever) ? FeverSystem.priceMultiplier : 1,
             gourmetMultiplier: isGourmet ? EarningsSystem.gourmetMultiplier : 1,
             boostMultiplier: isBoostActive ? AdBoostSystem.priceMultiplier : 1)
-        if stall.cashierCount > 0 {
+        if stall.cashierCount > 0, !stall.cashierResting {
             stall.cashierEnergy = max(0, stall.cashierEnergy - Self.energyPerCashierSale)
+            if stall.cashierEnergy < Self.exhaustedEnergy { stall.cashierResting = true }
             transients.cashierBusyRemaining = Self.cashierBusyWindow
         }
         stall.pendingCoins += price
@@ -819,8 +828,7 @@ public final class GameStore: ObservableObject {
         // gauge — once a cook is hired for this menu, the auto-cook
         // accumulator is the one actually producing, so it takes over
         // display even if a manual session happens to still be in flight.
-        let hasDedicatedCook = menuIndex < stall.menuCooks.count && stall.menuCooks[menuIndex] > 0
-        if !hasDedicatedCook, let manual = transients.manualCookProgress[menuIndex] {
+        if !hasWorkingCook(menuIndex: menuIndex), let manual = transients.manualCookProgress[menuIndex] {
             return min(max(manual, 0), 1)
         }
         guard transients.cookAccumulators.indices.contains(menuIndex) else { return 0 }
@@ -903,8 +911,7 @@ public final class GameStore: ObservableObject {
             return .started
         }
         let maxStock = EarningsSystem.maxStock(for: stall)
-        let hasCook = stall.menuCooks.indices.contains(menuIndex) && stall.menuCooks[menuIndex] > 0
-        if hasCook {
+        if hasWorkingCook(menuIndex: menuIndex) {
             guard canAutoCook(menuIndex: menuIndex, maxStock: maxStock) else { return .blocked }
             guard consumeHurry(menuIndex: menuIndex) else { return .ignored }
             transients.cookAccumulators[menuIndex] += hurryAmount(menuIndex: menuIndex)
@@ -941,7 +948,7 @@ public final class GameStore: ObservableObject {
     @discardableResult
     public func requestSelfServe(menuIndex: Int) -> Bool {
         guard menuIndex >= 0, menuIndex < stall.menuStock.count,
-              !(stall.menuCooks.indices.contains(menuIndex) && stall.menuCooks[menuIndex] > 0),
+              !hasWorkingCook(menuIndex: menuIndex),
               transients.manualCookProgress[menuIndex] == nil,
               stall.menuStock[menuIndex] < Self.selfServeStock,
               canManualCook(menuIndex: menuIndex) else { return false }
@@ -976,33 +983,42 @@ public final class GameStore: ObservableObject {
     public static let wakeEnergy: Double = 0.5
     public static let wakeInterval: Double = 30
 
-    /// A worker at the post whose energy is under `ShopStaffPresence.lowEnergyThreshold`.
-    public func isTired(_ target: WorkerTarget) -> Bool {
-        let limit = ShopStaffPresence.lowEnergyThreshold
+    /// A worker at the post who is asleep: out of energy, and back to work only at full energy.
+    public func isResting(_ target: WorkerTarget) -> Bool {
         switch target {
         case .cook(let i):
             return stall.menuCooks.indices.contains(i) && stall.menuCooks[i] > 0
-                && stall.menuCookEnergy.indices.contains(i) && stall.menuCookEnergy[i] < limit
+                && stall.menuCookResting.indices.contains(i) && stall.menuCookResting[i]
         case .cashier:
-            return stall.cashierCount > 0 && stall.cashierEnergy < limit
+            return stall.cashierCount > 0 && stall.cashierResting
         case .farm(let i):
-            return farm.plots.indices.contains(i) && farm.plots[i].hasWorker && farm.plots[i].workerEnergy < limit
+            return farm.plots.indices.contains(i) && farm.plots[i].hasWorker && farm.plots[i].workerResting
         }
     }
 
-    /// A tap on a tired worker: +`wakeEnergy`, at most once per `wakeInterval` per worker.
+    /// A tap on a sleeping worker hurries the nap: +`wakeEnergy`, at most once per `wakeInterval`
+    /// per worker. She keeps sleeping unless that brings her to full energy.
     @discardableResult
     public func wakeWorker(_ target: WorkerTarget) -> Bool {
-        guard isTired(target) else { return false }
+        guard isResting(target) else { return false }
         if let last = transients.lastWake[target], transients.clock - last < Self.wakeInterval { return false }
         transients.lastWake[target] = transients.clock
         switch target {
-        case .cook(let i):  stall.menuCookEnergy[i] = min(1, stall.menuCookEnergy[i] + Self.wakeEnergy)
-        case .cashier:      stall.cashierEnergy = min(1, stall.cashierEnergy + Self.wakeEnergy)
-        case .farm(let i):  farm.plots[i].workerEnergy = min(1, farm.plots[i].workerEnergy + Self.wakeEnergy)
+        case .cook(let i):
+            stall.menuCookEnergy[i] = min(1, stall.menuCookEnergy[i] + Self.wakeEnergy)
+            if stall.menuCookEnergy[i] >= 1 { stall.menuCookResting[i] = false }
+        case .cashier:
+            stall.cashierEnergy = min(1, stall.cashierEnergy + Self.wakeEnergy)
+            if stall.cashierEnergy >= 1 { stall.cashierResting = false }
+        case .farm(let i):
+            farm.plots[i].workerEnergy = min(1, farm.plots[i].workerEnergy + Self.wakeEnergy)
+            if farm.plots[i].workerEnergy >= 1 { farm.plots[i].workerResting = false }
         }
         return true
     }
+
+    /// A worker placed on a post starts asleep when she arrives that drained.
+    private static func startsResting(_ energy: Double) -> Bool { energy < ShopStaffPresence.lowEnergyThreshold }
 
     public var isWarehouseFull: Bool { stall.warehouse >= stall.warehouseCapacity }
 
@@ -1017,11 +1033,18 @@ public final class GameStore: ObservableObject {
             && stall.menuStock[menuIndex] < maxStock
     }
 
+    /// A hired cook who is awake. A sleeping one leaves the dish to the player, so manual cooking
+    /// treats the post as empty until she is back to full energy.
+    private func hasWorkingCook(menuIndex: Int) -> Bool {
+        stall.menuCooks.indices.contains(menuIndex) && stall.menuCooks[menuIndex] > 0
+            && !(stall.menuCookResting.indices.contains(menuIndex) && stall.menuCookResting[menuIndex])
+    }
+
     /// Shared by `tick`'s auto-cook loop and `isCooking` so the two can't
     /// drift: a hired cook only actually produces when the warehouse has
     /// stock, its menu tier is unlocked, and its stock isn't already full.
     private func canAutoCook(menuIndex: Int, maxStock: Int) -> Bool {
-        menuIndex >= 0 && menuIndex < stall.menuCooks.count && stall.menuCooks[menuIndex] > 0
+        hasWorkingCook(menuIndex: menuIndex)
             && stall.warehouse > 0
             && menuIndex <= stall.menuTier
             && menuIndex < stall.menuStock.count && stall.menuStock[menuIndex] < maxStock
@@ -1146,6 +1169,7 @@ public final class GameStore: ObservableObject {
                 }
             }
             farm.plots[plotIndex].workerEnergy = 1.0
+            farm.plots[plotIndex].workerResting = false
             farm.plots[plotIndex].workerType   = .none
         } else {
             let energy: Double
@@ -1162,6 +1186,7 @@ public final class GameStore: ObservableObject {
             case .none: return
             }
             farm.plots[plotIndex].workerEnergy = energy
+            farm.plots[plotIndex].workerResting = Self.startsResting(energy)
             farm.plots[plotIndex].workerType   = workerType
         }
         save()
@@ -1171,6 +1196,7 @@ public final class GameStore: ObservableObject {
         let t = tier > 0 ? tier : 1
         guard unassignedCount(for: t) > 0, stall.cashierCount == 0 else { return }
         stall.cashierEnergy = directEnergy ?? popIdleEnergy(for: t)
+        stall.cashierResting = Self.startsResting(stall.cashierEnergy)
         stall.cashierTier   = t
         stall.cashierCount += 1
         save()
@@ -1181,6 +1207,7 @@ public final class GameStore: ObservableObject {
         let energy = displayedEnergy ?? stall.cashierEnergy
         if addToIdle { pushIdleEnergy(energy, for: stall.cashierTier) }
         stall.cashierEnergy = 1.0
+        stall.cashierResting = false
         transients.cashierBusyRemaining = 0
         stall.cashierTier   = 0
         stall.cashierCount -= 1
@@ -1204,6 +1231,7 @@ public final class GameStore: ObservableObject {
         guard unassignedCount(for: tier) > 0 else { return }
         stall.menuCooks[menuIndex] = tier
         stall.menuCookEnergy[menuIndex] = directEnergy ?? popIdleEnergy(for: tier)
+        stall.menuCookResting[menuIndex] = Self.startsResting(stall.menuCookEnergy[menuIndex])
         save()
     }
 
@@ -1232,6 +1260,7 @@ public final class GameStore: ObservableObject {
         let energy = displayedEnergy ?? stall.menuCookEnergy[menuIndex]
         if addToIdle { pushIdleEnergy(energy, for: tier) }
         stall.menuCookEnergy[menuIndex] = 1.0
+        stall.menuCookResting[menuIndex] = false
         stall.menuCooks[menuIndex] = 0
         save()
     }

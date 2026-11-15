@@ -27,7 +27,7 @@ final class StaffFigure: SKNode {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
     /// `kind` is the sprite family (`alba`, `imo`, `chef`, `farmer`, `veteran_alba`); nil hides the figure.
-    func configure(kind: String?, pose: Pose, isTired: Bool, bobs: Bool, fast: Bool) {
+    func configure(kind: String?, pose: Pose, isResting: Bool, bobs: Bool, fast: Bool) {
         guard let kind else { isHidden = true; return }
         isHidden = false
         if kind != self.kind || pose != self.pose {
@@ -46,7 +46,7 @@ final class StaffFigure: SKNode {
                            withKey: "work")
             }
         }
-        zzz.isHidden = !isTired
+        zzz.isHidden = !isResting
         updateBob(enabled: bobs && pose != .work, fast: fast)
     }
 
