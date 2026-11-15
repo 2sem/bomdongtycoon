@@ -28,6 +28,10 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
 
     private var manager: GADManager<GADUnitName>?
     private var preparedPlacements: Set<AdPlacement> = []
+    /// Asked for before the manager existed. Surfaces under the splash (fever button, boost chip) appear,
+    /// and ask once, before the SDK has started: dropping those requests left them never preloaded.
+    private var pendingPlacements: Set<AdPlacement> = [.offline]
+    private var setupTask: Task<Void, Never>?
     private var isShowingAd = false
     /// In memory on purpose: a cold start may show an app open ad right away.
     private var lastShown: [String: Date] = [:]
@@ -41,28 +45,47 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
         if Self.grantsWithoutAds { rewarded.setAvailable(true) }
     }
 
-    /// Call after `MobileAds.shared.start`.
+    /// Call after `MobileAds.shared.start`. Builds the manager, then loads the app open ad, the offline
+    /// popup's ad (it can open at launch) and every placement a surface already asked for. The window
+    /// may not exist yet this early in launch, so it keeps looking for a few seconds.
     func setup() {
-        guard !Self.adsDisabledForDevelopment, manager == nil, let window = keyWindow else { return }
+        guard !Self.adsDisabledForDevelopment, manager == nil, setupTask == nil else { return }
+        setupTask = Task { @MainActor [weak self] in
+            for _ in 0..<50 {
+                guard let self else { return }
+                if let window = self.window {
+                    self.start(in: window)
+                    break
+                }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            if self?.manager == nil { print("[Ads] no window found: ads stay off this launch") }
+            self?.setupTask = nil
+        }
+    }
+
+    private func start(in window: UIWindow) {
         let manager = GADManager<GADUnitName>(window)
         manager.delegate = self
         self.manager = manager
         rewarded.setAvailable(true)
+        manager.prepare(openingUnit: .launch, isTesting: Self.isTesting, interval: Self.appOpenInterval)
+        let pending = pendingPlacements
+        pendingPlacements = []
+        pending.forEach(prepareRewarded)
     }
 
     // MARK: - Preload
 
-    /// The offline popup can open at launch, so its ad loads at once; every other placement loads
-    /// the first time a surface for it appears (`RewardedAds.prepare`).
-    func preload() {
-        guard let manager else { return }
-        prepareRewarded(.offline)
-        manager.prepare(openingUnit: .launch, isTesting: Self.isTesting, interval: Self.appOpenInterval)
-    }
-
     /// GADManager does not check for a load in flight, so a second call would start a second load.
     private func prepareRewarded(_ placement: AdPlacement) {
-        guard let manager, !Self.grantsWithoutAds, preparedPlacements.insert(placement).inserted else { return }
+        guard !Self.adsDisabledForDevelopment, !Self.grantsWithoutAds else { return }
+        guard let manager else {
+            pendingPlacements.insert(placement)
+            return
+        }
+        guard preparedPlacements.insert(placement).inserted else { return }
+        print("[RewardAd] preparing \(placement.rawValue)")
         manager.prepare(rewardUnit: placement.unitName, isTesting: Self.isTesting)
     }
 
@@ -133,16 +156,16 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
 
     // MARK: - Helpers
 
-    private var keyWindow: UIWindow? {
-        UIApplication.shared.connectedScenes
-            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
-            .first
+    /// `keyWindow` is nil until the window has become key, which can be after the SDK has started.
+    private var window: UIWindow? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        return scenes.compactMap(\.keyWindow).first ?? scenes.flatMap(\.windows).first
     }
 
     /// SwiftUI sheets and dialogs are presented modally on the root, which cannot present a second
     /// controller, and GADManager presents from the root unless told otherwise.
     private var topmostViewController: UIViewController? {
-        var top = keyWindow?.rootViewController
+        var top = window?.rootViewController
         while let next = top?.presentedViewController, !next.isBeingDismissed { top = next }
         return top
     }
