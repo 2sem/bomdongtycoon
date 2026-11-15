@@ -14,7 +14,11 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/googleads/swift-package-manager-google-mobile-ads",
-            from: "11.0.0"
+            from: "12.6.0"
+        ),
+        .package(
+            url: "https://github.com/2sem/GADManager",
+            from: "1.5.0"
         ),
         .package(
             url: "https://github.com/firebase/firebase-ios-sdk",
