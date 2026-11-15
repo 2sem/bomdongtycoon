@@ -203,11 +203,13 @@ struct GameRootView: View {
 
     @ViewBuilder
     private var adOffers: some View {
-        if showBoostOffer, store.isBoostAvailable {
+        if showBoostOffer, store.isBoostAvailable || store.isBoostExtendable {
+            let extending = store.isBoostExtendable
+            let minutes = Int(AdBoostSystem.boostDuration / 60)
             AdOfferDialog(
-                title: String(localized: "dot.boost.title"),
-                message: String(format: String(localized: "dot.boost.message"), Int(AdBoostSystem.boostDuration / 60)),
-                actionTitle: String(localized: "dot.boost.action"),
+                title: String(localized: extending ? "dot.boost.extend.title" : "dot.boost.title"),
+                message: String(format: String(localized: extending ? "dot.boost.extend.message" : "dot.boost.message"), minutes),
+                actionTitle: String(localized: extending ? "dot.boost.extend.action" : "dot.boost.action"),
                 isReady: ads.isReady(.boost),
                 onWatch: {
                     ads.watch(.boost) {
