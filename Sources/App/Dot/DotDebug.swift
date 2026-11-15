@@ -186,6 +186,7 @@ enum DotDebug {
         // What a few sessions of play leave behind, so income-scaled rewards and ad offers read true.
         progress.earningRate = late ? 180 : (early ? 0 : 40)
         progress.totalPlaySeconds = late ? 7_200 : (early ? 150 : 1_800)
+        progress.lastWageDay = DayCycle.dayIndex(playSeconds: progress.totalPlaySeconds)
         store.progress = progress
 
         var stall = StallState()

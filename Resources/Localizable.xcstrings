@@ -4641,6 +4641,294 @@
           }
         }
       }
+    },
+    "dot.staff.wage" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wage %@/day"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일당 %@"
+          }
+        }
+      }
+    },
+    "dot.staff.payroll" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily payroll %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "하루 급여 합계 %@"
+          }
+        }
+      }
+    },
+    "dot.staff.payday" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Payday in %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "급여일까지 %@"
+          }
+        }
+      }
+    },
+    "dot.staff.fire" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fire"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "해고"
+          }
+        }
+      }
+    },
+    "dot.staff.fire.a11y" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fire %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 해고"
+          }
+        }
+      }
+    },
+    "dot.staff.fire.hint" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens a confirmation"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "확인 창이 열려요"
+          }
+        }
+      }
+    },
+    "dot.fire.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fire this worker?"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "직원을 해고할까요?"
+          }
+        }
+      }
+    },
+    "dot.fire.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ (wage %2$@/day)\nThere is no refund, and hiring again costs the full price."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ (일당 %2$@)\n환불은 없고, 다시 고용하면 고용 비용을 전액 내야 해요."
+          }
+        }
+      }
+    },
+    "dot.fire.confirm" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fire"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "해고"
+          }
+        }
+      }
+    },
+    "dot.fire.done" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ fired"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 해고했어요"
+          }
+        }
+      }
+    },
+    "dot.payday.paid" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Payday! Paid %1$@ coins to %2$d staff"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "급여일! 직원 %2$d명에게 %1$@ 코인을 지급했어요"
+          }
+        }
+      }
+    },
+    "dot.payday.unpaid" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough coins: %d on strike until rested"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "코인이 부족해 %d명이 파업했어요. 푹 쉬면 돌아와요"
+          }
+        }
+      }
+    },
+    "dot.stats.wages" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wages paid"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "누적 급여"
+          }
+        }
+      }
+    },
+    "dot.staff.levelmax" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Max level"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "최대 레벨"
+          }
+        }
+      }
+    },
+    "dot.staff.exp" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EXP"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "경험치"
+          }
+        }
+      }
+    },
+    "dot.staff.nextLevel" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next Lv.%1$d · Speed +%2$d%% · Wage %3$@ → %4$@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다음 Lv.%1$d · 속도 +%2$d%% · 일당 %3$@ → %4$@"
+          }
+        }
+      }
+    },
+    "dot.levelup.toast" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ Lv.%2$d · Wage %3$@ → %4$@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ Lv.%2$d · 일당 %3$@ → %4$@"
+          }
+        }
+      }
+    },
+    "dot.levelup.toast.more" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ (+%2$d more)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 외 %2$d명"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

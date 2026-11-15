@@ -109,6 +109,14 @@ struct GameRootView: View {
             guard new > old, !isIntroOverlayUp else { return }
             announceMissionDone()
         }
+        .onChange(of: store.payday) { _, payday in
+            guard let payday, !isIntroOverlayUp else { return }
+            announcePayday(payday)
+        }
+        .onChange(of: store.levelUps) { _, levelUps in
+            guard let levelUps, !isIntroOverlayUp else { return }
+            announceLevelUps(levelUps)
+        }
         .onChange(of: store.isFeverReady) { _, isReady in
             guard isReady, !isIntroOverlayUp, !FirstRunHint.fever.isDone else { return }
             FirstRunHint.fever.markDone()
@@ -308,6 +316,35 @@ struct GameRootView: View {
         showToast(
             String(format: String(localized: "prestige.toast"), multiplier),
             announcement: String(format: String(localized: "prestige.toast.accessibility"), multiplier))
+    }
+
+    /// Payday: the amount now, and when some went unpaid the strike notice right after, since a
+    /// toast holds one line and the second must not replace the first before it is read.
+    private func announcePayday(_ payday: GameStore.Payday) {
+        let paid = String(format: String(localized: "dot.payday.paid"), CoinFormat.string(payday.paid), payday.paidCount)
+        showToast(paid, announcement: paid)
+        DotSound.shared.play(payday.paid > 0 ? .coin : .error)
+        guard payday.unpaidCount > 0 else { return }
+        let unpaid = String(format: String(localized: "dot.payday.unpaid"), payday.unpaidCount)
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.7))
+            showToast(unpaid, announcement: unpaid)
+            DotSound.shared.play(.error)
+        }
+    }
+
+    /// A worker levelled up by working: who, which level and the new wage, since the rise is automatic.
+    /// Several in one tick share one toast, naming the first.
+    private func announceLevelUps(_ levelUps: GameStore.LevelUps) {
+        guard let first = levelUps.events.first else { return }
+        var text = String(format: String(localized: "dot.levelup.toast"),
+                          staffDisplayName(tier: first.tier), first.level,
+                          CoinFormat.string(first.wageBefore), CoinFormat.string(first.wageAfter))
+        if levelUps.events.count > 1 {
+            text = String(format: String(localized: "dot.levelup.toast.more"), text, levelUps.events.count - 1)
+        }
+        showToast(text, announcement: text)
+        DotSound.shared.play(.missionDone)
     }
 
     private func showToast(_ text: String, announcement: String) {

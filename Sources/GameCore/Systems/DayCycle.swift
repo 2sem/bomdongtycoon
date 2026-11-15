@@ -4,7 +4,8 @@ public enum DayPhase: Equatable, CaseIterable {
     case morning, noon, dusk, night
 }
 
-/// Purely visual 4-minute loop driven by `totalPlaySeconds`.
+/// The 4-minute day driven by `totalPlaySeconds`. Its phases are visual; the loop boundary is payday
+/// (`WageSystem`).
 public enum DayCycle {
     public static let loopSeconds: Double = 240
 
@@ -21,5 +22,15 @@ public enum DayCycle {
         case ..<0.75: .dusk
         default:      .night
         }
+    }
+
+    /// Whole days of play so far; the day ticks over when night ends and the next morning starts.
+    public static func dayIndex(playSeconds: Double) -> Int {
+        Int((max(0, playSeconds) / loopSeconds).rounded(.down))
+    }
+
+    /// Play seconds left before the next day, and with it payday.
+    public static func secondsUntilNextDay(playSeconds: Double) -> Double {
+        loopSeconds * (1 - progress(playSeconds: max(0, playSeconds)))
     }
 }
