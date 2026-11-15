@@ -28,10 +28,10 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
 
     private var manager: GADManager<GADUnitName>?
     private var preparedPlacements: Set<AdPlacement> = []
-    /// Asked for before the manager existed. Surfaces under the splash (fever button, boost chip) appear,
-    /// and ask once, before the SDK has started: dropping those requests left them never preloaded.
+    /// Asked for before the SDK had started. Surfaces under the splash (fever button, boost chip) appear,
+    /// and ask once, that early: dropping those requests left them never preloaded.
     private var pendingPlacements: Set<AdPlacement> = [.offline]
-    private var setupTask: Task<Void, Never>?
+    private var isSDKStarted = false
     private var isShowingAd = false
     /// In memory on purpose: a cold start may show an app open ad right away.
     private var lastShown: [String: Date] = [:]
@@ -45,29 +45,23 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
         if Self.grantsWithoutAds { rewarded.setAvailable(true) }
     }
 
-    /// Call after `MobileAds.shared.start`. Builds the manager, then loads the app open ad, the offline
-    /// popup's ad (it can open at launch) and every placement a surface already asked for. The window
-    /// may not exist yet this early in launch, so it keeps looking for a few seconds.
+    /// Called by the splash as it appears, before the SDK starts: from then on the manager exists.
     func setup() {
-        guard !Self.adsDisabledForDevelopment, manager == nil, setupTask == nil else { return }
-        setupTask = Task { @MainActor [weak self] in
-            for _ in 0..<50 {
-                guard let self else { return }
-                if let window = self.window {
-                    self.start(in: window)
-                    break
-                }
-                try? await Task.sleep(for: .milliseconds(100))
-            }
-            if self?.manager == nil { print("[Ads] no window found: ads stay off this launch") }
-            self?.setupTask = nil
+        guard !Self.adsDisabledForDevelopment, manager == nil else { return }
+        guard let window else {
+            assertionFailure("the splash is on screen, so its window must exist")
+            return
         }
-    }
-
-    private func start(in window: UIWindow) {
         let manager = GADManager<GADUnitName>(window)
         manager.delegate = self
         self.manager = manager
+    }
+
+    /// Called once the SDK has started: loads the app open ad, the offline popup's ad (it can open at
+    /// launch) and every placement a surface asked for while the SDK was still starting.
+    func preload() {
+        guard let manager, !isSDKStarted else { return }
+        isSDKStarted = true
         rewarded.setAvailable(true)
         manager.prepare(openingUnit: .launch, isTesting: Self.isTesting, interval: Self.appOpenInterval)
         let pending = pendingPlacements
@@ -80,7 +74,7 @@ final class SwiftUIAdManager: NSObject, ObservableObject {
     /// GADManager does not check for a load in flight, so a second call would start a second load.
     private func prepareRewarded(_ placement: AdPlacement) {
         guard !Self.adsDisabledForDevelopment, !Self.grantsWithoutAds else { return }
-        guard let manager else {
+        guard let manager, isSDKStarted else {
             pendingPlacements.insert(placement)
             return
         }
