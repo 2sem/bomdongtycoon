@@ -343,9 +343,9 @@ final class FunPassTests: DotWorldTestCase {
     // MARK: Rating tension
 
     func test_rating_decayScalesWithRating() {
-        store.progress.rating = 3.0
+        store.progress.rating = 3.5
         store.tick(deltaTime: 100)
-        XCTAssertEqual(store.progress.rating, 2.95, accuracy: 1e-9)
+        XCTAssertEqual(store.progress.rating, 3.5 - 0.0005 * 1.5 * 100, accuracy: 1e-9)
         store.progress.rating = 5.0
         store.tick(deltaTime: 100)
         XCTAssertEqual(store.progress.rating, 4.85, accuracy: 1e-9)

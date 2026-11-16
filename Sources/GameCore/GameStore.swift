@@ -436,8 +436,11 @@ public final class GameStore: ObservableObject {
             collectCoins()
         }
 
-        // Rating slowly decays — active serving easily overcomes it, idle play drifts down
-        progress.rating = max(1.0, progress.rating - Self.ratingDecayPerSecond * max(1, progress.rating - 2) * deltaTime)
+        // Rating above the floor slowly decays — active serving easily overcomes it, idle play drifts down
+        if progress.rating > Self.ratingRecoveryFloor {
+            let decayed = progress.rating - Self.ratingDecayPerSecond * max(1, progress.rating - 2) * deltaTime
+            progress.rating = max(Self.ratingRecoveryFloor, decayed)
+        }
 
         // Persist lastActiveDate + earningRate every 5 s
         if offlineEarnings == 0 {
@@ -1626,6 +1629,7 @@ public final class GameStore: ObservableObject {
         progress.totalServed += 1
         let headroom = min(1, (5.0 - progress.rating) / 2)
         let delta = (waitTime < 3.0 ? Self.ratingGainFast : Self.ratingGainSlow) * (isGourmet ? 2 : 1) * headroom
+            * Self.comebackMultiplier(rating: progress.rating)
         progress.rating = min(5.0, progress.rating + delta)
         progress.bestRating = max(progress.bestRating, progress.rating)
         FeverSystem.recordServed(&transients.fever, waitTime: waitTime,
@@ -1645,6 +1649,15 @@ public final class GameStore: ObservableObject {
     static let ratingDecayPerSecond: Double = 0.0005
     static let ratingGainFast: Double = 0.02
     static let ratingGainSlow: Double = 0.01
+    /// Decay stops here and serve gains are boosted below it. Without this a 1.0 shop is stuck:
+    /// customers come every 20 s, decay costs 0.0005 * 20 = 0.01 per gap and a slow serve earns
+    /// exactly 0.01, so the net is zero and even perfect service needs ~40 minutes to reach 3.0.
+    static let ratingRecoveryFloor: Double = 3.0
+
+    /// Serve-gain multiplier: 1 at the floor and above, rising by 1 per rating point below it (3x at 1.0).
+    static func comebackMultiplier(rating: Double) -> Double {
+        1 + max(0, ratingRecoveryFloor - rating)
+    }
 
     /// Whether the next customer is a gourmet. No roll is consumed below the rating floor.
     public func rollGourmet() -> Bool {
