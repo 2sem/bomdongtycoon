@@ -11,6 +11,8 @@ enum FirstRunHint: String, CaseIterable {
     case hurry
     /// The first full fever gauge of an install (pointer on the button plus a toast).
     case fever
+    /// The first time the flyer button shows (toast only).
+    case flyer
 
     private var key: String { "dot.hint.done.\(rawValue)" }
     var isDone: Bool { UserDefaults.standard.bool(forKey: key) }

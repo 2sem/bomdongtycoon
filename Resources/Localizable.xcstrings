@@ -4929,6 +4929,70 @@
           }
         }
       }
+    },
+    "dot.flyer.button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flyers"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전단지"
+          }
+        }
+      }
+    },
+    "dot.flyer.accessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hand out flyers to bring in one customer"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전단지 돌리기, 손님 한 명을 불러와요"
+          }
+        }
+      }
+    },
+    "dot.flyer.cooldown.accessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hand out flyers, ready again in %d seconds"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전단지 돌리기, %d초 뒤에 다시 쓸 수 있어요"
+          }
+        }
+      }
+    },
+    "dot.flyer.hint" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quiet shop? Hand out flyers to bring in a customer"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "손님이 뜸하면 전단지를 돌려요. 누를 때마다 한 명씩 와요"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

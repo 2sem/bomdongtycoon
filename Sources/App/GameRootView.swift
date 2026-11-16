@@ -49,6 +49,7 @@ struct GameRootView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
                 HStack(spacing: 6) {
+                    if !isIntroOverlayUp { FlyerButton() }
                     Spacer()
                     if !isIntroOverlayUp { FeverAdButton(isPulsing: pulsingSurface == .fever) { showFeverOffer = true } }
                     FeverButton()
@@ -101,6 +102,11 @@ struct GameRootView: View {
         .onAppear {
             store.isSimulationPaused = isIntroOverlayUp
             openDebugSheet()
+            // Held back so the toast lands after the splash instead of behind it.
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(3))
+                if store.isFlyerAvailable { announceFlyerOnce() }
+            }
         }
         .onChange(of: isIntroOverlayUp) { _, isUp in
             store.isSimulationPaused = isUp
@@ -116,6 +122,12 @@ struct GameRootView: View {
         .onChange(of: store.levelUps) { _, levelUps in
             guard let levelUps, !isIntroOverlayUp else { return }
             announceLevelUps(levelUps)
+        }
+        .onChange(of: store.isFlyerAvailable) { _, isAvailable in
+            if isAvailable { announceFlyerOnce() }
+        }
+        .onChange(of: isIntroOverlayUp) { _, isUp in
+            if !isUp, store.isFlyerAvailable { announceFlyerOnce() }
         }
         .onChange(of: store.isFeverReady) { _, isReady in
             guard isReady, !isIntroOverlayUp, !FirstRunHint.fever.isDone else { return }
@@ -271,6 +283,14 @@ struct GameRootView: View {
     private func closeGiftOffer() {
         showGiftOffer = false
         store.isGiftHeld = false
+    }
+
+    /// The first time the button appears on an install, one line says what it does.
+    private func announceFlyerOnce() {
+        guard !isIntroOverlayUp, !FirstRunHint.flyer.isDone else { return }
+        FirstRunHint.flyer.markDone()
+        let text = String(localized: "dot.flyer.hint")
+        showToast(text, announcement: text)
     }
 
     // MARK: Mission announcement

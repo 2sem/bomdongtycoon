@@ -101,6 +101,10 @@ public final class GameStore: ObservableObject {
         var lastHurry: [Int: Double] = [:]
         var lastWater: [Int: Double] = [:]
         var lastWake: [WorkerTarget: Double] = [:]
+        /// Clock time at which the flyer can be used again.
+        var flyerReadyAt: Double = 0
+        /// A flyer tap the scene has not answered yet.
+        var flyerRequested = false
     }
     private var transients = RunTransients()
 
@@ -677,6 +681,43 @@ public final class GameStore: ObservableObject {
         return true
     }
 
+    // MARK: - Flyer (전단지)
+
+    /// Offered while the HUD shows a rating under 3.0, the stretch where customers are sparse.
+    public var isFlyerAvailable: Bool {
+        MissionSystem.displayedRating(progress.rating) < Self.ratingRecoveryFloor
+    }
+
+    public var flyerCooldownRemaining: Double { max(0, transients.flyerReadyAt - transients.clock) }
+
+    /// 0...1 progress of the cooldown, 1 when ready.
+    public var flyerCooldownProgress: Double { 1 - min(1, flyerCooldownRemaining / Self.flyerCooldown) }
+
+    public var isFlyerReady: Bool {
+        isFlyerAvailable && flyerCooldownRemaining == 0 && !transients.flyerRequested
+    }
+
+    /// A tap. The store only decides whether it is accepted; the scene performs the spawn and then
+    /// calls `completeFlyer` or `declineFlyer`, so a tap the queue could not take costs no cooldown.
+    @discardableResult
+    public func requestFlyer() -> Bool {
+        guard isFlyerReady, !isSimulationPaused else { return false }
+        transients.flyerRequested = true
+        return true
+    }
+
+    public var hasFlyerRequest: Bool { transients.flyerRequested }
+
+    public func completeFlyer() {
+        guard transients.flyerRequested else { return }
+        transients.flyerRequested = false
+        transients.flyerReadyAt = transients.clock + Self.flyerCooldown
+    }
+
+    public func declineFlyer() { transients.flyerRequested = false }
+
+    public static let flyerCooldown: Double = baseIntervalAtThree
+
     // MARK: - Rewarded placements
 
     private var hasPassedAdGrace: Bool { progress.totalPlaySeconds >= AdBoostSystem.graceSeconds }
@@ -964,13 +1005,17 @@ public final class GameStore: ObservableObject {
         baseSpawnInterval * (isFeverActive ? FeverSystem.spawnIntervalMultiplier : 1) * weatherEffect.spawnInterval
     }
 
+    /// The spawn interval of a 3.0 shop. The flyer's cooldown is this same number: a flyer tap must
+    /// never make a low-rated shop busier than a 3.0 one.
+    static let baseIntervalAtThree: Double = 5.0
+
     private var baseSpawnInterval: Double {
         switch progress.rating {
         case ..<1.5: return 20.0
         case 1.5..<2.0: return 16.0
         case 2.0..<2.5: return 12.0
         case 2.5..<3.0: return 8.0
-        case 3.0..<3.5: return 5.0
+        case 3.0..<3.5: return Self.baseIntervalAtThree
         case 3.5..<4.0: return 3.5
         case 4.0..<4.5: return 2.5
         case 4.5..<5.0: return 1.8
