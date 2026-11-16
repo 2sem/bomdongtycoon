@@ -1,7 +1,7 @@
 import XCTest
 @testable import GameCore
 
-/// The "core loop v2" rules: self-serve prep, tap to hurry, watering, waking, auto-placed hires,
+/// The "core loop v2" rules: tap-started prep, tap to hurry, watering, waking, auto-placed hires,
 /// the warehouse-full signal and the new money numbers. Time is the store's own `tick` clock and
 /// randomness is the scripted source, so every case is deterministic.
 @MainActor
@@ -48,7 +48,7 @@ final class CoreLoopV2Tests: DotWorldTestCase {
         XCTAssertFalse(store.isManualCookRunning(menuIndex: 0))
         _ = store.sellItem(menuIndex: 0)
         XCTAssertFalse(store.isManualCookRunning(menuIndex: 0), "selling does not restart it by itself")
-        XCTAssertTrue(store.requestSelfServe(menuIndex: 0), "a waiting customer does")
+        XCTAssertEqual(store.tapDish(menuIndex: 0), .started, "only a tap does")
         run(4)
         XCTAssertEqual(store.stall.menuStock[0], 5)
     }
@@ -71,21 +71,107 @@ final class CoreLoopV2Tests: DotWorldTestCase {
         XCTAssertFalse(store.isManualCookRunning(menuIndex: 0), "the cap only decides whether it carries on")
     }
 
-    func test_requestSelfServe_startsOnlyWhereNobodyCooksAndStockIsLow() {
+    func test_waitingCustomer_doesNotStartASession() {
+        emptyShelves()
+        for _ in 0..<40 {
+            XCTAssertNil(store.sellItem(menuIndex: 0), "the customer finds nothing")
+            run(0.5)
+        }
+        XCTAssertFalse(store.isManualCookRunning(menuIndex: 0))
+        XCTAssertEqual(store.stall.menuStock[0], 0)
+        XCTAssertEqual(store.stall.warehouse, 10)
+    }
+
+    func test_tap_startsASessionThatRunsToTheSelfServeStock() {
+        emptyShelves()
+        XCTAssertEqual(store.tapDish(menuIndex: 0), .started)
+        run(60)
+        XCTAssertEqual(store.stall.menuStock[0], GameStore.selfServeStock)
+        XCTAssertEqual(store.stall.warehouse, 5)
+    }
+
+    func test_hiredCook_cooksWithNoTap() {
+        emptyShelves()
+        store.stall.menuCooks = [1, 0, 0]
+        run(8)
+        XCTAssertGreaterThan(store.stall.menuStock[0], 0)
+        XCTAssertFalse(store.isManualCookRunning(menuIndex: 0), "no session, the cook does it")
+    }
+
+    func test_needsPlayerTap_onlyWhereNobodyCooksAndTheDishIsEmpty() {
         emptyShelves()
         store.stall.menuTier = 1
-        XCTAssertTrue(store.requestSelfServe(menuIndex: 0))
-        XCTAssertTrue(store.isCooking(menuIndex: 0))
-        XCTAssertFalse(store.requestSelfServe(menuIndex: 0), "already running")
-        XCTAssertFalse(store.requestSelfServe(menuIndex: 2), "locked dish")
+        XCTAssertTrue(store.needsPlayerTap(menuIndex: 0))
+        XCTAssertFalse(store.needsPlayerTap(menuIndex: 2), "locked dish")
+        store.tapDish(menuIndex: 0)
+        XCTAssertFalse(store.needsPlayerTap(menuIndex: 0), "a session is running")
         store.stall.menuCooks = [0, 1, 0]
-        XCTAssertFalse(store.requestSelfServe(menuIndex: 1), "a hired cook owns it")
+        XCTAssertFalse(store.needsPlayerTap(menuIndex: 1), "a hired cook owns it")
         store.stall.menuCooks = [0, 0, 0]
-        store.stall.menuStock[1] = GameStore.selfServeStock
-        XCTAssertFalse(store.requestSelfServe(menuIndex: 1), "already stocked")
+        store.stall.menuStock[1] = 1
+        XCTAssertFalse(store.needsPlayerTap(menuIndex: 1), "already stocked")
         store.stall.menuStock[1] = 0
         store.stall.warehouse = 0
-        XCTAssertFalse(store.requestSelfServe(menuIndex: 1), "nothing to cook with")
+        XCTAssertFalse(store.needsPlayerTap(menuIndex: 1), "nothing to cook with")
+    }
+
+    // MARK: The first minute
+
+    /// A fresh shop, a customer every 5 s (rating 3.0), 12 s of patience that starts once they order,
+    /// polled every 0.5 s like `CustomerDirector`. The player taps the dish `tapDelay` seconds after
+    /// the pointer appears (a customer waiting, the dish empty and idle); nil never taps. Produce is
+    /// plentiful (the starting alba would harvest) and the shop opens with its 5 portions in stock.
+    private func firstMinute(tapDelay: Double?) -> (served: Int, failed: Int, rating: Double, longestServedWait: Double) {
+        store.stall.warehouse = 30
+        var waits: [Double] = []
+        var nextArrival = 0.0
+        var pointerSince: Double?
+        var longest = 0.0
+        var t = 0.0
+        while t < 60 {
+            if t >= nextArrival { waits.append(0); nextArrival += store.customerSpawnInterval }
+            if !waits.isEmpty, store.needsPlayerTap(menuIndex: 0) {
+                pointerSince = pointerSince ?? t
+                if let tapDelay, t - pointerSince! >= tapDelay { store.tapDish(menuIndex: 0) }
+            } else {
+                pointerSince = nil
+            }
+            store.tick(deltaTime: 0.5)
+            t += 0.5
+            var stillWaiting: [Double] = []
+            for waited in waits.map({ $0 + 0.5 }) {
+                if store.sellItem(menuIndex: 0) != nil {
+                    store.recordServed(waitTime: waited)
+                    longest = max(longest, waited)
+                } else if waited >= 12 {
+                    store.recordFailed()
+                } else {
+                    stillWaiting.append(waited)
+                }
+            }
+            waits = stillWaiting
+        }
+        return (store.progress.totalServed, store.progress.totalFailed, store.progress.rating, longest)
+    }
+
+    func test_firstMinute_aPlayerWhoTapsAtOnceLosesNobody() {
+        let result = firstMinute(tapDelay: 0)
+        XCTAssertEqual(result.failed, 0)
+        XCTAssertGreaterThanOrEqual(result.served, 10)
+        XCTAssertLessThan(result.longestServedWait, 12)
+    }
+
+    func test_firstMinute_aPlayerWhoTapsAfterSixSecondsLosesNobody() {
+        let result = firstMinute(tapDelay: 6)
+        XCTAssertEqual(result.failed, 0)
+        XCTAssertLessThan(result.longestServedWait, 12)
+    }
+
+    func test_firstMinute_theOpeningStockServesFiveCustomersWithNoTap_thenAnIgnoredPointerCostsRating() {
+        let result = firstMinute(tapDelay: nil)
+        XCTAssertEqual(result.served, 5)
+        XCTAssertGreaterThan(result.failed, 0)
+        XCTAssertLessThan(result.rating, 3.0, "past the first sale the grace is over")
     }
 
     func test_hiredCook_behavesAsBefore_fillsToMaxStock_andTapsDoNotStartASession() {

@@ -119,11 +119,6 @@ final class StaffRestTests: DotWorldTestCase {
         XCTAssertFalse(store.isManualCookRunning(menuIndex: 0), "the awake cook owns the dish again")
     }
 
-    func test_selfServe_coversASleepingCooksDish() {
-        cook(energy: 0.3, resting: true)
-        XCTAssertTrue(store.requestSelfServe(menuIndex: 0))
-    }
-
     // MARK: Cashier
 
     func test_cashier_sleepsAfterTheDrainingSale_andPaysNoBonusAfter() {
