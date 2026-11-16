@@ -1040,17 +1040,12 @@ public final class GameStore: ObservableObject {
         tapDish(menuIndex: menuIndex) == .started
     }
 
-    /// A customer is waiting on `menuIndex`: starts a self-serve session when nobody cooks it and
-    /// it is below `selfServeStock`. True when one began.
-    @discardableResult
-    public func requestSelfServe(menuIndex: Int) -> Bool {
-        guard menuIndex >= 0, menuIndex < stall.menuStock.count,
-              !hasWorkingCook(menuIndex: menuIndex),
-              transients.manualCookProgress[menuIndex] == nil,
-              stall.menuStock[menuIndex] < Self.selfServeStock,
-              canManualCook(menuIndex: menuIndex) else { return false }
-        transients.manualCookProgress[menuIndex] = 0
-        return true
+    /// A dish only the player can cook, and nothing is cooking it: unlocked, empty, no working cook,
+    /// no session running, produce in the warehouse. The scene points at it while a customer waits.
+    public func needsPlayerTap(menuIndex: Int) -> Bool {
+        menuIndex >= 0 && menuIndex < stall.menuStock.count && stall.menuStock[menuIndex] == 0
+            && !hasWorkingCook(menuIndex: menuIndex) && !isManualCookRunning(menuIndex: menuIndex)
+            && canManualCook(menuIndex: menuIndex)
     }
 
     // MARK: - Watering
@@ -1202,7 +1197,7 @@ public final class GameStore: ObservableObject {
     /// Cabbages are what a shop that nobody taps runs out of (a plot only feeds the warehouse while a
     /// worker harvests it), and with the first 300-coin hire cooking instead, a fully idle 12-minute
     /// run lost 17% of its customers and earned a seventh of an active one; farm-first loses none and
-    /// earns about 0.4x. Self-serve prep already cooks a dish up to 5 with nobody hired.
+    /// earns about 0.4x. A tap already cooks a dish up to 5 with nobody hired.
     /// 이모님 and the chef cannot farm: dish first, then (이모님) the cashier. The veteran takes the
     /// till, then a plot.
     private func autoPlace(tier: Int) -> StaffPlacement {

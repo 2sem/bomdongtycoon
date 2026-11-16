@@ -74,6 +74,11 @@ final class CustomerDirector {
         street.addChild(layer)
     }
 
+    /// Dishes someone has ordered and is still waiting on.
+    var waitingMenus: Set<Int> {
+        Set(sessions.filter { $0.phase == .ordering || $0.phase == .waiting }.map(\.menu))
+    }
+
     func reset() {
         for session in sessions { session.node.removeFromParent() }
         sessions.removeAll()
@@ -151,8 +156,6 @@ final class CustomerDirector {
                 s.node.showFront()
                 onFailed?(headPoint(s))
                 startReaction(s)
-            } else {
-                store.requestSelfServe(menuIndex: s.menu)
             }
         case .reacting:
             s.reactTimer -= delta
@@ -178,7 +181,6 @@ final class CustomerDirector {
             finishServed(s, price: price)
         } else {
             s.phase = .waiting
-            store.requestSelfServe(menuIndex: s.menu)
         }
     }
 

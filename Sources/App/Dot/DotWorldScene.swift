@@ -337,24 +337,30 @@ final class DotWorldScene: SKScene {
 
     // MARK: First-run pointer
 
-    /// One pointer at a time: harvest, then plant, then cook; only once both intro overlays are gone.
+    /// One pointer at a time, only once both intro overlays are gone. A customer waiting on a dish
+    /// nobody cooks comes first and is not one-time: with no ghost cooking, the tap is the only way
+    /// that dish gets made, so the pointer returns every time and leaves once a session or a cook starts.
     private func updateHint(_ store: GameStore, shop: ShopNode, farm: FarmNode) {
         guard let arrow = hintArrow else { return }
         var tip: CGPoint?
         if !store.progress.isFirstLaunch, store.progress.isShopNameSet, !isRunTransitionActive {
             let plots = store.farm.plots
-            if !FirstRunHint.harvest.isDone, let i = plots.firstIndex(where: \.isReady) {
+            let waiting = director?.waitingMenus ?? []
+            let dishes = 0...min(store.stall.menuTier, 2)
+            if let menu = dishes.first(where: { waiting.contains($0) && store.needsPlayerTap(menuIndex: $0) }) {
+                tip = shop.hintTip(menu)
+                teachHurry()
+            } else if !FirstRunHint.harvest.isDone, let i = plots.firstIndex(where: \.isReady) {
                 tip = farm.hintTip(i)
             } else if !FirstRunHint.plant.isDone,
                       let i = plots.firstIndex(where: { $0.stage == .empty && $0.workerType == .none })
                         ?? plots.firstIndex(where: { $0.stage == .empty }) {
                 tip = farm.hintTip(i)
-            } else if !FirstRunHint.cook.isDone, store.stall.warehouse > 0, store.stall.menuStock[0] == 0,
-                      !store.isCooking(menuIndex: 0) {
+            } else if !FirstRunHint.cook.isDone, store.needsPlayerTap(menuIndex: 0) {
                 tip = shop.hintTip(0)
                 teachHurry()
-            } else if !FirstRunHint.hurry.isDone, store.isCooking(menuIndex: 0) {
-                tip = shop.hintTip(0)
+            } else if !FirstRunHint.hurry.isDone, let menu = dishes.first(where: { store.isCooking(menuIndex: $0) }) {
+                tip = shop.hintTip(menu)
                 teachHurry()
             }
         }
