@@ -44,6 +44,7 @@ final class FirstMinuteEconomyTests: XCTestCase {
         store.isSimulationPaused = true
         store.tick(deltaTime: 1.0)
         store.isSimulationPaused = false
+        store.progress.rating = 4.0   // no decay at or below 3.0
         let rating = store.progress.rating
         store.tick(deltaTime: 10.0)
         XCTAssertLessThan(store.progress.rating, rating)

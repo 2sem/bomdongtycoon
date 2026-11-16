@@ -87,6 +87,7 @@ final class CustomerDirector {
 
     func update(delta: TimeInterval, store: GameStore, isFever: Bool, reduceMotion: Bool) {
         guard store.progress.isShopNameSet, !store.isSimulationPaused else { return }
+        if store.hasFlyerRequest { answerFlyer(store: store, isFever: isFever) }
         if !isSpawningPaused, !isHeld {
             spawnTimer -= delta
             if spawnTimer <= 0 { trySpawn(store: store, isFever: isFever) }
@@ -98,8 +99,24 @@ final class CustomerDirector {
         sessions.removeAll { $0.node.parent == nil }
     }
 
+    private func hasRoom(isFever: Bool) -> Bool {
+        sessions.count < (isFever ? Self.maxConcurrentFever : Self.maxConcurrent)
+    }
+
     private func trySpawn(store: GameStore, isFever: Bool) {
-        guard sessions.count < (isFever ? Self.maxConcurrentFever : Self.maxConcurrent) else { spawnTimer = 1; return }
+        guard hasRoom(isFever: isFever) else { spawnTimer = 1; return }
+        spawn(store: store)
+    }
+
+    /// A flyer tap brings one customer in now and restarts the natural timer (`spawn` does), so the
+    /// tap never adds to the pace: a full queue or a held street turns it down without a cooldown.
+    private func answerFlyer(store: GameStore, isFever: Bool) {
+        guard !isSpawningPaused, !isHeld, hasRoom(isFever: isFever) else { store.declineFlyer(); return }
+        guard store.completeFlyer() else { return }
+        spawn(store: store)
+    }
+
+    private func spawn(store: GameStore) {
         let menu = store.rollOrderedMenu()
         let isGourmet = store.rollGourmet()
         let base = isGourmet ? "gourmet" : (Self.looks.randomElement() ?? "man")

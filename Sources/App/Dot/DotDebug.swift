@@ -23,6 +23,7 @@ import GameCore
 ///   -dotNoAds           no ads at all, for screenshots and recordings
 ///   -dotAdsGrant        every rewarded request succeeds at once, with no ad (also marks every placement ready)
 ///   -dotAutoplayAds     with -dotAutoplay: also take the ad rewards (fever recharge, x2 missions, boost, gift)
+///   -dotRating N        start with the rating set to N (1.0-5.0), on a seeded, autoplayed or plain launch
 ///   -dotDemo            tap a ripe plot, an empty plot and a dish in turn
 ///   -dotPhase morning|noon|dusk|night   freeze the time of day
 ///   -dotSheet upgrades|staff|hire|missions|stats|prestige|tutorial|name|offline   open that screen at launch
@@ -169,6 +170,11 @@ enum DotDebug {
     @MainActor
     static func seed(_ store: GameStore) {
         #if DEBUG
+        defer {
+            if let rating = value(after: "-dotRating").flatMap(Double.init) {
+                store.progress.rating = min(5, max(1, rating))
+            }
+        }
         if arguments.contains("-dotResetHints") { FirstRunHint.resetForDebug() }
         if wantsAutoplay, value(after: "-dotSeed") == nil {
             // No fingers for the intro: a fresh install is named and started straight away.

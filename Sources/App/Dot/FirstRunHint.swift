@@ -21,12 +21,18 @@ enum FirstRunHint: String, CaseIterable {
     static let hurryToastKey = "dot.hint.hurryToast"
     static let wakeHintKey = "dot.hint.wakeCount"
 
+    /// Accepted flyers on this install. The appear hint and the use toast stop at `flyerHintLimit`;
+    /// the button pulses until the first.
+    static let flyerUseKey = "dot.hint.flyerUseCount"
+    static let flyerHintLimit = 3
+
     /// DEBUG `-dotResetHints` replays them on a seeded save.
     static func resetForDebug() {
         for hint in allCases { UserDefaults.standard.removeObject(forKey: hint.key) }
         UserDefaults.standard.removeObject(forKey: "dot.hint.missionPointerCount")
         UserDefaults.standard.removeObject(forKey: hurryToastKey)
         UserDefaults.standard.removeObject(forKey: wakeHintKey)
+        UserDefaults.standard.removeObject(forKey: flyerUseKey)
     }
 }
 

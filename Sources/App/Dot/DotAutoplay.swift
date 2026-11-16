@@ -5,7 +5,7 @@ import GameCore
 /// `-dotAutoplay`: an attentive player with no fingers. Drives the same handlers a tap would, at
 /// most `tapsPerStep` taps per game second, and logs a `[DotQA]` line every 30 game seconds.
 /// Priorities: fever, tip coins, ripe plots, tired workers, dishes running low, empty plots, then the
-/// hurry taps (a cooking dish, then a growing plot's water); claims and purchases are free.
+/// hurry taps (a cooking dish, then a growing plot's water); claims and purchases are free. The flyer is tapped whenever it is ready.
 /// `-dotAutoplayIdle` skips every world tap and keeps only fever, claims and purchases. Seed it with `-dotSeed` to start mid-game, or run it on a fresh install.
 struct AutoplayState {
     var clock: Double = 0
@@ -18,7 +18,7 @@ struct AutoplayState {
     var lastPurchase: Double = 0
     var longestGap: Double = 0
     /// World taps by verb, and the budget left unspent because there was nothing to tap.
-    var hurries = 0, waters = 0, wakes = 0, deadTaps = 0
+    var hurries = 0, waters = 0, wakes = 0, deadTaps = 0, flyers = 0
 }
 
 extension DotWorldScene {
@@ -47,6 +47,7 @@ extension DotWorldScene {
         var taps = Self.tapsPerStep
         if store.isFeverReady, !DotDebug.autoplaySkipsFever { store.startFever(); taps -= 1 }
         guard !DotDebug.autoplayIsIdle else { return }
+        if taps > 0, store.requestFlyer() { autoplayState.flyers += 1; taps -= 1 }
         if let layout {
             for point in tipLayer?.points ?? [] where taps > 0 {
                 if let tip = tipLayer?.collect(at: point) { collectTip(tip, store: store, layout: layout); taps -= 1 }
@@ -109,6 +110,12 @@ extension DotWorldScene {
         if store.claimFeverAdCharge() { DotDebug.qa("event ad fever t=\(timeText(store))") }
         if store.claimBoost() { DotDebug.qa("event ad boost t=\(timeText(store))") }
         if let paid = store.claimGift() { DotDebug.qa("event ad gift +\(Int(paid)) t=\(timeText(store))") }
+        if store.isRenewalAvailable {
+            let before = store.progress.rating
+            if store.renewShop(payment: .ad) {
+                DotDebug.qa(String(format: "event ad renewal %.2f->3.00 t=%@", before, timeText(store)))
+            }
+        }
     }
 
     private func notePurchase(_ store: GameStore) {
@@ -180,7 +187,7 @@ extension DotWorldScene {
         let s = store.stall
         let lost = p.totalServed + p.totalFailed > 0
             ? String(format: "%.0f%%", Double(p.totalFailed) / Double(p.totalServed + p.totalFailed) * 100) : "-"
-        DotDebug.qa(String(format: "t=%@ coins=%.0f earned=%.0f rating=%.2f served=%d failed=%d lost=%@ stall=%d menu=%d loc=%d staff=%d wh=%d/%d stock=%d plots=%d fevers=%d goldens=%d tips=%d buys=%d gap=%.0f recipes=%@ reno=%d boost=%d hurry=%d water=%d wake=%d dead=%d",
+        DotDebug.qa(String(format: "t=%@ coins=%.0f earned=%.0f rating=%.2f served=%d failed=%d lost=%@ stall=%d menu=%d loc=%d staff=%d wh=%d/%d stock=%d plots=%d fevers=%d goldens=%d tips=%d buys=%d gap=%.0f recipes=%@ reno=%d boost=%d hurry=%d water=%d wake=%d dead=%d flyer=%d",
                            timeText(store), s.coins, p.totalEarned, p.rating, p.totalServed, p.totalFailed, lost, s.stallTier, s.menuTier,
                            s.locationTier, s.staffCount + s.farmerCount + s.veteranAlbaCount, s.warehouse, s.warehouseCapacity,
                            s.menuStock.reduce(0, +), store.farm.plots.count, p.totalFevers,
@@ -188,7 +195,7 @@ extension DotWorldScene {
                            max(autoplayState.longestGap, autoplayState.clock - autoplayState.lastPurchase),
                            s.recipeLevels.map(String.init).joined(separator: "/"), s.renovationLevel,
                            store.isBoostActive ? 1 : 0, autoplayState.hurries, autoplayState.waters,
-                           autoplayState.wakes, autoplayState.deadTaps))
+                           autoplayState.wakes, autoplayState.deadTaps, autoplayState.flyers))
     }
 
     private func timeText(_ store: GameStore) -> String {

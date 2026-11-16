@@ -20,8 +20,12 @@ struct GameRootView: View {
     @State private var showBoostOffer = false
     @State private var showGiftOffer = false
     @State private var showFeverOffer = false
+    @State private var showRenewalOffer = false
     @State private var showMissionPointer = false
     @State private var missionToastGate = CooldownGate(interval: 30)
+    @State private var flyerFullGate = CooldownGate(interval: 8)
+    @AppStorage(FirstRunHint.flyerUseKey) private var flyerUses = 0
+    @State private var didShowFlyerHint = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -44,11 +48,14 @@ struct GameRootView: View {
                     showPrestige: $showPrestige, showStats: $showStats,
                     showsBoostChip: !isIntroOverlayUp,
                     boostIsPulsing: pulsingSurface == .boost,
-                    onBoostTap: { showBoostOffer = true }) { coinTarget = $0 }
+                    onBoostTap: { showBoostOffer = true },
+                    showsRenewalChip: !isIntroOverlayUp,
+                    onRenewalTap: { showRenewalOffer = true }) { coinTarget = $0 }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
                 HStack(spacing: 6) {
+                    if !isIntroOverlayUp { FlyerButton(isPulsing: flyerUses == 0 && pulsingSurface == nil) }
                     Spacer()
                     if !isIntroOverlayUp { FeverAdButton(isPulsing: pulsingSurface == .fever) { showFeverOffer = true } }
                     FeverButton()
@@ -101,6 +108,11 @@ struct GameRootView: View {
         .onAppear {
             store.isSimulationPaused = isIntroOverlayUp
             openDebugSheet()
+            // Held back so the toast lands after the splash instead of behind it.
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(3))
+                if store.isFlyerAvailable { announceFlyerOnce() }
+            }
         }
         .onChange(of: isIntroOverlayUp) { _, isUp in
             store.isSimulationPaused = isUp
@@ -117,6 +129,14 @@ struct GameRootView: View {
             guard let levelUps, !isIntroOverlayUp else { return }
             announceLevelUps(levelUps)
         }
+        .onChange(of: store.isFlyerAvailable) { _, isAvailable in
+            if isAvailable { announceFlyerOnce() }
+        }
+        .onChange(of: isIntroOverlayUp) { _, isUp in
+            if !isUp, store.isFlyerAvailable { announceFlyerOnce() }
+        }
+        .onChange(of: store.flyerHandouts) { _, _ in announceFlyerUse() }
+        .onChange(of: store.flyerDeclines) { _, _ in announceFlyerFull() }
         .onChange(of: store.isFeverReady) { _, isReady in
             guard isReady, !isIntroOverlayUp, !FirstRunHint.fever.isDone else { return }
             FirstRunHint.fever.markDone()
@@ -138,6 +158,9 @@ struct GameRootView: View {
         }
         .onChange(of: store.isFeverAdAvailable) { _, isAvailable in
             if !isAvailable { showFeverOffer = false }
+        }
+        .onChange(of: store.isRenewalAvailable) { _, isAvailable in
+            if !isAvailable { showRenewalOffer = false }
         }
         .onReceive(NotificationCenter.default.publisher(for: .goldenPlotRipened)) { _ in
             showGoldenToast()
@@ -199,7 +222,7 @@ struct GameRootView: View {
 
     private var isStorefrontHeld: Bool {
         showUpgrades || showStaff || showStats || showPrestige || showMissions || isAlertUp
-            || showBoostOffer || showGiftOffer || showFeverOffer
+            || showBoostOffer || showGiftOffer || showFeverOffer || showRenewalOffer
     }
 
     // MARK: Rewarded offers
@@ -207,7 +230,7 @@ struct GameRootView: View {
     /// The one rewarded prompt allowed to animate: the crate first (it animates in the scene), then the
     /// boost chip, then the fever recharge.
     private var pulsingSurface: AdPromptSurface? {
-        guard !isIntroOverlayUp, !showBoostOffer, !showGiftOffer, !showFeverOffer else { return nil }
+        guard !isIntroOverlayUp, !showBoostOffer, !showGiftOffer, !showFeverOffer, !showRenewalOffer else { return nil }
         return AdPromptSurface.active(
             giftPresent: store.isGiftPresent,
             boostAvailable: store.isBoostAvailable && ads.isReady(.boost),
@@ -251,6 +274,15 @@ struct GameRootView: View {
                 })
                 .onAppear { ads.prepare(.fever) }
         }
+        if showRenewalOffer, store.isRenewalAvailable {
+            RenewalDialog(
+                isAdAvailable: ads.isAvailable,
+                isAdReady: ads.isReady(.renewal),
+                onPayCoins: { if store.renewShop(payment: .coins) { announceRenewal() } },
+                onWatchAd: { ads.watch(.renewal) { if store.renewShop(payment: .ad) { announceRenewal() } } },
+                onClose: { showRenewalOffer = false })
+                .onAppear { ads.prepare(.renewal) }
+        }
         if showGiftOffer {
             AdOfferDialog(
                 title: String(localized: "dot.gift.title"),
@@ -268,9 +300,39 @@ struct GameRootView: View {
         }
     }
 
+    private func announceRenewal() {
+        showRenewalOffer = false
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        DotSound.shared.play(.purchase)
+        let text = String(format: String(localized: "dot.renewal.toast"),
+                          String(format: "%.1f", RenewalSystem.resultingRating))
+        showToast(text, announcement: text)
+    }
+
     private func closeGiftOffer() {
         showGiftOffer = false
         store.isGiftHeld = false
+    }
+
+    /// When the button becomes available: once per session, until the player has used it three times.
+    private func announceFlyerOnce() {
+        guard !isIntroOverlayUp, !didShowFlyerHint, flyerUses < FirstRunHint.flyerHintLimit else { return }
+        didShowFlyerHint = true
+        let text = String(localized: "dot.flyer.hint")
+        showToast(text, announcement: text)
+    }
+
+    private func announceFlyerUse() {
+        flyerUses += 1
+        guard flyerUses <= FirstRunHint.flyerHintLimit else { return }
+        let text = String(localized: "dot.flyer.used")
+        showToast(text, announcement: text)
+    }
+
+    private func announceFlyerFull() {
+        guard flyerFullGate.fire(now: Date()) else { return }
+        let text = String(localized: "dot.flyer.full")
+        showToast(text, announcement: text)
     }
 
     // MARK: Mission announcement

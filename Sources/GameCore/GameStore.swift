@@ -101,6 +101,10 @@ public final class GameStore: ObservableObject {
         var lastHurry: [Int: Double] = [:]
         var lastWater: [Int: Double] = [:]
         var lastWake: [WorkerTarget: Double] = [:]
+        /// Clock time at which the flyer can be used again.
+        var flyerReadyAt: Double = 0
+        /// A flyer tap the scene has not answered yet.
+        var flyerRequested = false
     }
     private var transients = RunTransients()
 
@@ -436,8 +440,11 @@ public final class GameStore: ObservableObject {
             collectCoins()
         }
 
-        // Rating slowly decays — active serving easily overcomes it, idle play drifts down
-        progress.rating = max(1.0, progress.rating - Self.ratingDecayPerSecond * max(1, progress.rating - 2) * deltaTime)
+        // Rating above the floor slowly decays — active serving easily overcomes it, idle play drifts down
+        if progress.rating > Self.ratingRecoveryFloor {
+            let decayed = progress.rating - Self.ratingDecayPerSecond * max(1, progress.rating - 2) * deltaTime
+            progress.rating = max(Self.ratingRecoveryFloor, decayed)
+        }
 
         // Persist lastActiveDate + earningRate every 5 s
         if offlineEarnings == 0 {
@@ -670,6 +677,110 @@ public final class GameStore: ObservableObject {
         transients.feverEarned = 0
         progress.totalFevers += 1
         advanceMissions(.triggerFever)
+        save()
+        return true
+    }
+
+    // MARK: - Flyer (전단지)
+
+    /// Offered while the HUD shows a rating under 3.0, the stretch where customers are sparse.
+    public var isFlyerAvailable: Bool {
+        MissionSystem.displayedRating(progress.rating) < Self.ratingRecoveryFloor
+    }
+
+    public var flyerCooldownRemaining: Double { max(0, transients.flyerReadyAt - transients.clock) }
+
+    /// 0...1 progress of the cooldown, 1 when ready.
+    public var flyerCooldownProgress: Double { 1 - min(1, flyerCooldownRemaining / Self.flyerCooldown) }
+
+    public var isFlyerReady: Bool {
+        isFlyerAvailable && canAffordFlyer && flyerCooldownRemaining == 0 && !transients.flyerRequested
+    }
+
+    /// Share of dish 0's sale price a flyer costs. Tied to the cheapest dish, not the best one: a
+    /// flyer customer may order the cheapest dish, so a fee on the best dish could exceed what that
+    /// sale pays. On the cheapest, every flyer customer served is still a profit.
+    public static let flyerFeeShare: Double = 0.2
+
+    /// Coins one accepted flyer costs: no fever, boost, gourmet or weather multiplier, so it does
+    /// not swell while those run.
+    public var flyerFee: Double {
+        let price = EarningsSystem.salePrice(for: stall, menuIndex: 0, prestigeCount: progress.prestigeCount)
+        return Double(MissionSystem.cleanNumber(Self.flyerFeeShare * price))
+    }
+
+    public var canAffordFlyer: Bool { stall.coins >= flyerFee }
+
+    /// Flyers handed out and flyers the scene turned down, since launch. The UI reacts to the change.
+    @Published public private(set) var flyerHandouts = 0
+    @Published public private(set) var flyerDeclines = 0
+
+    /// A tap. The store only decides whether it is accepted; the scene performs the spawn and then
+    /// calls `completeFlyer` or `declineFlyer`, so a tap the queue could not take costs no cooldown.
+    @discardableResult
+    public func requestFlyer() -> Bool {
+        guard isFlyerReady, !isSimulationPaused else { return false }
+        transients.flyerRequested = true
+        return true
+    }
+
+    public var hasFlyerRequest: Bool { transients.flyerRequested }
+
+    /// Takes the fee and starts the cooldown. False, changing nothing, when the coins dropped since the
+    /// request: the scene must then not spawn.
+    @discardableResult
+    public func completeFlyer() -> Bool {
+        guard transients.flyerRequested else { return false }
+        transients.flyerRequested = false
+        let fee = flyerFee
+        guard stall.coins >= fee else { return false }
+        stall.coins -= fee
+        transients.flyerReadyAt = transients.clock + Self.flyerCooldown
+        flyerHandouts += 1
+        save()
+        return true
+    }
+
+    public func declineFlyer() {
+        guard transients.flyerRequested else { return }
+        transients.flyerRequested = false
+        flyerDeclines += 1
+    }
+
+    public static let flyerCooldown: Double = baseIntervalAtThree
+
+    // MARK: - Grand reopening (리뉴얼 오픈)
+
+    private var bestSalePrice: Double {
+        EarningsSystem.salePrice(for: stall, menuIndex: stall.menuTier, prestigeCount: progress.prestigeCount)
+    }
+
+    public var renewalFee: Double { RenewalSystem.fee(bestSalePrice: bestSalePrice) }
+
+    public var renewalCooldownRemaining: Double {
+        guard let last = progress.lastRenewalPlaySeconds else { return 0 }
+        return min(RenewalSystem.cooldown, max(0, RenewalSystem.cooldown - (progress.totalPlaySeconds - last)))
+    }
+
+    public var isRenewalAvailable: Bool {
+        MissionSystem.displayedRating(progress.rating) < RenewalSystem.eligibleBelowRating
+            && renewalCooldownRemaining == 0
+    }
+
+    public var canAffordRenewal: Bool { stall.coins >= renewalFee }
+
+    /// Sets the rating to 3.0 and nothing else but the fee. False, changing nothing, when it is not
+    /// offered or the coins are short. The ad path is the caller's to earn: pass `.ad` once it played.
+    @discardableResult
+    public func renewShop(payment: RenewalSystem.Payment) -> Bool {
+        guard isRenewalAvailable else { return false }
+        if payment == .coins {
+            let fee = renewalFee
+            guard stall.coins >= fee else { return false }
+            stall.coins -= fee
+        }
+        progress.rating = RenewalSystem.resultingRating
+        progress.lastRenewalPlaySeconds = progress.totalPlaySeconds
         save()
         return true
     }
@@ -961,13 +1072,17 @@ public final class GameStore: ObservableObject {
         baseSpawnInterval * (isFeverActive ? FeverSystem.spawnIntervalMultiplier : 1) * weatherEffect.spawnInterval
     }
 
+    /// The spawn interval of a 3.0 shop. The flyer's cooldown is this same number: a flyer tap must
+    /// never make a low-rated shop busier than a 3.0 one.
+    static let baseIntervalAtThree: Double = 5.0
+
     private var baseSpawnInterval: Double {
         switch progress.rating {
         case ..<1.5: return 20.0
         case 1.5..<2.0: return 16.0
         case 2.0..<2.5: return 12.0
         case 2.5..<3.0: return 8.0
-        case 3.0..<3.5: return 5.0
+        case 3.0..<3.5: return Self.baseIntervalAtThree
         case 3.5..<4.0: return 3.5
         case 4.0..<4.5: return 2.5
         case 4.5..<5.0: return 1.8
@@ -1621,6 +1736,7 @@ public final class GameStore: ObservableObject {
         progress.totalServed += 1
         let headroom = min(1, (5.0 - progress.rating) / 2)
         let delta = (waitTime < 3.0 ? Self.ratingGainFast : Self.ratingGainSlow) * (isGourmet ? 2 : 1) * headroom
+            * Self.comebackMultiplier(rating: progress.rating)
         progress.rating = min(5.0, progress.rating + delta)
         progress.bestRating = max(progress.bestRating, progress.rating)
         FeverSystem.recordServed(&transients.fever, waitTime: waitTime,
@@ -1640,6 +1756,15 @@ public final class GameStore: ObservableObject {
     static let ratingDecayPerSecond: Double = 0.0005
     static let ratingGainFast: Double = 0.02
     static let ratingGainSlow: Double = 0.01
+    /// Decay stops here and serve gains are boosted below it. Without this a 1.0 shop is stuck:
+    /// customers come every 20 s, decay costs 0.0005 * 20 = 0.01 per gap and a slow serve earns
+    /// exactly 0.01, so the net is zero and even perfect service needs ~40 minutes to reach 3.0.
+    static let ratingRecoveryFloor: Double = 3.0
+
+    /// Serve-gain multiplier: 1 at the floor and above, rising by 1 per rating point below it (3x at 1.0).
+    static func comebackMultiplier(rating: Double) -> Double {
+        1 + max(0, ratingRecoveryFloor - rating)
+    }
 
     /// Whether the next customer is a gourmet. No roll is consumed below the rating floor.
     public func rollGourmet() -> Bool {

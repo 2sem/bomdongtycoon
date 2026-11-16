@@ -7,6 +7,7 @@ public struct CoinBadge: View {
     @EnvironmentObject var store: GameStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHopped = false
+    @State private var isDipped = false
 
     private let onCenterChange: (CGPoint) -> Void
 
@@ -27,12 +28,22 @@ public struct CoinBadge: View {
             let frame = proxy.frame(in: .global)
             return CGPoint(x: frame.midX, y: frame.midY)
         } action: { onCenterChange($0) }
-        .offset(y: isHopped ? -DotTheme.px : 0)
+        .offset(y: isHopped ? -DotTheme.px : isDipped ? DotTheme.px : 0)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(format: String(localized: "dot.coins.accessibility"),
                                    CoinFormat.string(store.stall.coins)))
         .onChange(of: store.stall.coins) { old, new in
-            if new > old { hop() }
+            if new > old { hop() } else if new < old { dip() }
+        }
+    }
+
+    /// A purchase pushes the badge down one pixel, the mirror of the hop for income.
+    private func dip() {
+        guard !reduceMotion, !isDipped else { return }
+        isDipped = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(90))
+            isDipped = false
         }
     }
 
