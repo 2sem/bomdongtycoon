@@ -4935,13 +4935,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Flyer drop"
+            "value" : "Flyers"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "전단지 돌리기"
+            "value" : "전단지"
           }
         }
       }

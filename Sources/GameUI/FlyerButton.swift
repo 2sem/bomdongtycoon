@@ -2,12 +2,14 @@ import SwiftUI
 import UIKit
 import GameCore
 
-/// "전단지 돌리기" in the bottom row, beside the fever gauge: while the shop is quiet (rating under 3.0)
+/// "전단지" in the bottom row, beside the fever gauge: while the shop is quiet (rating under 3.0)
 /// a tap pays a small fee and brings one customer in. Disabled with a filling bar while it cools down,
 /// and with a red price while the coins are short.
 ///
-/// Width: flyer icon 16 + 4 + label 65 (six Galmuri9 glyphs and a space) + 24 panel padding = about
-/// 109 pt, against the 125 pt left of a 375 pt row once the AD button (94) and fever gauge (128) are in.
+/// Width (Galmuri11 Bold 12 pt: Hangul 12, digit 6): flyer icon 16 + 4 + "전단지" 36 + 4 + coin 16 + 2 +
+/// fee + 24 panel padding is about 108 pt at a one-digit fee and 126 pt at four characters, against the
+/// 125 pt left of a 375 pt row once the AD button (94) and fever gauge (128) are in. The style's 0.8
+/// scale factor absorbs the last pt.
 public struct FlyerButton: View {
     @EnvironmentObject var store: GameStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -100,20 +102,17 @@ private struct FlyerLabel: View {
     let isShort: Bool
     @Environment(\.isEnabled) private var isEnabled
 
+    /// One line, so it fits the compact face. The word takes the button style's own text (bold, paper or
+    /// grey, ink drop); only the price overrides the colour. No `fixedSize`: a long fee must shrink.
     var body: some View {
         HStack(spacing: 4) {
             DotImage("dot_ui_flyer", scale: 1)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(String(localized: "dot.flyer.button"))
-                    .dotText(.caption, color: isEnabled ? DotPalette.paper : DotPalette.greyDark, shadow: isEnabled)
-                HStack(spacing: 2) {
-                    DotImage("dot_ui_coin", scale: 1)
-                    Text(fee).dotText(.caption, color: priceColor, shadow: isEnabled)
-                }
+            Text(String(localized: "dot.flyer.button"))
+            HStack(spacing: 2) {
+                DotImage("dot_ui_coin", scale: 1)
+                Text(fee).foregroundStyle(priceColor)
             }
-            .fixedSize()
         }
-        .padding(.horizontal, 4)
     }
 
     private var priceColor: Color {
