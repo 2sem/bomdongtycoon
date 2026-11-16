@@ -694,8 +694,26 @@ public final class GameStore: ObservableObject {
     public var flyerCooldownProgress: Double { 1 - min(1, flyerCooldownRemaining / Self.flyerCooldown) }
 
     public var isFlyerReady: Bool {
-        isFlyerAvailable && flyerCooldownRemaining == 0 && !transients.flyerRequested
+        isFlyerAvailable && canAffordFlyer && flyerCooldownRemaining == 0 && !transients.flyerRequested
     }
+
+    /// Share of dish 0's sale price a flyer costs. Tied to the cheapest dish, not the best one: a
+    /// flyer customer may order the cheapest dish, so a fee on the best dish could exceed what that
+    /// sale pays. On the cheapest, every flyer customer served is still a profit.
+    public static let flyerFeeShare: Double = 0.2
+
+    /// Coins one accepted flyer costs: no fever, boost, gourmet or weather multiplier, so it does
+    /// not swell while those run.
+    public var flyerFee: Double {
+        let price = EarningsSystem.salePrice(for: stall, menuIndex: 0, prestigeCount: progress.prestigeCount)
+        return Double(MissionSystem.cleanNumber(Self.flyerFeeShare * price))
+    }
+
+    public var canAffordFlyer: Bool { stall.coins >= flyerFee }
+
+    /// Flyers handed out and flyers the scene turned down, since launch. The UI reacts to the change.
+    @Published public private(set) var flyerHandouts = 0
+    @Published public private(set) var flyerDeclines = 0
 
     /// A tap. The store only decides whether it is accepted; the scene performs the spawn and then
     /// calls `completeFlyer` or `declineFlyer`, so a tap the queue could not take costs no cooldown.
@@ -708,13 +726,26 @@ public final class GameStore: ObservableObject {
 
     public var hasFlyerRequest: Bool { transients.flyerRequested }
 
-    public func completeFlyer() {
-        guard transients.flyerRequested else { return }
+    /// Takes the fee and starts the cooldown. False, changing nothing, when the coins dropped since the
+    /// request: the scene must then not spawn.
+    @discardableResult
+    public func completeFlyer() -> Bool {
+        guard transients.flyerRequested else { return false }
         transients.flyerRequested = false
+        let fee = flyerFee
+        guard stall.coins >= fee else { return false }
+        stall.coins -= fee
         transients.flyerReadyAt = transients.clock + Self.flyerCooldown
+        flyerHandouts += 1
+        save()
+        return true
     }
 
-    public func declineFlyer() { transients.flyerRequested = false }
+    public func declineFlyer() {
+        guard transients.flyerRequested else { return }
+        transients.flyerRequested = false
+        flyerDeclines += 1
+    }
 
     public static let flyerCooldown: Double = baseIntervalAtThree
 

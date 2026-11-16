@@ -86,4 +86,76 @@ final class FlyerTests: DotWorldTestCase {
         XCTAssertEqual(store.flyerCooldownRemaining, 0)
         XCTAssertFalse(store.hasFlyerRequest)
     }
+
+    // MARK: - Fee
+
+    func test_fee_atTheBaseShop_isSixCoins() {
+        XCTAssertEqual(store.flyerFee, 6)
+    }
+
+    func test_fee_scalesWithEveryMultiplierOfDishZero() {
+        store.stall.locationTier = 1
+        store.stall.renovationLevel = 2
+        store.stall.recipeLevels[0] = 3
+        store.progress.prestigeCount = 2
+        let price = 30
+            * EarningsSystem.locationMultiplier(for: store.stall)
+            * RenovationSystem.priceMultiplier(level: 2)
+            * RecipeSystem.priceMultiplier(level: 3)
+            * EarningsSystem.cashierSaleMultiplier(for: store.stall)
+            * PrestigeSystem.legacyMultiplier(prestigeCount: 2)
+        XCTAssertEqual(store.flyerFee, Double(MissionSystem.cleanNumber(0.2 * price)))
+        XCTAssertGreaterThan(store.flyerFee, 6)
+    }
+
+    func test_fee_ignoresTheBestDishAndActivePlayBonuses() {
+        let base = store.flyerFee
+        store.stall.menuTier = 2
+        XCTAssertEqual(store.flyerFee, base)
+    }
+
+    func test_unaffordable_refusesTheTap() {
+        store.progress.rating = 2.0
+        store.stall.coins = store.flyerFee - 1
+        XCTAssertFalse(store.canAffordFlyer)
+        XCTAssertFalse(store.isFlyerReady)
+        XCTAssertFalse(store.requestFlyer())
+        store.stall.coins = store.flyerFee
+        XCTAssertTrue(store.requestFlyer())
+    }
+
+    func test_complete_chargesOnce_andLeavesTotalEarnedAlone() {
+        store.progress.rating = 2.0
+        store.stall.coins = 50
+        let earned = store.progress.totalEarned
+        XCTAssertTrue(store.requestFlyer())
+        XCTAssertEqual(store.stall.coins, 50)
+        XCTAssertTrue(store.completeFlyer())
+        XCTAssertEqual(store.stall.coins, 44)
+        XCTAssertFalse(store.completeFlyer())
+        XCTAssertEqual(store.stall.coins, 44)
+        XCTAssertEqual(store.progress.totalEarned, earned)
+        XCTAssertEqual(store.flyerHandouts, 1)
+    }
+
+    func test_declinedRequest_costsNothing() {
+        store.progress.rating = 2.0
+        store.stall.coins = 50
+        XCTAssertTrue(store.requestFlyer())
+        store.declineFlyer()
+        XCTAssertEqual(store.stall.coins, 50)
+        XCTAssertEqual(store.flyerDeclines, 1)
+        XCTAssertEqual(store.flyerHandouts, 0)
+    }
+
+    func test_coinsDroppedBetweenRequestAndComplete_declinesWithoutGoingNegative() {
+        store.progress.rating = 2.0
+        store.stall.coins = 6
+        XCTAssertTrue(store.requestFlyer())
+        store.stall.coins = 5
+        XCTAssertFalse(store.completeFlyer())
+        XCTAssertEqual(store.stall.coins, 5)
+        XCTAssertEqual(store.flyerCooldownRemaining, 0)
+        XCTAssertFalse(store.hasFlyerRequest)
+    }
 }

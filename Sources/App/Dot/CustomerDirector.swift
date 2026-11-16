@@ -107,8 +107,8 @@ final class CustomerDirector {
     /// tap never adds to the pace: a full queue or a held street turns it down without a cooldown.
     private func answerFlyer(store: GameStore, isFever: Bool) {
         guard !isSpawningPaused, !isHeld, hasRoom(isFever: isFever) else { store.declineFlyer(); return }
+        guard store.completeFlyer() else { return }
         spawn(store: store)
-        store.completeFlyer()
     }
 
     private func spawn(store: GameStore) {
