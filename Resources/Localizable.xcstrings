@@ -4935,13 +4935,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Flyers"
+            "value" : "Flyer drop"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "전단지"
+            "value" : "전단지 돌리기"
           }
         }
       }
@@ -4951,13 +4951,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hand out flyers to bring in one customer"
+            "value" : "Hand out flyers for %@ coins to bring in one customer"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "전단지 돌리기, 손님 한 명을 불러와요"
+            "value" : "전단지 돌리기, %@코인으로 손님 한 명을 불러와요"
           }
         }
       }
@@ -4967,13 +4967,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hand out flyers, ready again in %d seconds"
+            "value" : "Hand out flyers, %@ coins, ready again in %d seconds"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "전단지 돌리기, %d초 뒤에 다시 쓸 수 있어요"
+            "value" : "전단지 돌리기, %@코인, %d초 뒤에 다시 쓸 수 있어요"
           }
         }
       }
@@ -4983,13 +4983,61 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quiet shop? Hand out flyers to bring in a customer"
+            "value" : "Quiet shop? Hand out flyers for a few coins to bring in a customer"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "손님이 뜸하면 전단지를 돌려요. 누를 때마다 한 명씩 와요"
+            "value" : "손님이 뜸하면 전단지를 돌려요. 코인을 조금 내면 한 명씩 와요"
+          }
+        }
+      }
+    },
+    "dot.flyer.short.accessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hand out flyers, %@ coins, not enough coins"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전단지 돌리기, %@코인, 코인이 모자라요"
+          }
+        }
+      }
+    },
+    "dot.flyer.used" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You handed out flyers. A customer is on the way!"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전단지를 돌렸어요. 손님이 한 명 와요!"
+          }
+        }
+      }
+    },
+    "dot.flyer.full" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The shop is full of customers right now"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "지금은 손님이 가득해요"
           }
         }
       }

@@ -23,6 +23,9 @@ struct GameRootView: View {
     @State private var showRenewalOffer = false
     @State private var showMissionPointer = false
     @State private var missionToastGate = CooldownGate(interval: 30)
+    @State private var flyerFullGate = CooldownGate(interval: 8)
+    @AppStorage(FirstRunHint.flyerUseKey) private var flyerUses = 0
+    @State private var didShowFlyerHint = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -52,7 +55,7 @@ struct GameRootView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
                 HStack(spacing: 6) {
-                    if !isIntroOverlayUp { FlyerButton() }
+                    if !isIntroOverlayUp { FlyerButton(isPulsing: flyerUses == 0 && pulsingSurface == nil) }
                     Spacer()
                     if !isIntroOverlayUp { FeverAdButton(isPulsing: pulsingSurface == .fever) { showFeverOffer = true } }
                     FeverButton()
@@ -132,6 +135,8 @@ struct GameRootView: View {
         .onChange(of: isIntroOverlayUp) { _, isUp in
             if !isUp, store.isFlyerAvailable { announceFlyerOnce() }
         }
+        .onChange(of: store.flyerHandouts) { _, _ in announceFlyerUse() }
+        .onChange(of: store.flyerDeclines) { _, _ in announceFlyerFull() }
         .onChange(of: store.isFeverReady) { _, isReady in
             guard isReady, !isIntroOverlayUp, !FirstRunHint.fever.isDone else { return }
             FirstRunHint.fever.markDone()
@@ -309,11 +314,24 @@ struct GameRootView: View {
         store.isGiftHeld = false
     }
 
-    /// The first time the button appears on an install, one line says what it does.
+    /// When the button becomes available: once per session, until the player has used it three times.
     private func announceFlyerOnce() {
-        guard !isIntroOverlayUp, !FirstRunHint.flyer.isDone else { return }
-        FirstRunHint.flyer.markDone()
+        guard !isIntroOverlayUp, !didShowFlyerHint, flyerUses < FirstRunHint.flyerHintLimit else { return }
+        didShowFlyerHint = true
         let text = String(localized: "dot.flyer.hint")
+        showToast(text, announcement: text)
+    }
+
+    private func announceFlyerUse() {
+        flyerUses += 1
+        guard flyerUses <= FirstRunHint.flyerHintLimit else { return }
+        let text = String(localized: "dot.flyer.used")
+        showToast(text, announcement: text)
+    }
+
+    private func announceFlyerFull() {
+        guard flyerFullGate.fire(now: Date()) else { return }
+        let text = String(localized: "dot.flyer.full")
         showToast(text, announcement: text)
     }
 
