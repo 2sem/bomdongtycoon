@@ -255,7 +255,7 @@ final class NewSpringTests: XCTestCase {
             "runBaselineFailed", "lastActiveDate",
             "totalGourmetServed", "totalGoldenHarvested", "totalFevers", "totalTipsCollected",
             "totalWagesPaid", "lastWageDay"]
-        let progressReset: Set<String> = ["earningRate", "rating"]
+        let progressReset: Set<String> = ["earningRate", "rating", "lastRenewalPlaySeconds"]
 
         let store = makeReadyStore()
         let before = Mirror(reflecting: store.progress).children.compactMap(\.label)

@@ -110,6 +110,12 @@ extension DotWorldScene {
         if store.claimFeverAdCharge() { DotDebug.qa("event ad fever t=\(timeText(store))") }
         if store.claimBoost() { DotDebug.qa("event ad boost t=\(timeText(store))") }
         if let paid = store.claimGift() { DotDebug.qa("event ad gift +\(Int(paid)) t=\(timeText(store))") }
+        if store.isRenewalAvailable {
+            let before = store.progress.rating
+            if store.renewShop(payment: .ad) {
+                DotDebug.qa(String(format: "event ad renewal %.2f->3.00 t=%@", before, timeText(store)))
+            }
+        }
     }
 
     private func notePurchase(_ store: GameStore) {

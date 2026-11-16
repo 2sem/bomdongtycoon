@@ -12,15 +12,20 @@ public struct HUDView: View {
     let showsBoostChip: Bool
     let boostIsPulsing: Bool
     let onBoostTap: () -> Void
+    let showsRenewalChip: Bool
+    let onRenewalTap: () -> Void
     @EnvironmentObject private var store: GameStore
 
     public init(showUpgrades: Binding<Bool>, showStaff: Binding<Bool>, staffTab: Binding<StaffTab>,
                 showPrestige: Binding<Bool>, showStats: Binding<Bool>,
                 showsBoostChip: Bool = false, boostIsPulsing: Bool = false, onBoostTap: @escaping () -> Void = {},
+                showsRenewalChip: Bool = false, onRenewalTap: @escaping () -> Void = {},
                 onCoinCenterChange: @escaping (CGPoint) -> Void) {
         self.showsBoostChip = showsBoostChip
         self.boostIsPulsing = boostIsPulsing
         self.onBoostTap = onBoostTap
+        self.showsRenewalChip = showsRenewalChip
+        self.onRenewalTap = onRenewalTap
         self._showUpgrades = showUpgrades
         self._showStaff = showStaff
         self._staffTab = staffTab
@@ -35,6 +40,7 @@ public struct HUDView: View {
             HStack(alignment: .center, spacing: 6) {
                 CoinBadge(onCenterChange: onCoinCenterChange).fixedSize()
                 ratingButton
+                if showsRenewalChip, store.isRenewalAvailable { RenewalChip(onTap: onRenewalTap) }
                 LegacyChip()
                 Spacer(minLength: 0)
                 GoalProgressBar(showUpgrades: $showUpgrades, showStaff: $showStaff, staffTab: $staffTab,

@@ -718,6 +718,42 @@ public final class GameStore: ObservableObject {
 
     public static let flyerCooldown: Double = baseIntervalAtThree
 
+    // MARK: - Grand reopening (리뉴얼 오픈)
+
+    private var bestSalePrice: Double {
+        EarningsSystem.salePrice(for: stall, menuIndex: stall.menuTier, prestigeCount: progress.prestigeCount)
+    }
+
+    public var renewalFee: Double { RenewalSystem.fee(bestSalePrice: bestSalePrice) }
+
+    public var renewalCooldownRemaining: Double {
+        guard let last = progress.lastRenewalPlaySeconds else { return 0 }
+        return min(RenewalSystem.cooldown, max(0, RenewalSystem.cooldown - (progress.totalPlaySeconds - last)))
+    }
+
+    public var isRenewalAvailable: Bool {
+        MissionSystem.displayedRating(progress.rating) < RenewalSystem.eligibleBelowRating
+            && renewalCooldownRemaining == 0
+    }
+
+    public var canAffordRenewal: Bool { stall.coins >= renewalFee }
+
+    /// Sets the rating to 3.0 and nothing else but the fee. False, changing nothing, when it is not
+    /// offered or the coins are short. The ad path is the caller's to earn: pass `.ad` once it played.
+    @discardableResult
+    public func renewShop(payment: RenewalSystem.Payment) -> Bool {
+        guard isRenewalAvailable else { return false }
+        if payment == .coins {
+            let fee = renewalFee
+            guard stall.coins >= fee else { return false }
+            stall.coins -= fee
+        }
+        progress.rating = RenewalSystem.resultingRating
+        progress.lastRenewalPlaySeconds = progress.totalPlaySeconds
+        save()
+        return true
+    }
+
     // MARK: - Rewarded placements
 
     private var hasPassedAdGrace: Bool { progress.totalPlaySeconds >= AdBoostSystem.graceSeconds }

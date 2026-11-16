@@ -35,6 +35,8 @@ public struct PlayerProgress: Codable {
     /// The last day (`DayCycle.dayIndex`) whose wages were settled. A save from before wages starts
     /// at its current day, so nobody is back-charged for the play time already behind it.
     public var lastWageDay: Int = 0
+    /// `totalPlaySeconds` at the last grand reopening; nil when there has been none this run.
+    public var lastRenewalPlaySeconds: TimeInterval? = nil
 
     public init() {}
 
@@ -74,5 +76,6 @@ public struct PlayerProgress: Codable {
         totalWagesPaid         = max(0, c.decodeOrDefault(.totalWagesPaid, d.totalWagesPaid))
         lastWageDay            = max(0, c.decodeOrNil(Int.self, forKey: .lastWageDay)
                                     ?? DayCycle.dayIndex(playSeconds: totalPlaySeconds))
+        lastRenewalPlaySeconds = c.decodeOrNil(TimeInterval.self, forKey: .lastRenewalPlaySeconds)
     }
 }

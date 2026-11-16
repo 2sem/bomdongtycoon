@@ -4993,6 +4993,150 @@
           }
         }
       }
+    },
+    "dot.renewal.chip" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reopen"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "리뉴얼"
+          }
+        }
+      }
+    },
+    "dot.renewal.chip.accessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grand reopening, resets the rating to 3.0"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "리뉴얼 오픈, 평점을 3.0으로 되돌려요"
+          }
+        }
+      }
+    },
+    "dot.renewal.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grand Reopening"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "리뉴얼 오픈"
+          }
+        }
+      }
+    },
+    "dot.renewal.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep your shop and crew, and start the rating fresh"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "가게와 직원은 그대로 두고 평점만 새로 시작해요"
+          }
+        }
+      }
+    },
+    "dot.renewal.rating" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rating %@ → %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "평점 %@ → %@"
+          }
+        }
+      }
+    },
+    "dot.renewal.rating.accessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rating goes from %@ to %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "평점이 %@점에서 %@점으로 바뀌어요"
+          }
+        }
+      }
+    },
+    "dot.renewal.coins" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open for %@ coins"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@코인으로 열기"
+          }
+        }
+      }
+    },
+    "dot.renewal.ad" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open with an ad"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "광고 보고 열기"
+          }
+        }
+      }
+    },
+    "dot.renewal.toast" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grand reopening! Rating is back to %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "리뉴얼 오픈! 평점이 %@점으로 돌아왔어요"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
