@@ -1,9 +1,9 @@
 import SpriteKit
 
-/// The 전단지 알바: stands at the left end of the street, waving a flyer, for as long as the shift runs.
+/// The 전단지 알바: stands at the right end of the street, where customers come in from, waving a flyer for as long as the shift runs.
 @MainActor
 final class PartTimerNode: SKNode {
-    private static let x: CGFloat = 8
+    private static let x: CGFloat = 136
     /// Behind the queue row (25) so a queued customer stands in front of the hire, not under it.
     private static let row: CGFloat = 23
     private let sprite = dotSprite("dot_char_flyer_alba_work_0")
