@@ -1122,8 +1122,7 @@ public final class GameStore: ObservableObject {
     /// Base spawn interval in seconds, driven by shop rating (0.5-step tiers).
     /// 1.0=20s  1.5=16s  2.0=12s  2.5=8s  3.0=5s  3.5=3.5s  4.0=2.5s  4.5=1.8s  5.0=1.2s
     public var customerSpawnInterval: Double {
-        SpawnPaceSystem.interval(base: baseSpawnInterval, floor: Self.baseIntervalAtThree, feverActive: isFeverActive,
-                                 rushActive: isRushActive, partTimerActive: isPartTimerActive)
+        SpawnPaceSystem.interval(base: baseSpawnInterval, feverActive: isFeverActive, rushActive: isRushActive)
             * weatherEffect.spawnInterval
     }
 

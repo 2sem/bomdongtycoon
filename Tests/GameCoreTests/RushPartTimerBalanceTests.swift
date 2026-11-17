@@ -1,7 +1,7 @@
 import XCTest
 @testable import GameCore
 
-/// Headless pace model: the director spawns a customer every `customerSpawnInterval`, each one is served
+/// Headless pace model: the director spawns a customer (two while a part-timer works) every `customerSpawnInterval`, each one is served
 /// at once. Compares coins per minute of each boost against a 90 s fever cycle (15 s fever, then normal).
 @MainActor
 final class RushPartTimerBalanceTests: DotWorldTestCase {
@@ -25,9 +25,11 @@ final class RushPartTimerBalanceTests: DotWorldTestCase {
             timer -= dt
             guard timer <= 0 else { continue }
             store.stall.menuStock[0] = 50
-            if store.sellItem(menuIndex: 0) != nil {
+            let arrivals = 1 + (store.isPartTimerActive ? PartTimerSystem.extraCustomers : 0)
+            for _ in 0..<arrivals where store.sellItem(menuIndex: 0) != nil {
                 store.recordServed(waitTime: 1)
                 run.customers += 1
+                store.stall.menuStock[0] = 50
             }
             timer = store.customerSpawnInterval
         }

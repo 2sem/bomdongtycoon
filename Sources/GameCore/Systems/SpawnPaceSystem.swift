@@ -9,7 +9,8 @@ public enum RushSystem {
 /// 전단지 알바: a temporary hire for a shop that is quiet (rating under 3.0). Not a staff member.
 public enum PartTimerSystem {
     public static let shiftDuration: Double = 180
-    public static let spawnIntervalMultiplier: Double = 0.5
+    /// Customers that walk in with each natural arrival while a shift runs: "plus one", like a flyer tap.
+    public static let extraCustomers = 1
     /// Cheap enough for a stuck shop, dear enough that the ad is the better deal.
     public static let feeSales: Double = 10
 
@@ -20,17 +21,13 @@ public enum PartTimerSystem {
     }
 }
 
-/// Fever, the rush and the part-timer never multiply: the strongest (shortest interval) one wins.
+/// Fever and the rush never multiply: the shorter interval wins. The part-timer leaves the interval alone
+/// and brings `PartTimerSystem.extraCustomers` more customers with every arrival.
 public enum SpawnPaceSystem {
-    /// `floor` is the 3.0 shop's interval: the part-timer alone never makes a shop busier than that.
-    public static func interval(base: Double, floor: Double, feverActive: Bool, rushActive: Bool,
-                                partTimerActive: Bool) -> Double {
+    public static func interval(base: Double, feverActive: Bool, rushActive: Bool) -> Double {
         var best = base
         if feverActive { best = min(best, base * FeverSystem.spawnIntervalMultiplier) }
         if rushActive { best = min(best, base * RushSystem.spawnIntervalMultiplier) }
-        if partTimerActive {
-            best = min(best, min(base, max(base * PartTimerSystem.spawnIntervalMultiplier, floor)))
-        }
         return best
     }
 }

@@ -187,21 +187,18 @@ final class RushPartTimerTests: DotWorldTestCase {
         XCTAssertTrue(loaded.isPartTimerActive)
     }
 
-    func test_partTimer_speedsUpASparseShop_butNotPastTheThreePointZeroPace() {
-        quietShop(rating: 1.2)   // 20 s
-        XCTAssertEqual(store.customerSpawnInterval, 20)
+    func test_partTimer_leavesTheSpawnIntervalAlone() {
+        quietShop(rating: 1.2)
+        let calm = store.customerSpawnInterval
         store.hirePartTimer(payment: .ad)
-        XCTAssertEqual(store.customerSpawnInterval, 10, accuracy: 1e-9)
-        store.progress.partTimerEndsAtPlaySeconds = nil
-        store.progress.rating = 2.7   // 8 s: x0.5 = 4 s, held at the 5 s three-star pace
-        store.hirePartTimer(payment: .ad)
-        XCTAssertEqual(store.customerSpawnInterval, 5, accuracy: 1e-9)
+        XCTAssertEqual(store.customerSpawnInterval, calm)
+        XCTAssertEqual(PartTimerSystem.extraCustomers, 1)
     }
 
     // MARK: Stacking
 
-    private func pace(base: Double = 16, fever: Bool = false, rush: Bool = false, partTimer: Bool = false) -> Double {
-        SpawnPaceSystem.interval(base: base, floor: 5, feverActive: fever, rushActive: rush, partTimerActive: partTimer)
+    private func pace(base: Double = 16, fever: Bool = false, rush: Bool = false) -> Double {
+        SpawnPaceSystem.interval(base: base, feverActive: fever, rushActive: rush)
     }
 
     func test_stacking_noBoostLeavesTheBase() {
@@ -211,27 +208,20 @@ final class RushPartTimerTests: DotWorldTestCase {
     func test_stacking_eachAloneUsesItsOwnMultiplier() {
         XCTAssertEqual(pace(fever: true), 16 * 0.35, accuracy: 1e-9)
         XCTAssertEqual(pace(rush: true), 16 * 0.6, accuracy: 1e-9)
-        XCTAssertEqual(pace(partTimer: true), 16 * 0.5, accuracy: 1e-9)
     }
 
     func test_stacking_strongestWins_neverMultiplied() {
-        XCTAssertEqual(pace(fever: true, rush: true, partTimer: true), 16 * 0.35, accuracy: 1e-9)
-        XCTAssertEqual(pace(rush: true, partTimer: true), 16 * 0.5, accuracy: 1e-9)
-        XCTAssertEqual(pace(fever: true, partTimer: true), 16 * 0.35, accuracy: 1e-9)
+        XCTAssertEqual(pace(fever: true, rush: true), 16 * 0.35, accuracy: 1e-9)
         XCTAssertGreaterThan(pace(fever: true, rush: true), 16 * 0.35 * 0.6)
     }
 
-    func test_stacking_partTimerFloorsAtTheThreePointZeroPace_andNeverSlowsAFastShop() {
-        XCTAssertEqual(pace(base: 6, partTimer: true), 5, accuracy: 1e-9)   // 3 -> 5
-        XCTAssertEqual(pace(base: 3.5, partTimer: true), 3.5, accuracy: 1e-9)   // already faster
-    }
-
-    func test_stacking_inTheStore_feverBeatsARunningRushAndShift() {
+    func test_stacking_inTheStore_feverBeatsARunningRush_andTheShiftChangesNothing() {
         chargeFever()
         quietShop(rating: 2.0)
         store.hirePartTimer(payment: .ad)
+        XCTAssertEqual(store.customerSpawnInterval, 12, accuracy: 1e-9)
         store.progress.rushEndsAtPlaySeconds = store.progress.totalPlaySeconds + 100
-        XCTAssertEqual(store.customerSpawnInterval, 12 * 0.5, accuracy: 1e-9)
+        XCTAssertEqual(store.customerSpawnInterval, 12 * 0.6, accuracy: 1e-9)
         store.startFever()
         XCTAssertEqual(store.customerSpawnInterval, 12 * 0.35, accuracy: 1e-9)
     }
