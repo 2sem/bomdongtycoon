@@ -49,6 +49,7 @@ public struct HUDView: View {
             HStack(alignment: .top, spacing: 6) {
                 ShopStatusStrip()
                 WeatherChip().fixedSize()
+                RushChip()
                 if showsBoostChip {
                     BoostChip(isPulsing: boostIsPulsing, onTap: onBoostTap).fixedSize()
                 }

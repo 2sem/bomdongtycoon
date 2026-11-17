@@ -65,6 +65,7 @@ final class DotWorldScene: SKScene {
     private var yard: YardNode?
     var farm: FarmNode?
     private var director: CustomerDirector?
+    private var partTimer: PartTimerNode?
     private var fx: FXLayer?
     var tipLayer: TipLayer?
     #if DEBUG
@@ -148,6 +149,8 @@ final class DotWorldScene: SKScene {
         let farm = FarmNode(layout: layout)
         let decor = GrassDecorNode(layout: layout)
         let director = CustomerDirector(street: street, layout: layout)
+        let partTimer = PartTimerNode()
+        street.addChild(partTimer)
         director.isHeld = isStorefrontHeld
         director.onServed = { [weak self] in self?.customerServed($0) }
         director.onFailed = { [weak self] point in
@@ -181,7 +184,7 @@ final class DotWorldScene: SKScene {
         hintArrow = hint
         tipLayer = tips
         self.fx = fx; self.backdrop = backdrop; groundNode = ground; self.shop = shop
-        self.yard = yard; self.farm = farm; self.director = director; self.weatherFX = weatherFX
+        self.yard = yard; self.farm = farm; self.director = director; self.partTimer = partTimer; self.weatherFX = weatherFX
         self.tint = tint; feverGlow = glow
     }
 
@@ -245,6 +248,8 @@ final class DotWorldScene: SKScene {
         let progress = DotDebug.dayProgress ?? DayCycle.progress(playSeconds: store.progress.totalPlaySeconds)
         let look = DayLook.at(progress: progress)
         backdrop.update(delta: delta, progress: progress, look: look, reduceMotion: reduce)
+
+        partTimer?.setActive(store.isPartTimerActive, animated: !reduce)
 
         let weather = store.weather
         if weather != lastWeather, let cue = Self.startSound(weather) { sound.play(cue) }
