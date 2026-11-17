@@ -53,6 +53,8 @@ final class ShopNode: BandNode {
         var stallTier = 0, menuTier = 0, cashierCount = 0, cashierTier = 0
         var cooks: [Int] = [], stock: [Int] = [], cooking: [Bool] = [], resting: [Bool] = [], barPx: [Int] = []
         var cashierResting = false, cashierWorking = false, fever = false
+        /// Whole coins waiting on the till, 0 while a cashier banks sales herself.
+        var pile = 0
     }
 
     @MainActor
@@ -77,6 +79,11 @@ final class ShopNode: BandNode {
     private let cashier = StaffFigure()
     private var slots: [DishSlot] = []
     private var flames: [SKSpriteNode] = []
+    /// Uncollected takings on the till: three coins and the amount. Tapped to bank them.
+    private let pile = SKNode()
+    private let pileCoin = dotSprite("dot_fx_coin_0", anchor: .pixel(4, 4))
+    private let pileLabel = PixelLabel(style: .tiny, alignment: .center)
+    private var pileReduceMotion: Bool?
     private var last: Snapshot?
     private var lastStock: [Int]?
 
@@ -97,6 +104,22 @@ final class ShopNode: BandNode {
         let dishLayer = SKNode(); dishLayer.zPosition = 3; addChild(dishLayer)
         let barLayer = SKNode(); barLayer.zPosition = 4; addChild(barLayer)
         let flameLayer = SKNode(); flameLayer.zPosition = 5; addChild(flameLayer)
+
+        let pileLayer = SKNode(); pileLayer.zPosition = 6; addChild(pileLayer)
+        pile.position = feetPoint(Self.tillPoint.x, Self.tillPoint.y)
+        for (dx, dy) in [(-3, 0), (3, 0), (0, 2)] as [(CGFloat, CGFloat)] {
+            let coin = dotSprite("dot_fx_coin_0", anchor: .pixel(4, 4))
+            coin.position = CGPoint(x: dx, y: dy)
+            pile.addChild(coin)
+        }
+        pileCoin.position = CGPoint(x: 0, y: 5)
+        pile.addChild(pileCoin)
+        pile.isHidden = true
+        pileLayer.addChild(pile)
+        // Over the day tint like the stock counts, so the amount stays readable at night.
+        pileLabel.position = rootPoint(Self.tillPoint.x, Self.tillPoint.y - 12)
+        pileLabel.isHidden = true
+        labelLayer.addChild(pileLabel)
 
         staffLayer.addChild(cashier)
         cashier.position = feetPoint(Self.cashierSlot.x, Self.cashierSlot.y)
@@ -159,6 +182,14 @@ final class ShopNode: BandNode {
         return Self.dishX.firstIndex { abs(p.x - $0) <= 15 }
     }
 
+    /// True when `p` (band-local art px) is on the takings pile. Always false while the pile is hidden.
+    func hitPile(atLocal p: CGPoint) -> Bool {
+        !pile.isHidden && abs(p.x - Self.tillPoint.x) <= 8 && p.y >= Self.tillPoint.y - 16 && p.y <= Self.tillPoint.y + 6
+    }
+
+    /// Where the pile lies, root space: the origin of the coins that fly to the HUD when it is tapped.
+    var pileRootPoint: CGPoint { tillRootPoint }
+
     /// The post a tap at `p` (band-local art px) lands on: a cook's or the cashier's figure. The caller
     /// decides whether that worker is asleep, so the tap can hurry the nap.
     func workerTarget(atLocal p: CGPoint) -> GameStore.WorkerTarget? {
@@ -213,6 +244,7 @@ final class ShopNode: BandNode {
             for i in snapshot.stock.indices where snapshot.stock[i] > previous[i] { finished.append(i) }
         }
         lastStock = snapshot.stock
+        applyPile(snapshot.pile, reduceMotion: reduceMotion)
         guard snapshot != last else { return finished }
         let tierChanged = last?.stallTier != snapshot.stallTier
         let nameChanged = tierChanged || last?.shopName != snapshot.shopName
@@ -258,6 +290,21 @@ final class ShopNode: BandNode {
         return finished
     }
 
+    private func applyPile(_ amount: Int, reduceMotion: Bool) {
+        let shown = amount > 0
+        pile.isHidden = !shown
+        pileLabel.isHidden = !shown
+        guard shown else { return }
+        pileLabel.text = CoinFormat.string(Double(amount))
+        guard pileReduceMotion != reduceMotion else { return }
+        pileReduceMotion = reduceMotion
+        pileCoin.removeAllActions()
+        guard !reduceMotion else { return }
+        pileCoin.run(.repeatForever(.animate(with: DotTexture.frames("dot_fx_coin", count: 4),
+                                             timePerFrame: 0.12, resize: false, restore: false)))
+        pileCoin.run(.repeatForever(.sequence([.moveBy(x: 0, y: 1, duration: 0.35), .moveBy(x: 0, y: -1, duration: 0.35)])))
+    }
+
     private func placeName(_ name: String, tier: Int) {
         let board = Self.nameBoards[tier]
         let fit = Self.fitName(name, in: board.size)
@@ -284,6 +331,7 @@ final class ShopNode: BandNode {
         s.fever = store.isFeverActive
         s.cashierResting = store.isResting(.cashier)
         s.cashierWorking = store.cashierRecentlySold
+        s.pile = store.autoCollectsCoins || stall.pendingCoins <= 0 ? 0 : max(1, Int(stall.pendingCoins.rounded()))
         for i in 0..<3 {
             s.cooks.append(stall.menuCooks[i])
             s.stock.append(stall.menuStock[i])

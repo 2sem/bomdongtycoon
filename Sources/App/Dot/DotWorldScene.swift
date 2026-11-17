@@ -419,8 +419,11 @@ final class DotWorldScene: SKScene {
             tipLayer?.drop(at: event.footPoint, amount: GameStore.tipAmount(forSale: event.price, isGourmet: event.isGourmet),
                            reduceMotion: reduceMotion)
         }
-        fx.flyCoins(from: shop.tillRootPoint, to: layout.rootPoint(fromScene: coinTargetScenePoint),
-                    count: event.isGourmet ? 6 : 3)
+        // Without an auto-collecting cashier the coins stay on the till for the player to tap.
+        if store?.autoCollectsCoins == true {
+            fx.flyCoins(from: shop.tillRootPoint, to: layout.rootPoint(fromScene: coinTargetScenePoint),
+                        count: event.isGourmet ? 6 : 3)
+        }
         sound.play(.coin)
     }
 
@@ -517,6 +520,20 @@ final class DotWorldScene: SKScene {
             fx?.lightHaptic()
             NotificationCenter.default.post(name: .requestExpandWarehouse, object: nil)
         }
+    }
+
+    /// Banks the takings piled on the till (no cashier, or she is asleep).
+    func collectPile(store: GameStore, layout: DotWorldLayout) {
+        guard let fx, let shop, store.stall.pendingCoins > 0 else { return }
+        DotDebug.tapLog("pile ok")
+        let amount = store.stall.pendingCoins
+        store.collectCoins()
+        fx.sparkle(at: shop.pileRootPoint)
+        fx.pop("+\(CoinFormat.string(amount))", at: CGPoint(x: shop.pileRootPoint.x, y: shop.pileRootPoint.y + 6),
+               color: SKColor(hex: 0xf4b93a), rise: 10)
+        fx.flyCoins(from: shop.pileRootPoint, to: layout.rootPoint(fromScene: coinTargetScenePoint), count: 4)
+        fx.lightHaptic()
+        sound.play(.coin)
     }
 
     func collectTip(_ tip: (amount: Double, point: CGPoint), store: GameStore, layout: DotWorldLayout) {

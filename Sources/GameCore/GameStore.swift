@@ -434,9 +434,10 @@ public final class GameStore: ObservableObject {
             settleManualCook(menuIndex: menuIndex)
         }
 
-        // pendingCoins always pays out immediately, cashier or not: the tap-a-bubble
-        // collect was removed, and a hired cashier must never collect slower than none.
-        if stall.pendingCoins > 0 {
+        // A working cashier banks every sale on the next tick. Without one (none hired, or she is
+        // asleep) sales pile up in `pendingCoins` until the player taps the till; hiring or waking
+        // her flushes the pile here on the following tick, so nothing is ever stranded.
+        if autoCollectsCoins, stall.pendingCoins > 0 {
             collectCoins()
         }
 
@@ -535,6 +536,9 @@ public final class GameStore: ObservableObject {
     public var cashierRecentlySold: Bool { transients.cashierBusyRemaining > 0 }
 
     // MARK: - Collect
+
+    /// True while a hired, awake cashier banks sales by herself; otherwise the player taps the till.
+    public var autoCollectsCoins: Bool { stall.cashierCount > 0 && !stall.cashierResting }
 
     public func collectCoins() {
         stall.coins += stall.pendingCoins
