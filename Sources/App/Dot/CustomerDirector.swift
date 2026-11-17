@@ -89,6 +89,9 @@ final class CustomerDirector {
         guard store.progress.isShopNameSet, !store.isSimulationPaused else { return }
         if store.hasFlyerRequest { answerFlyer(store: store, isFever: isFever) }
         if !isSpawningPaused, !isHeld {
+            // The timer was rolled at the last spawn; a boost that starts mid-wait (fever, rush, the
+            // part-timer) must not sit behind that old, longer wait.
+            spawnTimer = min(spawnTimer, store.customerSpawnInterval * 1.1)
             spawnTimer -= delta
             if spawnTimer <= 0 { trySpawn(store: store, isFever: isFever) }
         }
@@ -106,6 +109,12 @@ final class CustomerDirector {
     private func trySpawn(store: GameStore, isFever: Bool) {
         guard hasRoom(isFever: isFever) else { spawnTimer = 1; return }
         spawn(store: store)
+        // The 전단지 알바 brings one more along with every natural arrival, like a flyer tap does.
+        if store.isPartTimerActive {
+            for extra in 1...max(1, PartTimerSystem.extraCustomers) where hasRoom(isFever: isFever) {
+                spawn(store: store, entryOffset: CGFloat(extra) * 14)
+            }
+        }
     }
 
     /// A flyer tap brings one customer in now and restarts the natural timer (`spawn` does), so the
@@ -116,7 +125,8 @@ final class CustomerDirector {
         spawn(store: store)
     }
 
-    private func spawn(store: GameStore) {
+    /// `entryOffset` puts a companion a little behind the first customer, so they do not walk in as one sprite.
+    private func spawn(store: GameStore, entryOffset: CGFloat = 0) {
         let menu = store.rollOrderedMenu()
         let isGourmet = store.rollGourmet()
         let base = isGourmet ? "gourmet" : (Self.looks.randomElement() ?? "man")
@@ -124,7 +134,7 @@ final class CustomerDirector {
         let node = CustomerNode(look: look, wantedDish: "dot_dish_\(Self.dishNames[menu])")
         let held = Set(sessions.map(\.slot))
         let slot = Self.slotOrder.first { !held.contains($0) } ?? 0
-        let start = CGPoint(x: rightEntry, y: Self.laneRow)
+        let start = CGPoint(x: rightEntry + entryOffset, y: Self.laneRow)
         let session = Session(node: node, slot: slot, menu: menu, isGourmet: isGourmet, position: start,
                               path: [CGPoint(x: Self.slotX[slot], y: Self.laneRow),
                                      CGPoint(x: Self.slotX[slot], y: Self.queueRow)])

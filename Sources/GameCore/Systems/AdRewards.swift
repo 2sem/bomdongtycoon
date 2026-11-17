@@ -2,7 +2,7 @@ import Foundation
 
 /// One rewarded ad surface. Each has its own ad unit so reporting is per placement.
 public enum AdPlacement: String, CaseIterable, Codable, Sendable {
-    case offline, fever, mission, boost, gift, renewal
+    case offline, fever, mission, boost, gift, renewal, partTimer
 }
 
 /// Which rewarded prompt may animate: never more than one at a time, the most urgent first.

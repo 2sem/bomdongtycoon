@@ -352,6 +352,10 @@ def _tool(s, tool, hx, hy, up):
             s.vline(hx, hy - 6, 10, "soil_light")
             s.px(hx, hy, "skin")
             s.hline(hx, hy + 4, 2, "grey_light"), s.px(hx + 1, hy + 5, "grey")
+    elif tool == "flyer":
+        s.rect(hx, hy - 4, 3, 4, "paper")
+        s.hline(hx, hy - 3, 3, "red")
+        s.px(hx + 1, hy - 1, "grey_light")
     elif tool == "tray":
         y = hy - 1 if up else hy + 1
         s.hline(hx - 1, y, 3, "grey_light")
@@ -385,6 +389,9 @@ STAFF = {
                  pants="grey_dark", scarf="red", buttons="grey", tool="ladle"),
     "farmer": dict(skin=SKIN, hair="soil_dark", style="short", hat="straw", shirt="cream",
                    pants="blue", apron="blue", shoes="soil_dark", tool="hoe"),
+    # The 전단지 알바: a temporary hire shown in front of the shop, waving a flyer (work_0/1).
+    "flyer_alba": dict(skin=SKIN, hair="soil_dark", style="short", hat="cap", hat_colour="gold",
+                       shirt="sky", pants="navy", sleeve="short", tool="flyer"),
     "veteran_alba": dict(skin=SKIN, hair="ink", style="part", hat="headband",
                          hat_colour="red", shirt="grey_dark", pants="ink", apron="leaf_dark",
                          sleeve="short", tool="ladle"),

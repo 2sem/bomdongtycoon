@@ -5185,6 +5185,198 @@
           }
         }
       }
+    },
+    "dot.partTimer.chip" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flyer helper"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전단지 알바"
+          }
+        }
+      }
+    },
+    "dot.partTimer.chip.accessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hire a flyer part-timer to bring in more customers"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전단지 알바를 고용해 손님을 더 불러요"
+          }
+        }
+      }
+    },
+    "dot.partTimer.active" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Helper +1 %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "알바 +1 %@"
+          }
+        }
+      }
+    },
+    "dot.partTimer.active.accessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flyer part-timer on shift, %@ left"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전단지 알바 근무 중, %@ 남음"
+          }
+        }
+      }
+    },
+    "dot.partTimer.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flyer Part-timer"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전단지 알바"
+          }
+        }
+      }
+    },
+    "dot.partTimer.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hands out flyers for %d minutes: one extra customer comes with every arrival"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d분 동안 전단지를 돌려서 손님이 올 때마다 한 명씩 더 와요"
+          }
+        }
+      }
+    },
+    "dot.partTimer.coins" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hire for %@ coins"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@코인으로 고용"
+          }
+        }
+      }
+    },
+    "dot.partTimer.ad" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hire with an ad"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "광고 보고 고용"
+          }
+        }
+      }
+    },
+    "dot.partTimer.toast" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flyer part-timer is in! One extra customer each time"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전단지 알바 출근! 손님이 한 명씩 더 와요"
+          }
+        }
+      }
+    },
+    "dot.rush.chip" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rush %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "단장 %@"
+          }
+        }
+      }
+    },
+    "dot.rush.accessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renovation rush, %@ left"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "단장 손님 러시, %@ 남음"
+          }
+        }
+      }
+    },
+    "dot.rush.toast" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renovated! Customers rush in for %d minutes"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "가게 단장! %d분 동안 손님이 몰려요"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

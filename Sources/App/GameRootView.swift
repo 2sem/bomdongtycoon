@@ -21,6 +21,7 @@ struct GameRootView: View {
     @State private var showGiftOffer = false
     @State private var showFeverOffer = false
     @State private var showRenewalOffer = false
+    @State private var showPartTimerOffer = false
     @State private var showMissionPointer = false
     @State private var missionToastGate = CooldownGate(interval: 30)
     @State private var flyerFullGate = CooldownGate(interval: 8)
@@ -66,6 +67,13 @@ struct GameRootView: View {
                 // Fixed height: the charging, ready and active forms differ by a point, and the scene
                 // rebuilds the whole world (customers, tips, pops) whenever the bottom inset moves.
                 .frame(height: FeverButton.slotHeight, alignment: .bottom)
+                // Floats above the flyer button, outside the fixed slot, so it never moves the scene's inset.
+                .overlay(alignment: .topLeading) {
+                    if !isIntroOverlayUp {
+                        PartTimerChip { showPartTimerOffer = true }
+                            .offset(x: 8, y: -(FeverButton.slotHeight - 36))
+                    }
+                }
                 .padding(.horizontal, 8)
                 .padding(.bottom, 8)
                 DotTabBar(
@@ -162,6 +170,11 @@ struct GameRootView: View {
         .onChange(of: store.isRenewalAvailable) { _, isAvailable in
             if !isAvailable { showRenewalOffer = false }
         }
+        .onChange(of: store.isPartTimerAvailable) { _, isAvailable in
+            if !isAvailable { showPartTimerOffer = false }
+        }
+        .onChange(of: store.partTimerHires) { _, _ in announcePartTimer() }
+        .onChange(of: store.rushStarts) { _, _ in announceRush() }
         .onReceive(NotificationCenter.default.publisher(for: .goldenPlotRipened)) { _ in
             showGoldenToast()
         }
@@ -222,7 +235,7 @@ struct GameRootView: View {
 
     private var isStorefrontHeld: Bool {
         showUpgrades || showStaff || showStats || showPrestige || showMissions || isAlertUp
-            || showBoostOffer || showGiftOffer || showFeverOffer || showRenewalOffer
+            || showBoostOffer || showGiftOffer || showFeverOffer || showRenewalOffer || showPartTimerOffer
     }
 
     // MARK: Rewarded offers
@@ -230,7 +243,8 @@ struct GameRootView: View {
     /// The one rewarded prompt allowed to animate: the crate first (it animates in the scene), then the
     /// boost chip, then the fever recharge.
     private var pulsingSurface: AdPromptSurface? {
-        guard !isIntroOverlayUp, !showBoostOffer, !showGiftOffer, !showFeverOffer, !showRenewalOffer else { return nil }
+        guard !isIntroOverlayUp, !showBoostOffer, !showGiftOffer, !showFeverOffer, !showRenewalOffer,
+              !showPartTimerOffer else { return nil }
         return AdPromptSurface.active(
             giftPresent: store.isGiftPresent,
             boostAvailable: store.isBoostAvailable && ads.isReady(.boost),
@@ -283,6 +297,15 @@ struct GameRootView: View {
                 onClose: { showRenewalOffer = false })
                 .onAppear { ads.prepare(.renewal) }
         }
+        if showPartTimerOffer, store.isPartTimerAvailable {
+            PartTimerDialog(
+                isAdAvailable: ads.isAvailable,
+                isAdReady: ads.isReady(.partTimer),
+                onPayCoins: { _ = store.hirePartTimer(payment: .coins) },
+                onWatchAd: { ads.watch(.partTimer) { _ = store.hirePartTimer(payment: .ad) } },
+                onClose: { showPartTimerOffer = false })
+                .onAppear { ads.prepare(.partTimer) }
+        }
         if showGiftOffer {
             AdOfferDialog(
                 title: String(localized: "dot.gift.title"),
@@ -306,6 +329,19 @@ struct GameRootView: View {
         DotSound.shared.play(.purchase)
         let text = String(format: String(localized: "dot.renewal.toast"),
                           String(format: "%.1f", RenewalSystem.resultingRating))
+        showToast(text, announcement: text)
+    }
+
+    private func announcePartTimer() {
+        showPartTimerOffer = false
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        DotSound.shared.play(.purchase)
+        let text = String(localized: "dot.partTimer.toast")
+        showToast(text, announcement: text)
+    }
+
+    private func announceRush() {
+        let text = String(format: String(localized: "dot.rush.toast"), Int(RushSystem.duration / 60))
         showToast(text, announcement: text)
     }
 
