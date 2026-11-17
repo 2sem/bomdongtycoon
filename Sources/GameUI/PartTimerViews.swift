@@ -23,10 +23,13 @@ public struct PartTimerChip: View {
                 .accessibilityLabel(String(format: String(localized: "dot.partTimer.active.accessibility"), time))
         } else if store.isPartTimerAvailable {
             Button(action: onTap) {
-                label(String(localized: "dot.partTimer.chip"), color: DotPalette.goldLight)
-                    .contentShape(Rectangle())
+                HStack(spacing: 4) {
+                    DotImage("dot_ui_flyer", scale: 1)
+                    Text(String(localized: "dot.partTimer.chip")).lineLimit(1)
+                }
+                .fixedSize()
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.dotCompact)
             .accessibilityLabel(String(localized: "dot.partTimer.chip.accessibility"))
         }
     }
