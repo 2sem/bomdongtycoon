@@ -504,6 +504,8 @@ final class DotWorldScene: SKScene {
         let p = layout.rootPoint(fromScene: scenePoint)
         if let tip = tipLayer?.collect(at: p) {
             collectTip(tip, store: store, layout: layout)
+        } else if shop.hitPile(atLocal: shop.local(fromRoot: p)) {
+            collectPile(store: store, layout: layout)
         } else if let hit = farm.hit(local: farm.local(fromRoot: p), plotCount: store.farm.plots.count, canAdd: canAddPlot(store)) {
             handleFarmTap(hit, store: store)
         } else if let target = shop.workerTarget(atLocal: shop.local(fromRoot: p)),
