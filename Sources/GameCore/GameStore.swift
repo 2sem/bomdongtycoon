@@ -749,6 +749,59 @@ public final class GameStore: ObservableObject {
 
     public static let flyerCooldown: Double = baseIntervalAtThree
 
+    // MARK: - Renovation rush (가게 단장)
+
+    public var rushRemaining: Double { Self.remaining(until: progress.rushEndsAtPlaySeconds, now: progress.totalPlaySeconds) }
+    public var isRushActive: Bool { rushRemaining > 0 }
+    /// Rushes started since launch. The UI toasts on the change.
+    @Published public private(set) var rushStarts = 0
+
+    private static func remaining(until end: TimeInterval?, now: TimeInterval) -> Double {
+        max(0, (end ?? 0) - now)
+    }
+
+    /// A renovation lifts the rating to the recovery floor and opens a rush; buying again restarts it
+    /// rather than stacking. Saves.
+    private func startRush() {
+        progress.rating = max(progress.rating, Self.ratingRecoveryFloor)
+        progress.bestRating = max(progress.bestRating, progress.rating)
+        progress.rushEndsAtPlaySeconds = progress.totalPlaySeconds + RushSystem.duration
+        rushStarts += 1
+        save()
+    }
+
+    // MARK: - Flyer part-timer (전단지 알바)
+
+    public var partTimerRemaining: Double {
+        Self.remaining(until: progress.partTimerEndsAtPlaySeconds, now: progress.totalPlaySeconds)
+    }
+    public var isPartTimerActive: Bool { partTimerRemaining > 0 }
+    @Published public private(set) var partTimerHires = 0
+
+    /// Same rule as the flyer button, so a shop that is doing fine cannot farm it; one at a time.
+    public var isPartTimerAvailable: Bool {
+        isFlyerAvailable && !isPartTimerActive
+    }
+
+    public var partTimerFee: Double { PartTimerSystem.fee(bestSalePrice: bestSalePrice) }
+    public var canAffordPartTimer: Bool { stall.coins >= partTimerFee }
+
+    /// False, changing nothing, when not offered or the coins are short. The ad path is the caller's
+    /// to earn: pass `.ad` once it played.
+    @discardableResult
+    public func hirePartTimer(payment: PartTimerSystem.Payment) -> Bool {
+        guard isPartTimerAvailable else { return false }
+        if payment == .coins {
+            let fee = partTimerFee
+            guard stall.coins >= fee else { return false }
+            stall.coins -= fee
+        }
+        progress.partTimerEndsAtPlaySeconds = progress.totalPlaySeconds + PartTimerSystem.shiftDuration
+        partTimerHires += 1
+        save()
+        return true
+    }
+
     // MARK: - Grand reopening (리뉴얼 오픈)
 
     private var bestSalePrice: Double {
@@ -1069,7 +1122,9 @@ public final class GameStore: ObservableObject {
     /// Base spawn interval in seconds, driven by shop rating (0.5-step tiers).
     /// 1.0=20s  1.5=16s  2.0=12s  2.5=8s  3.0=5s  3.5=3.5s  4.0=2.5s  4.5=1.8s  5.0=1.2s
     public var customerSpawnInterval: Double {
-        baseSpawnInterval * (isFeverActive ? FeverSystem.spawnIntervalMultiplier : 1) * weatherEffect.spawnInterval
+        SpawnPaceSystem.interval(base: baseSpawnInterval, floor: Self.baseIntervalAtThree, feverActive: isFeverActive,
+                                 rushActive: isRushActive, partTimerActive: isPartTimerActive)
+            * weatherEffect.spawnInterval
     }
 
     /// The spawn interval of a 3.0 shop. The flyer's cooldown is this same number: a flyer tap must
@@ -1838,6 +1893,8 @@ public final class GameStore: ObservableObject {
             guard let cost = RenovationSystem.nextCost(for: stall), stall.coins >= cost else { return }
             stall.coins -= cost
             stall.renovationLevel += 1
+            startRush()
+            return
         }
         save()
     }

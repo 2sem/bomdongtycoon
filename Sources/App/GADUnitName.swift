@@ -19,7 +19,7 @@ extension AdPlacement {
         case .mission: .missionReward
         case .boost: .boostReward
         // A dedicated renewal ad unit id is pending; it shares the gift unit until then.
-        case .gift, .renewal: .giftReward
+        case .gift, .renewal, .partTimer: .giftReward
         }
     }
 }

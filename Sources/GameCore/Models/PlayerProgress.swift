@@ -37,6 +37,9 @@ public struct PlayerProgress: Codable {
     public var lastWageDay: Int = 0
     /// `totalPlaySeconds` at the last grand reopening; nil when there has been none this run.
     public var lastRenewalPlaySeconds: TimeInterval? = nil
+    /// `totalPlaySeconds` at which the renovation rush / the flyer part-timer's shift ends; nil when none.
+    public var rushEndsAtPlaySeconds: TimeInterval? = nil
+    public var partTimerEndsAtPlaySeconds: TimeInterval? = nil
 
     public init() {}
 
@@ -77,5 +80,7 @@ public struct PlayerProgress: Codable {
         lastWageDay            = max(0, c.decodeOrNil(Int.self, forKey: .lastWageDay)
                                     ?? DayCycle.dayIndex(playSeconds: totalPlaySeconds))
         lastRenewalPlaySeconds = c.decodeOrNil(TimeInterval.self, forKey: .lastRenewalPlaySeconds)
+        rushEndsAtPlaySeconds = c.decodeOrNil(TimeInterval.self, forKey: .rushEndsAtPlaySeconds)
+        partTimerEndsAtPlaySeconds = c.decodeOrNil(TimeInterval.self, forKey: .partTimerEndsAtPlaySeconds)
     }
 }
