@@ -211,12 +211,38 @@ final class SpringRecoveryTests: XCTestCase {
         }
     }
 
+    /// The store reads today's date to roll missions, and the starting farm alba harvests on her own
+    /// during idle ticks, so a real clock makes the missions blob (`GameStore.SaveBlob.missions`) appear or not
+    /// depending on the day. Pinned dates: 2026-11-14 rolls no harvest or cook mission, 2026-11-16 rolls both.
+    private func idleStore(on date: Date, defaults: UserDefaults) -> GameStore {
+        let script = ScriptedRandom()
+        return GameStore(defaults: defaults,
+                         random: { script.next() },
+                         now: { date },
+                         calendar: DotWorldTestSupport.calendar())
+    }
+
     func test_idleTicks_writeCountUnchanged() {
-        let store = GameStore(defaults: defaults)
-        let start = defaults.writeCount
-        for _ in 0..<600 { store.tick(deltaTime: 0.1) }
-        XCTAssertFalse(defaults.writtenKeys.contains(GameStore.springInFlightKey))
-        XCTAssertFalse(defaults.writtenKeys.contains(GameStore.preRestartSnapshotKey))
-        XCTAssertEqual(defaults.writeCount - start, 33, "same as before the spring marker existed")
+        let coreKeys = [GameStore.SaveBlob.stall, .farm, .progress].map(\.key)
+        for (label, date) in [("no harvest mission", DotWorldTestSupport.date(2026, 11, 14)),
+                              ("harvest mission", DotWorldTestSupport.date(2026, 11, 16))] {
+            let name = "\(suiteName!).idle.\(label)"
+            let d = KillableDefaults(suiteName: name)!
+            defer { UserDefaults.standard.removePersistentDomain(forName: name) }
+            let store = idleStore(on: date, defaults: d)
+            let start = d.writtenKeys.count
+            for _ in 0..<600 { store.tick(deltaTime: 0.1) }
+            let written = Array(d.writtenKeys[start...])
+
+            XCTAssertFalse(written.contains(GameStore.springInFlightKey), label)
+            XCTAssertFalse(written.contains(GameStore.preRestartSnapshotKey), label)
+            for key in coreKeys {
+                XCTAssertEqual(written.filter { $0 == key }.count, 11,
+                               "same as before the spring marker existed: \(key), \(label)")
+            }
+            // Mission progress is the only other thing a tick may save, and how often depends on the day.
+            let others = Set(written).subtracting(coreKeys)
+            XCTAssertTrue(others.isSubset(of: [GameStore.SaveBlob.missions.key]), "\(others) \(label)")
+        }
     }
 }
