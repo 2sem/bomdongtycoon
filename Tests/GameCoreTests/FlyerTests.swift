@@ -4,19 +4,20 @@ import XCTest
 @MainActor
 final class FlyerTests: DotWorldTestCase {
 
-    func test_unavailable_atThreeAndAbove() {
+    func test_availableAtAnyRating_andAcceptsATap() {
         for rating in [3.0, 3.01, 4.2] {
             store.progress.rating = rating
-            XCTAssertFalse(store.isFlyerAvailable)
-            XCTAssertFalse(store.requestFlyer())
+            XCTAssertTrue(store.isFlyerAvailable)
+            XCTAssertTrue(store.requestFlyer())
+            store.declineFlyer()
         }
     }
 
-    func test_availability_followsTheDisplayedRating() {
+    func test_shopQuiet_followsTheDisplayedRating() {
         store.progress.rating = 2.96   // the HUD prints 3.0
-        XCTAssertFalse(store.isFlyerAvailable)
+        XCTAssertFalse(store.isShopQuiet)
         store.progress.rating = 2.94
-        XCTAssertTrue(store.isFlyerAvailable)
+        XCTAssertTrue(store.isShopQuiet)
     }
 
     func test_availableBelowThree_andAcceptsATap() {

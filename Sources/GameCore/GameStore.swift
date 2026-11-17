@@ -687,10 +687,15 @@ public final class GameStore: ObservableObject {
 
     // MARK: - Flyer (전단지)
 
-    /// Offered while the HUD shows a rating under 3.0, the stretch where customers are sparse.
-    public var isFlyerAvailable: Bool {
+    /// The HUD shows a rating under 3.0, the stretch where customers are sparse. Gates the part-timer;
+    /// the promo button itself no longer cares.
+    public var isShopQuiet: Bool {
         MissionSystem.displayedRating(progress.rating) < Self.ratingRecoveryFloor
     }
+
+    /// Always on, a busy shop included: a flyer costs 20% of the cheapest dish and brings a customer,
+    /// so it is a small profit with a cooldown, and the player never gets to rest.
+    public var isFlyerAvailable: Bool { true }
 
     public var flyerCooldownRemaining: Double { max(0, transients.flyerReadyAt - transients.clock) }
 
@@ -782,9 +787,9 @@ public final class GameStore: ObservableObject {
     public var isPartTimerActive: Bool { partTimerRemaining > 0 }
     @Published public private(set) var partTimerHires = 0
 
-    /// Same rule as the flyer button, so a shop that is doing fine cannot farm it; one at a time.
+    /// Only a quiet shop, so one that is doing fine cannot farm it; one at a time.
     public var isPartTimerAvailable: Bool {
-        isFlyerAvailable && !isPartTimerActive
+        isShopQuiet && !isPartTimerActive
     }
 
     public var partTimerFee: Double { PartTimerSystem.fee(bestSalePrice: bestSalePrice) }

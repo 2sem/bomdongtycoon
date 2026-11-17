@@ -877,13 +877,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Flyers"
+            "value" : "Promo"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "전단지"
+            "value" : "홍보"
           }
         }
       }
@@ -928,13 +928,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quiet shop? Hand out flyers for a few coins to bring in a customer"
+            "value" : "Promo for a few coins brings in a customer. Use it any time"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "손님이 뜸하면 전단지를 돌려요. 코인을 조금 내면 한 명씩 와요"
+            "value" : "홍보를 하면 코인을 조금 내고 손님이 한 명씩 와요"
           }
         }
       }
