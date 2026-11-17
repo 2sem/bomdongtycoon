@@ -5191,13 +5191,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hire help"
+            "value" : "Flyer helper"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "알바 고용"
+            "value" : "전단지 알바"
           }
         }
       }
