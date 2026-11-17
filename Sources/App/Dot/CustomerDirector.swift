@@ -89,6 +89,9 @@ final class CustomerDirector {
         guard store.progress.isShopNameSet, !store.isSimulationPaused else { return }
         if store.hasFlyerRequest { answerFlyer(store: store, isFever: isFever) }
         if !isSpawningPaused, !isHeld {
+            // The timer was rolled at the last spawn; a boost that starts mid-wait (fever, rush, the
+            // part-timer) must not sit behind that old, longer wait.
+            spawnTimer = min(spawnTimer, store.customerSpawnInterval * 1.1)
             spawnTimer -= delta
             if spawnTimer <= 0 { trySpawn(store: store, isFever: isFever) }
         }
