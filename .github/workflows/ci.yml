@@ -14,6 +14,9 @@ jobs:
     name: Build and Test
     runs-on: xcode-27
     timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write   # Tuist OIDC login
     steps:
       - name: Checkout project
         uses: actions/checkout@v7
@@ -29,6 +32,9 @@ jobs:
             ~/.cache/tuist
             ~/.cache/swifterpm
           key: spm-${{ runner.os }}-${{ hashFiles('Tuist/Package.swift') }}
+
+      - name: Log in to Tuist
+        run: tuist auth login
 
       - name: Install Tuist dependencies
         run: tuist install
