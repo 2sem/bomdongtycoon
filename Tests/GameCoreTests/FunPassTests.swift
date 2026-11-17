@@ -170,13 +170,55 @@ final class FunPassTests: DotWorldTestCase {
         XCTAssertTrue(store.farm.plots[0].isGolden, "10 s into a new window, not 26 s")
     }
 
-    func test_goldenBonus_isTheLargerOfFifteenSalesAndFortyFiveSecondsOfIncome() {
-        store.progress.earningRate = 0
-        XCTAssertEqual(GameStore.goldenBonus(stall: store.stall, progress: store.progress), 15 * 30, accuracy: 1e-9)
-        store.progress.earningRate = 100
-        XCTAssertEqual(GameStore.goldenBonus(stall: store.stall, progress: store.progress), 4500, accuracy: 1e-9)
-        store.progress.earningRate = 1
-        XCTAssertEqual(GameStore.goldenBonus(stall: store.stall, progress: store.progress), 450, accuracy: 1e-9)
+    func test_goldenBonus_isFiveBestMenuSales_plusOneSalePerOverflowCrop() {
+        let sale = EarningsSystem.salePrice(for: store.stall, menuIndex: store.stall.menuTier, prestigeCount: store.progress.prestigeCount)
+        store.progress.earningRate = 1_000
+        XCTAssertEqual(GameStore.goldenBonus(stall: store.stall, progress: store.progress), 5 * sale, accuracy: 1e-9)
+        XCTAssertEqual(GameStore.goldenBonus(stall: store.stall, progress: store.progress, overflowCrops: 3), 8 * sale, accuracy: 1e-9)
+    }
+
+    private func sale() -> Double {
+        EarningsSystem.salePrice(for: store.stall, menuIndex: store.stall.menuTier, prestigeCount: store.progress.prestigeCount)
+    }
+
+    func test_golden_manualHarvestYieldsFiveCrops() {
+        ripeGoldenPlotWithWorker()
+        store.stall.warehouseCapacity = 50
+        let result = store.harvest(plotIndex: 0)
+        XCTAssertEqual(result?.cropsStored, 5)
+        XCTAssertEqual(store.stall.warehouse, 5)
+        XCTAssertEqual(result?.bonusCoins ?? 0, 5 * sale(), accuracy: 1e-9)
+        XCTAssertEqual(store.stall.coins, 5 * sale(), accuracy: 1e-9)
+    }
+
+    func test_golden_yieldClampsToFreeSpace_andOverflowPaysCoins() {
+        ripeGoldenPlotWithWorker()
+        store.stall.warehouseCapacity = 50
+        store.stall.warehouse = 47
+        let result = store.harvest(plotIndex: 0)
+        XCTAssertEqual(result?.cropsStored, 3)
+        XCTAssertEqual(store.stall.warehouse, 50)
+        XCTAssertEqual(result?.bonusCoins ?? 0, (5 + 2) * sale(), accuracy: 1e-9)
+    }
+
+    func test_golden_oneFreeSlot_storesOneAndPaysFourCropsAsCoins() {
+        ripeGoldenPlotWithWorker()
+        store.stall.warehouseCapacity = 50
+        store.stall.warehouse = 49
+        let result = store.harvest(plotIndex: 0)
+        XCTAssertEqual(result?.cropsStored, 1)
+        XCTAssertEqual(result?.bonusCoins ?? 0, (5 + 4) * sale(), accuracy: 1e-9)
+    }
+
+    func test_normalHarvest_isUnchanged() {
+        ripeGoldenPlotWithWorker()
+        store.farm.plots[0].isGolden = false
+        let result = store.harvest(plotIndex: 0)
+        XCTAssertEqual(result?.isGolden, false)
+        XCTAssertEqual(result?.cropsStored, 1)
+        XCTAssertEqual(result?.bonusCoins, 0)
+        XCTAssertEqual(store.stall.warehouse, 1)
+        XCTAssertEqual(store.stall.coins, 0)
     }
 
     // MARK: Missions
