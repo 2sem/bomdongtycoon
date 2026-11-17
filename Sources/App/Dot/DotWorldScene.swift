@@ -714,6 +714,8 @@ final class DotWorldScene: SKScene {
         sound.play(.golden)
         fx.successHaptic()
         fx.sparkleBurst(at: from)
+        fx.pop(String(format: String(localized: "dot.harvest.goldenCrops"), result.cropsStored),
+               at: CGPoint(x: from.x, y: from.y + 24), color: SKColor(hex: 0xb8f08c), rise: 20)
         fx.pop("+\(CoinFormat.string(result.bonusCoins))", at: CGPoint(x: from.x, y: from.y + 12),
                color: SKColor(hex: 0xffe680), rise: 20)
         fx.flyCoins(from: from, to: layout.rootPoint(fromScene: coinTargetScenePoint), count: 8)

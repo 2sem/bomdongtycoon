@@ -589,33 +589,36 @@ public final class GameStore: ObservableObject {
 
     public struct HarvestResult: Equatable {
         public let isGolden: Bool
-        /// Coins paid straight to the wallet on top of the crop; 0 unless golden.
+        /// Crops that actually went into the warehouse.
+        public let cropsStored: Int
+        /// Coins paid straight to the wallet: the golden kicker plus overflow crops; 0 unless golden.
         public let bonusCoins: Double
     }
 
     static let goldenChance: Double = 0.06
-    static let goldenBonusSales: Double = 15
-    /// A golden crop is also worth this many seconds of live income, so it still matters once the
-    /// bank dwarfs 15 sales.
-    static let goldenBonusIncomeSeconds: Double = 45
+    static let goldenYieldMultiplier: Int = 5
+    static let goldenBonusSales: Double = 5
     /// How long a worker leaves a ripe golden plot for the player to tap.
     public static let goldenWorkerGraceSeconds: Double = 20
 
-    /// Manual harvest. nil when nothing was harvested. A golden plot pays `goldenBonusSales`
-    /// sales of the best unlocked menu on top of the normal yield.
+    /// Manual harvest. nil when nothing was harvested. A golden plot yields `goldenYieldMultiplier`
+    /// crops, clamped to free warehouse space; each crop that does not fit is paid as one sale of
+    /// the best unlocked menu (a crop is cooked into exactly one sale), plus a `goldenBonusSales` kicker.
     @discardableResult
     public func harvest(plotIndex: Int) -> HarvestResult? {
         guard plotIndex < farm.plots.count,
               farm.plots[plotIndex].isReady,
               stall.warehouse < stall.warehouseCapacity else { return nil }
         let isGolden = farm.plots[plotIndex].isGolden
-        stall.warehouse += FarmSystem.harvestYield
+        let yield = FarmSystem.harvestYield * (isGolden ? Self.goldenYieldMultiplier : 1)
+        let stored = min(yield, stall.warehouseCapacity - stall.warehouse)
+        stall.warehouse += stored
         farm.plots[plotIndex].growth    = 0
         farm.plots[plotIndex].isPlanted = false
         farm.plots[plotIndex].isGolden  = false
         var bonus = 0.0
         if isGolden {
-            bonus = Self.goldenBonus(stall: stall, progress: progress)
+            bonus = Self.goldenBonus(stall: stall, progress: progress, overflowCrops: yield - stored)
             stall.coins += bonus
             progress.totalEarned += bonus
             progress.totalGoldenHarvested += 1
@@ -623,14 +626,12 @@ public final class GameStore: ObservableObject {
         }
         advanceMissions(.harvest)
         save()
-        return HarvestResult(isGolden: isGolden, bonusCoins: bonus)
+        return HarvestResult(isGolden: isGolden, cropsStored: stored, bonusCoins: bonus)
     }
 
-    /// max(15 best sales, 45 s of live income).
-    static func goldenBonus(stall: StallState, progress: PlayerProgress) -> Double {
-        max(goldenBonusSales * EarningsSystem.salePrice(
-                for: stall, menuIndex: stall.menuTier, prestigeCount: progress.prestigeCount),
-            goldenBonusIncomeSeconds * progress.earningRate)
+    static func goldenBonus(stall: StallState, progress: PlayerProgress, overflowCrops: Int = 0) -> Double {
+        (goldenBonusSales + Double(overflowCrops)) * EarningsSystem.salePrice(
+            for: stall, menuIndex: stall.menuTier, prestigeCount: progress.prestigeCount)
     }
 
     // MARK: - Tips

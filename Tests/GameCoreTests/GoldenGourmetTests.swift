@@ -44,7 +44,7 @@ final class GoldenGourmetTests: DotWorldTestCase {
 
     // MARK: Harvest
 
-    func test_manualHarvest_ofGoldenPlot_paysBonusAndYield() {
+    func test_manualHarvest_ofGoldenPlot_paysKickerAndFiveCrops() {
         store.farm.plots[1].growth = 1
         store.farm.plots[1].isGolden = true
         store.stall.warehouse = 0
@@ -53,10 +53,10 @@ final class GoldenGourmetTests: DotWorldTestCase {
 
         let result = store.harvest(plotIndex: 1)
 
-        XCTAssertEqual(result, GameStore.HarvestResult(isGolden: true, bonusCoins: 15 * 30))
-        XCTAssertEqual(store.stall.coins, coins + 450, accuracy: 1e-9)
-        XCTAssertEqual(store.progress.totalEarned, earned + 450, accuracy: 1e-9)
-        XCTAssertEqual(store.stall.warehouse, FarmSystem.harvestYield)
+        XCTAssertEqual(result, GameStore.HarvestResult(isGolden: true, cropsStored: 5, bonusCoins: 5 * 30))
+        XCTAssertEqual(store.stall.coins, coins + 150, accuracy: 1e-9)
+        XCTAssertEqual(store.progress.totalEarned, earned + 150, accuracy: 1e-9)
+        XCTAssertEqual(store.stall.warehouse, 5)
         XCTAssertFalse(store.farm.plots[1].isGolden)
         XCTAssertEqual(store.progress.totalGoldenHarvested, 1)
     }
@@ -71,14 +71,14 @@ final class GoldenGourmetTests: DotWorldTestCase {
         store.farm.plots[1].isGolden = true
         store.stall.warehouse = 0
 
-        let expected = 15 * EarningsSystem.salePrice(for: store.stall, menuIndex: 2, prestigeCount: 2)
+        let expected = 5 * EarningsSystem.salePrice(for: store.stall, menuIndex: 2, prestigeCount: 2)
         XCTAssertEqual(store.harvest(plotIndex: 1)?.bonusCoins ?? 0, expected, accuracy: 1e-9)
     }
 
     func test_manualHarvest_ofNormalPlot_hasNoBonus() {
         store.farm.plots[1].growth = 1
         store.stall.warehouse = 0
-        XCTAssertEqual(store.harvest(plotIndex: 1), GameStore.HarvestResult(isGolden: false, bonusCoins: 0))
+        XCTAssertEqual(store.harvest(plotIndex: 1), GameStore.HarvestResult(isGolden: false, cropsStored: 1, bonusCoins: 0))
         XCTAssertEqual(store.progress.totalGoldenHarvested, 0)
     }
 

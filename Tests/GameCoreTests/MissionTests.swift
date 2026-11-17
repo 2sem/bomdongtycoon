@@ -204,7 +204,7 @@ final class MissionTests: DotWorldTestCase {
         store.farm.plots[1].isGolden = true
         store.stall.warehouse = 0
         store.harvest(plotIndex: 1)
-        XCTAssertEqual(mission(.earnCoins)?.progress, 450)
+        XCTAssertEqual(mission(.earnCoins)?.progress, 150)
     }
 
     func test_manualAndAutoCook_feedCook() {
