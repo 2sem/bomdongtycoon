@@ -229,15 +229,65 @@ final class GameStoreTests: XCTestCase {
 
     // MARK: - Tier-0 economy
 
-    func test_tick_noCashier_autoCollectsPendingCoins() {
-        XCTAssertEqual(store.stall.cashierCount, 0)
+    private func sellOneBowl() -> Double {
         store.farm.plots[0].workerType = .none
         store.stall.coins = 0
+        store.progress.totalEarned = 0
         store.stall.menuStock[0] = 1
-        let price = store.sellItem(menuIndex: 0)
-        XCTAssertNotNil(price)
+        return store.sellItem(menuIndex: 0) ?? -1
+    }
+
+    func test_tick_noCashier_keepsSalesPendingUntilCollected() {
+        XCTAssertEqual(store.stall.cashierCount, 0)
+        XCTAssertFalse(store.autoCollectsCoins)
+        let price = sellOneBowl()
+        XCTAssertGreaterThan(price, 0)
+        for _ in 0..<5 { store.tick(deltaTime: 0.1) }
+        XCTAssertEqual(store.stall.coins, 0, accuracy: 0.001)
+        XCTAssertEqual(store.stall.pendingCoins, price, accuracy: 0.001)
+        store.collectCoins()
+        XCTAssertEqual(store.stall.coins, price, accuracy: 0.001)
+        XCTAssertEqual(store.progress.totalEarned, price, accuracy: 0.001)
+        XCTAssertEqual(store.stall.pendingCoins, 0, accuracy: 0.001)
+    }
+
+    func test_tick_awakeCashier_autoCollects() {
+        store.stall.cashierCount = 1; store.stall.cashierTier = 1; store.stall.cashierEnergy = 1
+        XCTAssertTrue(store.autoCollectsCoins)
+        let price = sellOneBowl()
         store.tick(deltaTime: 0.1)
-        XCTAssertEqual(store.stall.coins, price ?? -1, accuracy: 0.001)
+        XCTAssertEqual(store.stall.coins, price, accuracy: 0.001)
+        XCTAssertEqual(store.progress.totalEarned, price, accuracy: 0.001)
+        XCTAssertEqual(store.stall.pendingCoins, 0, accuracy: 0.001)
+    }
+
+    func test_tick_restingCashier_keepsSalesPending() {
+        store.stall.cashierCount = 1; store.stall.cashierTier = 1
+        store.stall.cashierResting = true; store.stall.cashierEnergy = 0
+        XCTAssertFalse(store.autoCollectsCoins)
+        let price = sellOneBowl()
+        store.tick(deltaTime: 0.1)
+        XCTAssertEqual(store.stall.coins, 0, accuracy: 0.001)
+        XCTAssertEqual(store.stall.pendingCoins, price, accuracy: 0.001)
+    }
+
+    func test_hiringOrWakingCashier_flushesPendingCoinsOnNextTick() {
+        let price = sellOneBowl()
+        store.tick(deltaTime: 0.1)
+        XCTAssertEqual(store.stall.pendingCoins, price, accuracy: 0.001)
+        // Hired while coins wait.
+        store.stall.cashierCount = 1; store.stall.cashierTier = 1; store.stall.cashierEnergy = 1
+        store.tick(deltaTime: 0.1)
+        XCTAssertEqual(store.stall.pendingCoins, 0, accuracy: 0.001)
+        XCTAssertEqual(store.stall.coins, price, accuracy: 0.001)
+
+        // Asleep, sale piles up, wakes at full energy.
+        store.stall.cashierResting = true; store.stall.cashierEnergy = 0.999
+        store.stall.menuStock[0] = 1
+        _ = store.sellItem(menuIndex: 0)
+        store.tick(deltaTime: 0.1)
+        XCTAssertFalse(store.stall.cashierResting)
+        store.tick(deltaTime: 0.1)
         XCTAssertEqual(store.stall.pendingCoins, 0, accuracy: 0.001)
     }
 
@@ -261,6 +311,7 @@ final class GameStoreTests: XCTestCase {
             // player taps a cook right after, as in the play-test.
             if second % 10 == 0 {
                 _ = store.sellItem(menuIndex: 0)
+                store.collectCoins()   // no cashier: the player taps the till
                 _ = store.startManualCook(menuIndex: 0)
             }
             store.tick(deltaTime: 1.0)

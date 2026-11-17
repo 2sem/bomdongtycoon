@@ -51,8 +51,9 @@ final class PrestigeParityTests: XCTestCase {
     }
 
     func test_prestige0_300TickRun_matchesMain() {
-        // coins, totalEarned, pendingCoins, sum of sale prices, rating, served, failed, coins/s
-        let expected: [Double] = [26720.0, 21720.0, 0.0, 21720.0, 3.4172978287766664, 100.0, 18.0, 1140.0]
+        // coins, totalEarned, pendingCoins, sum of sale prices, rating, served, failed, coins/s.
+        // The cashier tires mid-run, so part of the takings waits on the till: coins + pending is still 26720.
+        let expected: [Double] = [18800.0, 13800.0, 7920.0, 21720.0, 3.4172978287766664, 100.0, 18.0, 1140.0]
         XCTAssertEqual(run300Ticks(), expected)
     }
 }

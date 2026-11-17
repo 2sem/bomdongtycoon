@@ -49,6 +49,9 @@ extension DotWorldScene {
         guard !DotDebug.autoplayIsIdle else { return }
         if taps > 0, store.requestFlyer() { autoplayState.flyers += 1; taps -= 1 }
         if let layout {
+            if store.stall.pendingCoins > 0, !store.autoCollectsCoins, taps > 0 {
+                collectPile(store: store, layout: layout); taps -= 1
+            }
             for point in tipLayer?.points ?? [] where taps > 0 {
                 if let tip = tipLayer?.collect(at: point) { collectTip(tip, store: store, layout: layout); taps -= 1 }
             }
