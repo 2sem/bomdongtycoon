@@ -21,18 +21,18 @@ let project = Project(
     targets: [
         .target(
             name: "GameCore",
-            destinations: .iOS,
+            destinations: [.iPhone, .iPad, .mac],
             product: .framework,
             bundleId: "com.leesam.bomdongtycoon.gamecore",
-            deploymentTargets: .iOS("17.0"),
+            deploymentTargets: .multiplatform(iOS: "17.0", macOS: "14.0"),
             sources: ["Sources/GameCore/**"]
         ),
         .target(
             name: "GameCoreTests",
-            destinations: .iOS,
+            destinations: [.iPhone, .iPad, .mac],
             product: .unitTests,
             bundleId: "com.leesam.bomdongtycoon.gamecore.tests",
-            deploymentTargets: .iOS("17.0"),
+            deploymentTargets: .multiplatform(iOS: "17.0", macOS: "14.0"),
             sources: ["Tests/GameCoreTests/**"],
             dependencies: [.target(name: "GameCore")]
         ),
