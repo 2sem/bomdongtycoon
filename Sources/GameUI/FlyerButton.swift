@@ -2,9 +2,8 @@ import SwiftUI
 import UIKit
 import GameCore
 
-/// "홍보" in the bottom row, beside the fever gauge: while the shop is quiet (rating under 3.0)
-/// a tap pays a small fee and brings one customer in. Disabled with a filling bar while it cools down,
-/// and with a red price while the coins are short.
+/// "홍보" in the bottom row, beside the fever gauge, always shown: a tap pays a
+/// small fee and brings one customer in. Disabled with a filling bar while it cools down, and with a red price while the coins are short.
 ///
 /// Width (Galmuri11 Bold 12 pt: Hangul 12, digit 6): flyer icon 16 + 4 + "홍보" 24 + 4 + coin 16 + 2 +
 /// fee + 24 panel padding is about 96 pt at a one-digit fee and 114 pt at four characters, against the
