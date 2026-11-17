@@ -39,8 +39,10 @@ jobs:
       - name: Install Tuist dependencies
         run: tuist install
 
+      # GameCore is pure Foundation, so its tests run natively on the runner. A simulator test
+      # run spent ~3 min booting before the first test started; macOS has no such step.
       - name: Run GameCore tests
-        run: tuist test GameCoreTests
+        run: tuist test GameCoreTests --platform macOS
 
       # `tuist test` generates a workspace trimmed to GameCore + GameCoreTests, so the app
       # and GameUI are never compiled by it. Regenerate the full workspace and build them.
