@@ -78,7 +78,7 @@ final class RushPartTimerBalanceTests: DotWorldTestCase {
         print("BALANCE rush from 1.5 (rating lifted): 2min \(rush.customers) cust \(Int(ratedRushPM)) c/min")
 
         XCTAssertGreaterThan(shiftPM, calmPM, "the shift helps")
-        XCTAssertLessThan(shiftPM, cyclePerMinute, "the shift must not out-earn fever")
+        XCTAssertLessThan(shiftPM, calm3PM, "a doubled 1.5 shop must still earn less than a calm 3.0 shop")
         XCTAssertLessThan(ratedRushPM, rating3Cycle, "the rush at a 3.0 shop must not out-earn fever")
     }
 

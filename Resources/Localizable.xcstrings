@@ -5223,13 +5223,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Helper %@"
+            "value" : "Helper ×2 %@"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "알바 %@"
+            "value" : "알바 ×2 %@"
           }
         }
       }
@@ -5271,13 +5271,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hands out flyers for %d minutes: more customers walk in"
+            "value" : "Hands out flyers for %d minutes: twice as many customers walk in"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%d분 동안 전단지를 돌려서 손님이 더 와요"
+            "value" : "%d분 동안 전단지를 돌려서 손님이 2배로 와요"
           }
         }
       }
@@ -5319,13 +5319,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The part-timer is handing out flyers!"
+            "value" : "Flyer part-timer is in! Twice the customers"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "전단지 알바가 일을 시작했어요!"
+            "value" : "전단지 알바 출근! 손님이 2배로 와요"
           }
         }
       }

@@ -9,7 +9,7 @@ public enum RushSystem {
 /// 전단지 알바: a temporary hire for a shop that is quiet (rating under 3.0). Not a staff member.
 public enum PartTimerSystem {
     public static let shiftDuration: Double = 180
-    public static let spawnIntervalMultiplier: Double = 0.7
+    public static let spawnIntervalMultiplier: Double = 0.5
     /// Cheap enough for a stuck shop, dear enough that the ad is the better deal.
     public static let feeSales: Double = 10
 

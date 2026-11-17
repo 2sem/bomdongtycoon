@@ -191,11 +191,11 @@ final class RushPartTimerTests: DotWorldTestCase {
         quietShop(rating: 1.2)   // 20 s
         XCTAssertEqual(store.customerSpawnInterval, 20)
         store.hirePartTimer(payment: .ad)
-        XCTAssertEqual(store.customerSpawnInterval, 14, accuracy: 1e-9)
+        XCTAssertEqual(store.customerSpawnInterval, 10, accuracy: 1e-9)
         store.progress.partTimerEndsAtPlaySeconds = nil
-        store.progress.rating = 2.7   // 8 s: x0.7 = 5.6 s
+        store.progress.rating = 2.7   // 8 s: x0.5 = 4 s, held at the 5 s three-star pace
         store.hirePartTimer(payment: .ad)
-        XCTAssertEqual(store.customerSpawnInterval, 5.6, accuracy: 1e-9)
+        XCTAssertEqual(store.customerSpawnInterval, 5, accuracy: 1e-9)
     }
 
     // MARK: Stacking
@@ -211,18 +211,18 @@ final class RushPartTimerTests: DotWorldTestCase {
     func test_stacking_eachAloneUsesItsOwnMultiplier() {
         XCTAssertEqual(pace(fever: true), 16 * 0.35, accuracy: 1e-9)
         XCTAssertEqual(pace(rush: true), 16 * 0.6, accuracy: 1e-9)
-        XCTAssertEqual(pace(partTimer: true), 16 * 0.7, accuracy: 1e-9)
+        XCTAssertEqual(pace(partTimer: true), 16 * 0.5, accuracy: 1e-9)
     }
 
     func test_stacking_strongestWins_neverMultiplied() {
         XCTAssertEqual(pace(fever: true, rush: true, partTimer: true), 16 * 0.35, accuracy: 1e-9)
-        XCTAssertEqual(pace(rush: true, partTimer: true), 16 * 0.6, accuracy: 1e-9)
+        XCTAssertEqual(pace(rush: true, partTimer: true), 16 * 0.5, accuracy: 1e-9)
         XCTAssertEqual(pace(fever: true, partTimer: true), 16 * 0.35, accuracy: 1e-9)
         XCTAssertGreaterThan(pace(fever: true, rush: true), 16 * 0.35 * 0.6)
     }
 
     func test_stacking_partTimerFloorsAtTheThreePointZeroPace_andNeverSlowsAFastShop() {
-        XCTAssertEqual(pace(base: 6, partTimer: true), 5, accuracy: 1e-9)   // 4.2 -> 5
+        XCTAssertEqual(pace(base: 6, partTimer: true), 5, accuracy: 1e-9)   // 3 -> 5
         XCTAssertEqual(pace(base: 3.5, partTimer: true), 3.5, accuracy: 1e-9)   // already faster
     }
 
@@ -231,7 +231,7 @@ final class RushPartTimerTests: DotWorldTestCase {
         quietShop(rating: 2.0)
         store.hirePartTimer(payment: .ad)
         store.progress.rushEndsAtPlaySeconds = store.progress.totalPlaySeconds + 100
-        XCTAssertEqual(store.customerSpawnInterval, 12 * 0.6, accuracy: 1e-9)
+        XCTAssertEqual(store.customerSpawnInterval, 12 * 0.5, accuracy: 1e-9)
         store.startFever()
         XCTAssertEqual(store.customerSpawnInterval, 12 * 0.35, accuracy: 1e-9)
     }
