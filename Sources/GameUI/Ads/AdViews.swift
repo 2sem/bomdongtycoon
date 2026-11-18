@@ -110,45 +110,6 @@ public struct AdOfferDialog: View {
     }
 }
 
-/// "AD 충전" beside the fever gauge: opens the offer dialog that fills it from an ad. Hops one pixel
-/// only while it owns the screen's single pulse.
-public struct FeverAdButton: View {
-    @EnvironmentObject var store: GameStore
-    @EnvironmentObject var ads: RewardedAds
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    let isPulsing: Bool
-    let onTap: () -> Void
-
-    public init(isPulsing: Bool, onTap: @escaping () -> Void) {
-        self.isPulsing = isPulsing
-        self.onTap = onTap
-    }
-
-    public var body: some View {
-        // No ad surface before ads are set up: the root view is mounted under the splash, and an
-        // `onAppear` prepare fired that early has no manager to load with.
-        if store.isFeverAdAvailable, ads.isAvailable {
-            let isReady = ads.isReady(.fever)
-            TimelineView(.periodic(from: .now, by: 0.35)) { context in
-                let hop = isPulsing && isReady && !reduceMotion
-                    && Int(context.date.timeIntervalSinceReferenceDate / 0.35) % 2 == 0
-                Button(action: onTap) {
-                    if isReady {
-                        DotAdLabel(text: String(localized: "dot.ad.fever.charge"))
-                    } else {
-                        Text(String(localized: "dot.ad.loading"))
-                    }
-                }
-                .buttonStyle(.dotCompact)
-                .disabled(!isReady)
-                .offset(y: hop ? -DotTheme.px : 0)
-            }
-            .accessibilityLabel(DotAdText.accessibility(String(localized: "dot.ad.fever.accessibility")))
-            .onAppear { ads.prepare(.fever) }
-        }
-    }
-}
-
 /// Next to the weather chip: "AD x2" when a boost can be bought, the countdown while it runs (a button
 /// that extends it while there is room for another ad), the cooldown after. Tapping an available chip asks for confirmation (the dialog lives in the root).
 public struct BoostChip: View {

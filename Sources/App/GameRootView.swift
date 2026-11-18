@@ -58,8 +58,8 @@ struct GameRootView: View {
                 HStack(spacing: 6) {
                     if !isIntroOverlayUp { FlyerButton(isPulsing: flyerUses == 0 && pulsingSurface == nil) }
                     Spacer()
-                    if !isIntroOverlayUp { FeverAdButton(isPulsing: pulsingSurface == .fever) { showFeverOffer = true } }
-                    FeverButton()
+                    FeverButton(isPulsing: !isIntroOverlayUp && pulsingSurface == .fever,
+                                onTap: { showFeverOffer = true })
                         .overlay(alignment: .top) {
                             if showFeverPointer { HintArrowView().offset(y: -32) }
                         }
@@ -84,7 +84,7 @@ struct GameRootView: View {
                     .overlay(alignment: .topLeading) {
                         if showMissionPointer {
                             // The mission tab is the third of four equal columns (0.5-0.75); the arrow leans right of its
-                            // centre so it stays off the AD recharge button.
+                            // centre so it stays off the fever gauge.
                             GeometryReader { proxy in
                                 HintArrowView(pixel: 3).position(x: proxy.size.width * 0.68, y: -12)
                             }
