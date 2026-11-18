@@ -55,6 +55,7 @@ let project = Project(
                 "CFBundleShortVersionString": "$(MARKETING_VERSION)",
                 "CFBundleVersion": "$(CURRENT_PROJECT_VERSION)",
                 "UILaunchStoryboardName": "LaunchScreen",
+                "ITSAppUsesNonExemptEncryption": false,
                 "UIAppFonts": ["Galmuri11.ttf", "Galmuri11-Bold.ttf", "Galmuri9.ttf", "Galmuri7.ttf"],
                 "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
                 "NSUserNotificationUsageDescription": "봄동 가게 알림을 보내드려요 🥬",
