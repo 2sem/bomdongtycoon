@@ -859,11 +859,6 @@ public final class GameStore: ObservableObject {
             && transients.adFeverCooldown <= 0
     }
 
-    /// The player closed the offer without watching: the button stays away for a while.
-    public func declineFeverAd() {
-        transients.adFeverCooldown = max(transients.adFeverCooldown, AdBoostSystem.feverDeclineCooldown)
-    }
-
     public var adFeverCooldownRemaining: Double { transients.adFeverCooldown }
 
     /// The reward of the fever recharge ad: fills the gauge. False, changing nothing, when not offered.

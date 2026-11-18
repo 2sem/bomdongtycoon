@@ -282,10 +282,7 @@ struct GameRootView: View {
                         showFeverOffer = false
                     }
                 },
-                onClose: {
-                    store.declineFeverAd()
-                    showFeverOffer = false
-                })
+                onClose: { showFeverOffer = false })
                 .onAppear { ads.prepare(.fever) }
         }
         if showRenewalOffer, store.isRenewalAvailable {

@@ -44,8 +44,6 @@ public enum AdBoostSystem {
     public static let maxBankedSeconds: Double = 540
     public static let priceMultiplier: Double = 2
     public static let feverCooldown: Double = 300
-    /// Hidden this long after the offer is closed without watching.
-    public static let feverDeclineCooldown: Double = 180
     /// The recharge is only offered while the gauge is below this.
     public static let feverAdMaxCharge: Double = 0.7
     /// Rewarded offers for fever and boost wait until the install has this much play time.
