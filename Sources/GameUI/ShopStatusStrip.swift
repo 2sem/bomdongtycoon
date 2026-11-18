@@ -1,7 +1,7 @@
 import SwiftUI
 import GameCore
 
-/// Read-only HUD row: warehouse fill and one stock chip per unlocked menu.
+/// Read-only HUD row: one stock chip per unlocked menu. The warehouse count lives on the yard crate.
 /// Never intercepts touches; the scene underneath stays fully interactive.
 public struct ShopStatusStrip: View {
     @EnvironmentObject var store: GameStore
@@ -30,51 +30,18 @@ public struct ShopStatusStrip: View {
         }
     }
 
-    // MARK: - Layout variants
+    // MARK: - Layout
 
-    @ViewBuilder
     private func content(_ status: ShopStatusSnapshot) -> some View {
-        ViewThatFits(in: .horizontal) {
-            strip { fullRow(status) }
-            verticalCard(status)
-        }
-    }
-
-    private func strip<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        content()
-            .dotPanel(.dark, padding: EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10))
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func fullRow(_ status: ShopStatusSnapshot) -> some View {
+        // At most one chip per menu, so a single row always fits; no stacked fallback needed.
         HStack(spacing: 8) {
-            warehouseChip(status)
             ForEach(status.stocks, id: \.menuIndex) { stockChip($0) }
-        }
-    }
-
-    private func verticalCard(_ status: ShopStatusSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            warehouseChip(status)
-            HStack(spacing: 8) {
-                ForEach(status.stocks, id: \.menuIndex) { stockChip($0) }
-            }
         }
         .dotPanel(.dark, padding: EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10))
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Chips
-
-    private func warehouseChip(_ status: ShopStatusSnapshot) -> some View {
-        let cap = max(status.warehouseCap, 1)
-        let full = status.warehouseCount >= cap
-        let tint: Color = full ? DotPalette.orange : (Double(status.warehouseCount) / Double(cap) >= 0.8 ? DotPalette.goldLight : DotPalette.paper)
-        return chip(tint: tint, pulse: full) {
-            DotImage("dot_ui_cabbage", scale: 1)
-            Text("\(status.warehouseCount)/\(status.warehouseCap)")
-        }
-    }
 
     private func stockChip(_ stock: ShopStatusSnapshot.MenuStock) -> some View {
         let empty = stock.count == 0
