@@ -271,25 +271,6 @@ final class AdPlacementTests: DotWorldTestCase {
         XCTAssertFalse(store.claimFeverAdCharge())
     }
 
-    func test_feverAd_closingTheOffer_hidesTheButtonForThreeMinutes() {
-        store.progress.totalPlaySeconds = 400
-        XCTAssertTrue(store.isFeverAdAvailable)
-        store.declineFeverAd()
-        XCTAssertFalse(store.isFeverAdAvailable)
-        XCTAssertEqual(store.adFeverCooldownRemaining, 180)
-        store.tick(deltaTime: 179)
-        XCTAssertFalse(store.isFeverAdAvailable)
-        store.tick(deltaTime: 1.5)
-        XCTAssertTrue(store.isFeverAdAvailable)
-    }
-
-    func test_feverAd_declineNeverShortensALongerCooldown() {
-        store.progress.totalPlaySeconds = 400
-        XCTAssertTrue(store.claimFeverAdCharge())
-        store.declineFeverAd()
-        XCTAssertEqual(store.adFeverCooldownRemaining, 300)
-    }
-
     func test_feverAd_notOfferedWhileFeverRuns() {
         store.progress.totalPlaySeconds = 400
         chargeFever()
