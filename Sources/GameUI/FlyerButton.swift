@@ -7,8 +7,8 @@ import GameCore
 ///
 /// Width (Galmuri11 Bold 12 pt: Hangul 12, digit 6): flyer icon 16 + 4 + "홍보" 24 + 4 + coin 16 + 2 +
 /// fee + 24 panel padding is about 96 pt at a one-digit fee and 114 pt at four characters, against the
-/// 125 pt left of a 375 pt row once the AD button (94) and fever gauge (128) are in. The style's 0.8
-/// scale factor absorbs the last pt.
+/// 225 pt left of a 375 pt row once the fever gauge (128), the 6 pt gap and the 16 pt side padding are
+/// out, so it has room to spare.
 public struct FlyerButton: View {
     @EnvironmentObject var store: GameStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
