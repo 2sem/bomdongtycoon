@@ -47,9 +47,6 @@ struct GameRootView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             HUDView(showUpgrades: $showUpgrades, showStaff: $showStaff, staffTab: $staffTab,
                     showPrestige: $showPrestige, showStats: $showStats,
-                    showsBoostChip: !isIntroOverlayUp,
-                    boostIsPulsing: pulsingSurface == .boost,
-                    onBoostTap: { showBoostOffer = true },
                     showsRenewalChip: !isIntroOverlayUp,
                     onRenewalTap: { showRenewalOffer = true }) { coinTarget = $0 }
         }
@@ -57,7 +54,12 @@ struct GameRootView: View {
             VStack(spacing: 0) {
                 HStack(spacing: 6) {
                     if !isIntroOverlayUp { FlyerButton(isPulsing: flyerUses == 0 && pulsingSurface == nil) }
-                    Spacer()
+                    Spacer(minLength: 4)
+                    if !isIntroOverlayUp {
+                        BoostChip(isPulsing: pulsingSurface == .boost, onTap: { showBoostOffer = true })
+                            .fixedSize()
+                    }
+                    Spacer(minLength: 4)
                     FeverButton(isPulsing: !isIntroOverlayUp && pulsingSurface == .fever,
                                 onTap: { showFeverOffer = true })
                         .overlay(alignment: .top) {

@@ -9,21 +9,14 @@ public struct HUDView: View {
     @Binding var showPrestige: Bool
     @Binding var showStats: Bool
     let onCoinCenterChange: (CGPoint) -> Void
-    let showsBoostChip: Bool
-    let boostIsPulsing: Bool
-    let onBoostTap: () -> Void
     let showsRenewalChip: Bool
     let onRenewalTap: () -> Void
     @EnvironmentObject private var store: GameStore
 
     public init(showUpgrades: Binding<Bool>, showStaff: Binding<Bool>, staffTab: Binding<StaffTab>,
                 showPrestige: Binding<Bool>, showStats: Binding<Bool>,
-                showsBoostChip: Bool = false, boostIsPulsing: Bool = false, onBoostTap: @escaping () -> Void = {},
                 showsRenewalChip: Bool = false, onRenewalTap: @escaping () -> Void = {},
                 onCoinCenterChange: @escaping (CGPoint) -> Void) {
-        self.showsBoostChip = showsBoostChip
-        self.boostIsPulsing = boostIsPulsing
-        self.onBoostTap = onBoostTap
         self.showsRenewalChip = showsRenewalChip
         self.onRenewalTap = onRenewalTap
         self._showUpgrades = showUpgrades
@@ -50,9 +43,6 @@ public struct HUDView: View {
                 ShopStatusStrip()
                 WeatherChip().fixedSize()
                 RushChip()
-                if showsBoostChip {
-                    BoostChip(isPulsing: boostIsPulsing, onTap: onBoostTap).fixedSize()
-                }
             }
         }
         .padding(.horizontal, 8)

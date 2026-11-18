@@ -110,7 +110,7 @@ public struct AdOfferDialog: View {
     }
 }
 
-/// Next to the weather chip: "AD x2" when a boost can be bought, the countdown while it runs (a button
+/// Bottom row, between the flyer and fever buttons: "AD x2" when a boost can be bought, the countdown while it runs (a button
 /// that extends it while there is room for another ad), the cooldown after. Tapping an available chip asks for confirmation (the dialog lives in the root).
 public struct BoostChip: View {
     @EnvironmentObject var store: GameStore
