@@ -1,7 +1,7 @@
 import SwiftUI
 import GameCore
 
-/// Read-only HUD row: warehouse fill, per-menu stock and whether the cashier / cook are on duty.
+/// Read-only HUD row: warehouse fill and one stock chip per unlocked menu.
 /// Never intercepts touches; the scene underneath stays fully interactive.
 public struct ShopStatusStrip: View {
     @EnvironmentObject var store: GameStore
@@ -36,7 +36,6 @@ public struct ShopStatusStrip: View {
     private func content(_ status: ShopStatusSnapshot) -> some View {
         ViewThatFits(in: .horizontal) {
             strip { fullRow(status) }
-            strip { collapsedRow(status) }
             verticalCard(status)
         }
     }
@@ -51,29 +50,15 @@ public struct ShopStatusStrip: View {
         HStack(spacing: 8) {
             warehouseChip(status)
             ForEach(status.stocks, id: \.menuIndex) { stockChip($0) }
-            crewChips(status)
-        }
-    }
-
-    private func collapsedRow(_ status: ShopStatusSnapshot) -> some View {
-        HStack(spacing: 8) {
-            warehouseChip(status)
-            chip(tint: status.totalStock == 0 ? DotPalette.orange : DotPalette.paper,
-                 pulse: status.totalStock == 0) {
-                DotImage("dot_dish_geotjeori", scale: 1)
-                Text("\(status.totalStock)")
-            }
-            crewChips(status)
         }
     }
 
     private func verticalCard(_ status: ShopStatusSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 4) {
+            warehouseChip(status)
             HStack(spacing: 8) {
-                warehouseChip(status)
                 ForEach(status.stocks, id: \.menuIndex) { stockChip($0) }
             }
-            HStack(spacing: 8) { crewChips(status) }
         }
         .dotPanel(.dark, padding: EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10))
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -96,32 +81,6 @@ public struct ShopStatusStrip: View {
         return chip(tint: empty ? DotPalette.orange : DotPalette.paper, pulse: empty) {
             DotImage(Self.dishIcons[stock.menuIndex] ?? "dot_dish_empty_bowl", scale: 1)
             Text("\(stock.count)")
-        }
-    }
-
-    @ViewBuilder
-    private func crewChips(_ status: ShopStatusSnapshot) -> some View {
-        crewChip(icon: "dot_ui_staff", present: status.cashierPresent, energy: status.cashierEnergy)
-        crewChip(icon: "dot_dish_pot_0", present: status.cookPresent, energy: status.cookEnergy)
-    }
-
-    private func crewChip(icon: String, present: Bool, energy: Double) -> some View {
-        let low = present && energy < 0.25
-        return chip(tint: low ? DotPalette.orange : DotPalette.paper, pulse: false) {
-            DotImage(icon, scale: 1)
-            energyBars(energy: energy, present: present, low: low)
-        }
-        .opacity(present ? 1 : 0.4)
-    }
-
-    private func energyBars(energy: Double, present: Bool, low: Bool) -> some View {
-        let filled = present ? min(3, max(1, Int(ceil(energy * 3)))) : 0
-        return HStack(spacing: 2) {
-            ForEach(0..<3, id: \.self) { step in
-                Rectangle()
-                    .fill(step < filled ? (low ? DotPalette.orange : DotPalette.leafLight) : DotPalette.mauve)
-                    .frame(width: 4, height: 10)
-            }
         }
     }
 
