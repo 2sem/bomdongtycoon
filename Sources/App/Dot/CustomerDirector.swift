@@ -10,6 +10,7 @@ final class CustomerDirector {
         let headPoint: CGPoint      // root space
         let price: Double
         let isGourmet: Bool
+        let stars: Int
         let footPoint: CGPoint      // root space, on the ground where a tip coin can lie
     }
 
@@ -64,7 +65,7 @@ final class CustomerDirector {
     var isHeld = false
 
     var onServed: ((ServeEvent) -> Void)?
-    var onFailed: ((CGPoint) -> Void)?
+    var onFailed: ((CGPoint, Int) -> Void)?
     var onSparkle: ((CGPoint) -> Void)?
 
     init(street: BandNode, layout: DotWorldLayout) {
@@ -176,12 +177,13 @@ final class CustomerDirector {
             s.pollTimer = 0
             if let price = store.sellItem(menuIndex: s.menu, isGourmet: s.isGourmet) {
                 store.recordServed(waitTime: s.waited, isGourmet: s.isGourmet)
-                finishServed(s, price: price)
+                finishServed(s, price: price, store: store)
             } else if s.waited >= Self.basePatience * store.customerPatienceMultiplier {
                 store.recordFailed(isGourmet: s.isGourmet)
                 s.node.setBubbleVisible(false)
                 s.node.showFront()
-                onFailed?(headPoint(s))
+                onFailed?(headPoint(s), CustomerStars.stars(waited: s.waited, patience: Self.basePatience * store.customerPatienceMultiplier,
+                                                            isGourmet: s.isGourmet, served: false))
                 startReaction(s)
             }
         case .reacting:
@@ -205,16 +207,18 @@ final class CustomerDirector {
     private func beginServing(_ s: Session, store: GameStore) {
         if let price = store.sellItem(menuIndex: s.menu, isGourmet: s.isGourmet) {
             store.recordServed(waitTime: 0, isGourmet: s.isGourmet)
-            finishServed(s, price: price)
+            finishServed(s, price: price, store: store)
         } else {
             s.phase = .waiting
         }
     }
 
-    private func finishServed(_ s: Session, price: Double) {
+    private func finishServed(_ s: Session, price: Double, store: GameStore) {
+        let stars = CustomerStars.stars(waited: s.waited, patience: Self.basePatience * store.customerPatienceMultiplier,
+                                        isGourmet: s.isGourmet, served: true)
         s.node.setBubbleVisible(false)
         s.node.showFront()
-        onServed?(ServeEvent(headPoint: headPoint(s), price: price, isGourmet: s.isGourmet,
+        onServed?(ServeEvent(headPoint: headPoint(s), price: price, isGourmet: s.isGourmet, stars: stars,
                              footPoint: street.rootPoint(s.position.x.rounded(), Self.tipRow)))
         startReaction(s)
     }
