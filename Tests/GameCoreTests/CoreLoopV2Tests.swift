@@ -64,10 +64,10 @@ final class CoreLoopV2Tests: DotWorldTestCase {
 
     func test_tapAtOrAboveTheCap_stillMakesOnePortionThenStops() {
         emptyShelves()
-        store.stall.menuStock[0] = 7
+        store.stall.menuStock[0] = GameStore.selfServeStock
         XCTAssertEqual(store.tapDish(menuIndex: 0), .started, "a tap always yields a portion")
         run(4)
-        XCTAssertEqual(store.stall.menuStock[0], 8)
+        XCTAssertEqual(store.stall.menuStock[0], GameStore.selfServeStock + 1)
         XCTAssertFalse(store.isManualCookRunning(menuIndex: 0), "the cap only decides whether it carries on")
     }
 

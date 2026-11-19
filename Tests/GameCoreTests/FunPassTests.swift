@@ -21,6 +21,7 @@ final class FunPassTests: DotWorldTestCase {
 
     func test_fever_manualCookIsInstant() {
         store.stall.warehouse = 3
+        store.stall.menuStock[0] = 0
         chargeFever()
         store.startFever()
         let before = store.stall.menuStock[0]

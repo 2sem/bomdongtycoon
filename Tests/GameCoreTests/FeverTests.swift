@@ -153,12 +153,12 @@ final class FeverTests: DotWorldTestCase {
 
     func test_feverStart_addsFourPortionsToEveryUnlockedDish_cappedAtMaxStock() {
         store.stall.menuTier = 1
-        store.stall.menuStock = [3, 13, 0]
+        store.stall.menuStock = [1, 4, 0]
         let cap = EarningsSystem.maxStock(for: store.stall)
-        XCTAssertEqual(cap, 15)
+        XCTAssertEqual(cap, 6)
         chargeFever()
         XCTAssertTrue(store.startFever())
-        XCTAssertEqual(store.stall.menuStock, [7, 15, 0], "capped at max stock; the locked dish gets nothing")
+        XCTAssertEqual(store.stall.menuStock, [5, 6, 0], "capped at max stock; the locked dish gets nothing")
     }
 
     func test_feverStart_viaAdCharge_alsoStocksTheCounter() {
