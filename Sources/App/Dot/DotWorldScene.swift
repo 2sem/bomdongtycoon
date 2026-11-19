@@ -153,8 +153,9 @@ final class DotWorldScene: SKScene {
         street.addChild(partTimer)
         director.isHeld = isStorefrontHeld
         director.onServed = { [weak self] in self?.customerServed($0) }
-        director.onFailed = { [weak self] point in
+        director.onFailed = { [weak self] point, stars in
             self?.fx?.reaction("dot_fx_anger", at: point)
+            self?.showStars(stars, at: point)
             self?.sound.play(.error)
         }
         director.onSparkle = { [weak self] point in self?.fx?.sparkle(at: point) }
@@ -412,6 +413,7 @@ final class DotWorldScene: SKScene {
     private func customerServed(_ event: CustomerDirector.ServeEvent) {
         guard let fx, let shop, let layout else { return }
         fx.reaction("dot_fx_heart", at: event.headPoint)
+        showStars(event.stars, at: event.headPoint)
         // Low and short-lived: higher, a fever pop climbs over the counter's padlocks.
         fx.pop("+\(CoinFormat.string(event.price))", at: CGPoint(x: event.headPoint.x, y: event.headPoint.y - 2),
                color: SKColor(hex: event.isGourmet ? 0xffe680 : 0xf4b93a), rise: 6, big: store?.isFeverActive == true)
@@ -425,6 +427,12 @@ final class DotWorldScene: SKScene {
                         count: event.isGourmet ? 6 : 3)
         }
         sound.play(.coin)
+    }
+
+    /// Sits 8 art px above the "+price" pop (which is 2 px under the head) so the two never overlap.
+    private func showStars(_ stars: Int, at head: CGPoint) {
+        let color: SKColor = stars >= 3 ? SKColor(hex: 0xf4b93a) : SKColor(hex: 0xc0584a)
+        fx?.pop("★\(stars)", at: CGPoint(x: head.x, y: head.y + 8), color: color, bold: false, rise: 6)
     }
 
     private var coinTargetScenePoint: CGPoint { CGPoint(x: coinTarget.x, y: size.height - coinTarget.y) }
