@@ -10,7 +10,7 @@ final class CustomerDirector {
         let headPoint: CGPoint      // root space
         let price: Double
         let isGourmet: Bool
-        let stars: Int
+        let stars: Double
         let footPoint: CGPoint      // root space, on the ground where a tip coin can lie
     }
 
@@ -65,7 +65,7 @@ final class CustomerDirector {
     var isHeld = false
 
     var onServed: ((ServeEvent) -> Void)?
-    var onFailed: ((CGPoint, Int) -> Void)?
+    var onFailed: ((CGPoint, Double) -> Void)?
     var onSparkle: ((CGPoint) -> Void)?
 
     init(street: BandNode, layout: DotWorldLayout) {

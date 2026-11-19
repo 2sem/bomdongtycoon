@@ -430,9 +430,9 @@ final class DotWorldScene: SKScene {
     }
 
     /// Sits 8 art px above the "+price" pop (which is 2 px under the head) so the two never overlap.
-    private func showStars(_ stars: Int, at head: CGPoint) {
+    private func showStars(_ stars: Double, at head: CGPoint) {
         let color: SKColor = stars >= 3 ? SKColor(hex: 0xf4b93a) : SKColor(hex: 0xc0584a)
-        fx?.pop("★\(stars)", at: CGPoint(x: head.x, y: head.y + 8), color: color, bold: false, rise: 6)
+        fx?.pop("★\(CustomerStars.label(stars))", at: CGPoint(x: head.x, y: head.y + 8), color: color, bold: false, rise: 6)
     }
 
     private var coinTargetScenePoint: CGPoint { CGPoint(x: coinTarget.x, y: size.height - coinTarget.y) }
