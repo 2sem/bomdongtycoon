@@ -27,6 +27,7 @@ final class CustomerDirector {
         var waited: TimeInterval = 0
         var pollTimer: TimeInterval = 0
         var reactTimer: TimeInterval = 0
+        var bubbleAge: TimeInterval?    // nil until the order bubble is up, then seconds it has shown
         var sparkleTimer: TimeInterval = 0
         init(node: CustomerNode, slot: Int, menu: Int, isGourmet: Bool, position: CGPoint, path: [CGPoint]) {
             self.node = node; self.slot = slot; self.menu = menu
@@ -49,7 +50,9 @@ final class CustomerDirector {
     private static let pollInterval: TimeInterval = 0.5
     private static let basePatience: TimeInterval = 12
     private static let reactionPause: TimeInterval = 0.6
-    /// Bubble shows this long on arrival before the first sale attempt, so an order is always seen.
+    /// A customer starts thinking once past the counter's right edge (the counter top's last x in MANIFEST.md).
+    private static let counterRightX: CGFloat = 139
+    /// The order bubble is up this long, walk included, before the first sale attempt, so an order is always seen.
     private static let orderingPause: TimeInterval = 0.7
     private static let looks = ["man", "woman", "kid_boy", "kid_girl", "elder_man", "elder_woman"]
     private static let dishNames = ["geotjeori", "kimchi", "bibimbap"]
@@ -77,7 +80,7 @@ final class CustomerDirector {
 
     /// Dishes someone has ordered and is still waiting on.
     var waitingMenus: Set<Int> {
-        Set(sessions.filter { $0.phase == .ordering || $0.phase == .waiting }.map(\.menu))
+        Set(sessions.filter { $0.phase == .ordering || $0.phase == .waiting || ($0.phase == .walkingIn && $0.bubbleAge != nil) }.map(\.menu))
     }
 
     func reset() {
@@ -162,9 +165,14 @@ final class CustomerDirector {
         case .walkingIn:
             if walk(s, delta: delta, speed: speed) {
                 s.node.showBack()
-                s.node.setBubbleVisible(true)
+                if s.bubbleAge == nil { s.node.setBubbleVisible(true) }
                 s.phase = .ordering
-                s.reactTimer = Self.orderingPause
+                s.reactTimer = max(0, Self.orderingPause - (s.bubbleAge ?? 0))
+            } else if let age = s.bubbleAge {
+                s.bubbleAge = age + delta
+            } else if s.position.x <= Self.counterRightX {
+                s.node.setBubbleVisible(true)
+                s.bubbleAge = 0
             }
         case .ordering:
             s.reactTimer -= delta
