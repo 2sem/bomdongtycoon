@@ -96,9 +96,9 @@ public enum UpgradeDefinitions {
 
     /// Stall upgrades — increase maximum stock capacity
     public static let stall: [UpgradeDefinition] = [
-        .init(name: "포장마차",    coinCost: 0,      description: "시작 가게", maxStock: 15),
-        .init(name: "봄동 식당",    coinCost: 2_500,  description: "재고 30개", maxStock: 30, unlocks: "이모님 · 농부 고용 가능"),
-        .init(name: "봄동 전문점", coinCost: 25_000, description: "재고 60개", maxStock: 60, unlocks: "봄동 요리사 고용 가능")
+        .init(name: "포장마차",    coinCost: 0,      description: "시작 가게", maxStock: 6),
+        .init(name: "봄동 식당",    coinCost: 2_500,  description: "재고 10개", maxStock: 10, unlocks: "이모님 · 농부 고용 가능"),
+        .init(name: "봄동 전문점", coinCost: 25_000, description: "재고 15개", maxStock: 15, unlocks: "봄동 요리사 고용 가능")
     ]
 
     /// Stall tier a staff hire needs: 알바생 (tier 1) is open from the start,

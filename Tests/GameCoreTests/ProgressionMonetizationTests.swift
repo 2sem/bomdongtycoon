@@ -117,10 +117,10 @@ final class RecipeAndPacingTests: DotWorldTestCase {
         XCTAssertEqual(store.stall.menuTier, 1)
         XCTAssertEqual(store.stall.menuStock, [5, 3, 0], "a new game opens with 5 겉절이")
 
-        store.stall.menuStock[2] = 14
+        store.stall.menuStock[2] = 5
         store.stall.coins = 10_000
         store.purchaseUpgrade(.menu)
-        XCTAssertEqual(store.stall.menuStock[2], 15, "포장마차 holds 15")
+        XCTAssertEqual(store.stall.menuStock[2], 6, "포장마차 holds 6")
     }
 
     func test_orders_onlyDishesTheShopCanMake() {

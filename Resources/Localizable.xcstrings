@@ -5435,24 +5435,24 @@
         }
       }
     },
-    "재고 30개" : {
+    "재고 10개" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stock 30"
+            "value" : "Stock 10"
           }
         }
       }
     },
-    "재고 60개" : {
+    "재고 15개" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stock 60"
+            "value" : "Stock 15"
           }
         }
       }
