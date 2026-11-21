@@ -52,11 +52,18 @@ def token(key):
 class Client:
     def __init__(self, key):
         self.key = key
+        self._token, self._minted = None, 0
+
+    def bearer(self):
+        # Tokens live 1100 s; re-mint well before that instead of signing one per request.
+        if self._token is None or time.time() - self._minted > 900:
+            self._token, self._minted = token(self.key), time.time()
+        return self._token
 
     def call(self, method, path, body=None):
         url = path if path.startswith("http") else API + path
         req = urllib.request.Request(url, method=method, data=json.dumps(body).encode() if body else None)
-        req.add_header("Authorization", "Bearer " + token(self.key))
+        req.add_header("Authorization", "Bearer " + self.bearer())
         req.add_header("Content-Type", "application/json")
         try:
             with urllib.request.urlopen(req) as r:
@@ -111,11 +118,16 @@ def main():
                 "type": "appPreviewSets", "attributes": {"previewType": PREVIEW_TYPE},
                 "relationships": {"appStoreVersionLocalization": {
                     "data": {"type": "appStoreVersionLocalizations", "id": loc["id"]}}}}})["data"]
-        for old in client.call("GET", f"/appPreviewSets/{preview_set['id']}/appPreviews")["data"]:
-            client.call("DELETE", f"/appPreviews/{old['id']}")
+        old = client.call("GET", f"/appPreviewSets/{preview_set['id']}/appPreviews")["data"]
         path = os.path.join(ROOT, "fastlane", "app_previews", LOCALES[locale] + ".mp4")
+        # Upload first, delete after: a failed upload must not leave the live set empty.
         pending.append((locale, upload(client, preview_set["id"], path)))
         print(f"{locale}: uploaded {os.path.basename(path)}")
+        for preview in old:
+            client.call("DELETE", f"/appPreviews/{preview['id']}")
+
+    if not pending:
+        sys.exit(f"version {args.version} has none of the locales {sorted(LOCALES)}")
 
     # Apple transcodes the upload; wait until every preview is processed (or failed).
     for _ in range(60):

@@ -6,7 +6,7 @@
 #   tools/screenshots/preview_video.sh --voice-only  # re-narrate the existing videos, no recording
 #
 # Narration is edge-tts (pip install edge-tts), one line per scene, starting 0.3 s after each cut.
-# Upload by hand in App Store Connect (fastlane deliver cannot upload app previews).
+# Upload with tools/screenshots/upload_preview.py (fastlane deliver cannot upload app previews).
 set -euo pipefail
 export PATH="$HOME/.local/bin:$PATH"
 
@@ -19,15 +19,33 @@ WORK="$(mktemp -d)"
 OUT="$ROOT/fastlane/app_previews"
 mkdir -p "$OUT"
 
+# Seconds kept per scene (petals, noon, fever, snow) and the crossfade between them. Every cut
+# time below is derived from these, so the xfade offsets and the narration cues cannot drift.
+SCENES=(6 6 7 6)
+FADE=0.4
+CUTS=()  # start of each scene in the final clip: 0 5.6 11.2 17.8
+t=0
+for d in "${SCENES[@]}"; do
+  CUTS+=("$t")
+  t=$(echo "$t + $d - $FADE" | bc)
+done
+
 # narrate <lang> <voice> <line 1> <line 2> <line 3> <line 4>
-# Scene cuts sit at 0, 5.6, 11.2 and 17.8 s (see the xfade offsets below).
 narrate() {
   local lang=$1 voice=$2; shift 2
-  local i=0 delays=(300 5900 11500 18100) inputs=() mix=""
+  local i=0 inputs=() mix="" ms len room
   for line in "$@"; do
     edge-tts --voice "$voice" --rate=+8% --text "$line" --write-media "$WORK/$lang-vo$i.mp3" 2>/dev/null
+    # A line that outlasts its scene talks over the next cut; say so rather than ship it.
+    len=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$WORK/$lang-vo$i.mp3")
+    room=$(echo "${SCENES[$i]} - 0.3" | bc)  # the last scene runs to the end, no fade
+    if [ $((i + 1)) -lt ${#SCENES[@]} ]; then room=$(echo "$room - $FADE" | bc); fi
+    if [ "$(echo "$len > $room" | bc)" = 1 ]; then
+      echo "warning: $lang line $((i + 1)) is ${len}s, scene has ${room}s: \"$line\"" >&2
+    fi
+    ms=$(echo "(${CUTS[$i]} + 0.3) * 1000 / 1" | bc)
     inputs+=(-i "$WORK/$lang-vo$i.mp3")
-    mix+="[$((i + 1)):a]adelay=${delays[$i]}|${delays[$i]},aformat=channel_layouts=stereo[v$i];"
+    mix+="[$((i + 1)):a]adelay=$ms|$ms,aformat=channel_layouts=stereo[v$i];"
     i=$((i + 1))
   done
   ffmpeg -v error -y -i "$OUT/$lang.mp4" "${inputs[@]}" \
@@ -63,18 +81,18 @@ clip() {
 }
 
 for lang in ko en; do
-  clip "$lang" petals 6 -dotSeed mid  -dotPhase morning -dotWeather petals -dotGolden -dotAutoplay -dotSpeed 2
-  clip "$lang" noon   6 -dotSeed late -dotPhase noon -dotAutoplay -dotSpeed 2
-  clip "$lang" fever  7 -dotSeed late -dotPhase dusk -dotFever -dotAutoplay -dotSpeed 2
-  clip "$lang" snow   6 -dotSeed late -dotPhase night -dotWeather snow -dotAutoplay -dotSpeed 2
+  clip "$lang" petals "${SCENES[0]}" -dotSeed mid  -dotPhase morning -dotWeather petals -dotGolden -dotAutoplay -dotSpeed 2
+  clip "$lang" noon   "${SCENES[1]}" -dotSeed late -dotPhase noon -dotAutoplay -dotSpeed 2
+  clip "$lang" fever  "${SCENES[2]}" -dotSeed late -dotPhase dusk -dotFever -dotAutoplay -dotSpeed 2
+  clip "$lang" snow   "${SCENES[3]}" -dotSeed late -dotPhase night -dotWeather snow -dotAutoplay -dotSpeed 2
 
   # Short crossfades between scenes; a silent stereo AAC track, since App Store Connect wants audio.
   ffmpeg -v error -y \
     -i "$WORK/$lang-petals.mp4" -i "$WORK/$lang-noon.mp4" -i "$WORK/$lang-fever.mp4" -i "$WORK/$lang-snow.mp4" \
     -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
-    -filter_complex "[0][1]xfade=transition=fade:duration=0.4:offset=5.6[a];\
-[a][2]xfade=transition=fade:duration=0.4:offset=11.2[b];\
-[b][3]xfade=transition=fade:duration=0.4:offset=17.8,fps=30,format=yuv420p[v]" \
+    -filter_complex "[0][1]xfade=transition=fade:duration=$FADE:offset=${CUTS[1]}[a];\
+[a][2]xfade=transition=fade:duration=$FADE:offset=${CUTS[2]}[b];\
+[b][3]xfade=transition=fade:duration=$FADE:offset=${CUTS[3]},fps=30,format=yuv420p[v]" \
     -map "[v]" -map 4:a -shortest -c:v libx264 -profile:v high -preset slow -crf 16 \
     -c:a aac -b:a 256k -movflags +faststart "$OUT/$lang.mp4"
   echo "$OUT/$lang.mp4"
