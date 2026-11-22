@@ -76,10 +76,10 @@ final class RecipeAndPacingTests: DotWorldTestCase {
 
     // MARK: Goal selection
 
-    func test_goal_isNeverEmpty_atAnyStage_andTheCheapestWins() {
+    func test_goal_isNeverEmpty_atAnyStage() {
         var s = StallState()
-        XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .recipe(menuIndex: 0))
-        XCTAssertEqual(EarningsSystem.nextGoalUpgrade(for: s)?.coinCost, 150)
+        XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .staff, "the 300 hire, not the 150 recipe level")
+        XCTAssertEqual(EarningsSystem.nextGoalUpgrade(for: s)?.coinCost, 300)
         for stall in 0..<UpgradeDefinitions.stall.count {
             for menu in 0..<UpgradeDefinitions.menu.count {
                 for location in 0..<UpgradeDefinitions.location.count {
@@ -92,10 +92,37 @@ final class RecipeAndPacingTests: DotWorldTestCase {
         }
     }
 
-    func test_goal_recipeCostsClimbPastTheStructuralPurchases() {
+    // #190: cheapest-overall bought 13 recipe levels and two renovations before 시장 (t=106 min).
+    func test_goal_structuralPurchaseOutranksCheaperRecipeLevels() {
         var s = StallState()
-        s.recipeLevels = [8, 0, 0]   // 150 x 1.5^8 = 3,844
-        XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .staff, "the 300 hire is now cheaper than another 겉절이 level")
+        s.staffTier = UpgradeDefinitions.staff.count
+        s.menuTier = UpgradeDefinitions.menu.count - 1
+        s.stallTier = 1
+        XCTAssertLessThan(RecipeSystem.nextCost(for: s, menuIndex: 0)!, UpgradeDefinitions.stall[2].coinCost)
+        XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .stall, "봄동 전문점 25,000 beats a 150 recipe level")
+        XCTAssertEqual(EarningsSystem.nextGoalUpgrade(for: s)?.coinCost, 25_000)
+    }
+
+    func test_goal_isNeverRenovation_whileALocationRemains() {
+        var s = StallState()
+        s.staffTier = UpgradeDefinitions.staff.count
+        s.menuTier = UpgradeDefinitions.menu.count - 1
+        s.stallTier = UpgradeDefinitions.stall.count - 1
+        for location in 0..<(UpgradeDefinitions.location.count - 1) {
+            s.locationTier = location
+            XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .location, "location \(location)")
+            XCTAssertNotNil(EarningsSystem.locationGoalText(for: s), "the bar names the move, location \(location)")
+        }
+    }
+
+    func test_goal_fallsBackToTheCheapestSink_whenNothingStructuralIsLeft() {
+        var s = StallState()
+        s.staffTier = UpgradeDefinitions.staff.count
+        s.menuTier = UpgradeDefinitions.menu.count - 1
+        s.stallTier = UpgradeDefinitions.stall.count - 1
+        s.locationTier = UpgradeDefinitions.location.count - 1
+        s.recipeLevels = [20, 20, 20]
+        XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .renovation, "30,000 is cheaper than any level-20 recipe")
     }
 
     func test_onlyRenovationLeft_ignoresRecipeLevels() {
