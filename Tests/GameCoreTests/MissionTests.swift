@@ -210,7 +210,9 @@ final class MissionTests: DotWorldTestCase {
     func test_manualAndAutoCook_feedCook() {
         forceMissions([.cookDishes, .harvest, .earnCoins], target: 20)
         store.stall.warehouse = 5
-        store.stall.menuStock[0] = 0
+        // One short of selfServeStock, so the session ends after exactly one portion; from 0 it
+        // keeps cooking (0.25/s) and lands a second portion inside the 10 s tick.
+        store.stall.menuStock[0] = GameStore.selfServeStock - 1
         store.startManualCook(menuIndex: 0)
         store.tick(deltaTime: 10)
         XCTAssertEqual(mission(.cookDishes)?.progress, 1)
