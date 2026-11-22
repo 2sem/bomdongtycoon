@@ -66,11 +66,11 @@ final class EarningsSystemTests: XCTestCase {
         XCTAssertNil(EarningsSystem.nextAffordableUpgrade(for: stall))
     }
 
-    func test_nextGoalUpgrade_returnsSmallestCost() {
+    func test_nextGoalUpgrade_returnsSmallestStructuralCost() {
         let stall = StallState()  // 0 coins — all unaffordable
         let goal = EarningsSystem.nextGoalUpgrade(for: stall)
         XCTAssertNotNil(goal)
-        XCTAssertEqual(goal?.name, "겉절이")  // the 150-coin recipe level is the cheapest of everything
+        XCTAssertEqual(goal?.name, "알바생")  // the 300 hire, ahead of the cheaper 150 recipe level
     }
 }
 

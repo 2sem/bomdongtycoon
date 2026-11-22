@@ -119,7 +119,7 @@ public enum EarningsSystem {
 
     /// Returns the cheapest upgrade the player can currently afford
     public static func nextAffordableUpgrade(for stall: StallState) -> UpgradeDefinition? {
-        candidates(for: stall)
+        (structuralCandidates(for: stall) + sinkCandidates(for: stall))
             .filter { $0.definition.coinCost <= stall.coins }
             .min(by: { $0.definition.coinCost < $1.definition.coinCost })?
             .definition
@@ -206,18 +206,24 @@ public enum EarningsSystem {
         let definition: UpgradeDefinition
     }
 
+    /// The cheapest structural purchase while one is left, else the cheapest sink. Cheapest-overall
+    /// let +10% recipe levels and +8% renovation outbid 시장 (x2 every sale) for 80 minutes of play (#190).
     private static func nextGoal(for stall: StallState) -> Goal? {
-        // A tie goes to the warehouse: it is only offered when it is the real throttle.
-        candidates(for: stall).min { a, b in
+        let structural = structuralCandidates(for: stall)
+        return cheapest(structural.isEmpty ? sinkCandidates(for: stall) : structural)
+    }
+
+    /// A tie goes to the warehouse: it is only offered when it is the real throttle.
+    private static func cheapest(_ goals: [Goal]) -> Goal? {
+        goals.min { a, b in
             if a.definition.coinCost != b.definition.coinCost { return a.definition.coinCost < b.definition.coinCost }
             return a.type == .warehouse && b.type != .warehouse
         }
     }
 
-    /// Everything the player can ever save toward, cheapest first wins: the structural purchases plus
-    /// the endless recipe levels and renovation, so there is always a next goal.
-    private static func candidates(for stall: StallState) -> [Goal] {
-        var result = structuralCandidates(for: stall)
+    /// The endless recipe levels and renovation, so there is always a next goal.
+    private static func sinkCandidates(for stall: StallState) -> [Goal] {
+        var result: [Goal] = []
         for menuIndex in 0..<UpgradeDefinitions.menu.count {
             guard let cost = RecipeSystem.nextCost(for: stall, menuIndex: menuIndex) else { continue }
             let level = RecipeSystem.level(for: stall, menuIndex: menuIndex)

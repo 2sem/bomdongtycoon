@@ -358,7 +358,7 @@ final class FunPassTests: DotWorldTestCase {
         XCTAssertEqual(EarningsSystem.nextGoalUpgrade(for: s)?.coinCost, 47_000)
 
         s.locationTier = 1
-        XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .renovation, "the cheapest purchase drives the goal")
+        XCTAssertEqual(EarningsSystem.nextGoalType(for: s), .location, "a cheaper renovation never outranks 강남")
         XCTAssertFalse(EarningsSystem.isOnlyRenovationLeft(for: s))
     }
 
