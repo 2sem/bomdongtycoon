@@ -422,9 +422,8 @@ public final class GameStore: ObservableObject {
             }
         }
 
-        // Manual (self-serve) cook: one running session per menu index at the fixed `manualCookRate`.
-        // A session keeps producing portion after portion (see `settleManualCook`); a hired cook
-        // takes over the dish, so a session left running for it ends.
+        // Manual cook: one portion in flight per menu index at the fixed `manualCookRate`. A hired
+        // cook takes over the dish, so a manual cook left running for it ends.
         for menuIndex in transients.manualCookProgress.keys.sorted() {
             if hasWorkingCook(menuIndex: menuIndex) {
                 transients.manualCookProgress[menuIndex] = nil
@@ -505,23 +504,13 @@ public final class GameStore: ObservableObject {
         }
     }
 
-    /// Lands every portion the session's progress has paid for. Preconditions are re-checked per
-    /// portion (the warehouse can empty or the stock fill while it cooks): a session that can no
-    /// longer produce ends without one. It also ends on reaching `selfServeStock`, and stays
-    /// running only while the next portion is possible.
+    /// Lands the portion once progress reaches 1, and always ends the manual cook: one tap is one
+    /// portion, so overshoot from a hurry is dropped. Warehouse and room are re-checked here
+    /// because they can change while it cooks; if either is gone the cook ends with no portion.
     private func settleManualCook(menuIndex: Int) {
-        while let progress = transients.manualCookProgress[menuIndex], progress >= 1 {
-            guard canManualCook(menuIndex: menuIndex) else {
-                transients.manualCookProgress[menuIndex] = nil
-                return
-            }
-            completeManualCook(menuIndex: menuIndex)
-            guard stall.menuStock[menuIndex] < Self.selfServeStock, canManualCook(menuIndex: menuIndex) else {
-                transients.manualCookProgress[menuIndex] = nil
-                return
-            }
-            transients.manualCookProgress[menuIndex] = progress - 1
-        }
+        guard let progress = transients.manualCookProgress[menuIndex], progress >= 1 else { return }
+        transients.manualCookProgress[menuIndex] = nil
+        if canManualCook(menuIndex: menuIndex) { completeManualCook(menuIndex: menuIndex) }
     }
 
     private func completeManualCook(menuIndex: Int) {
@@ -1149,9 +1138,6 @@ public final class GameStore: ObservableObject {
         }
     }
 
-    /// Stock a self-serve session cooks a dish up to. A tap always yields at least one portion
-    /// (the cap only decides whether the session carries on), so the player can still stock past it.
-    public static let selfServeStock = 5
     /// Progress a tap adds to the portion in flight: three taps are about one portion.
     public static let hurryPerTap: Double = 0.34
     public static let hurryDebounce: Double = 0.08
@@ -1159,7 +1145,7 @@ public final class GameStore: ObservableObject {
     public enum DishTap: Equatable {
         /// The dish is not unlocked yet.
         case locked
-        /// A self-serve session began, or fever made the tap an instant portion.
+        /// One portion began cooking, or fever made the tap an instant portion.
         case started
         /// The portion in flight moved on.
         case hurried
@@ -1169,10 +1155,10 @@ public final class GameStore: ObservableObject {
         case ignored
     }
 
-    /// What a tap on a dish does. Cooking already (a session, or a hired cook who can work): it
-    /// hurries the portion. Otherwise it starts a self-serve session, unless a cook is hired for
+    /// What a tap on a dish does. Cooking already (by hand, or a hired cook who can work): it
+    /// hurries the portion. Otherwise it starts one portion by hand, unless a cook is hired for
     /// the dish (a cook with nothing to work on has nothing a tap can speed up). During fever a tap
-    /// is an instant portion.
+    /// is an instant portion. Never more than one portion per tap-started cook.
     @discardableResult
     public func tapDish(menuIndex: Int) -> DishTap {
         guard menuIndex >= 0, menuIndex <= stall.menuTier, menuIndex < stall.menuStock.count else { return .locked }

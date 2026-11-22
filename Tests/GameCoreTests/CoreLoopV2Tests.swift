@@ -25,53 +25,58 @@ final class CoreLoopV2Tests: DotWorldTestCase {
 
     // MARK: Self-serve prep
 
-    func test_selfServe_keepsCookingPortionAfterPortion_untilStockReachesFive() {
+    func test_oneTap_cooksExactlyOnePortion_thenNothingCooksAgain() {
         emptyShelves()
         XCTAssertEqual(store.tapDish(menuIndex: 0), .started)
-        for portion in 1...5 {
-            run(4)
-            XCTAssertEqual(store.stall.menuStock[0], portion, "one portion every 4 s with no further taps")
-        }
-        XCTAssertFalse(store.isManualCookRunning(menuIndex: 0), "stopped at five")
+        run(30)
+        XCTAssertEqual(store.stall.menuStock[0], 1)
+        XCTAssertEqual(store.stall.warehouse, 9)
+        XCTAssertFalse(store.isManualCookRunning(menuIndex: 0))
         XCTAssertFalse(store.isCooking(menuIndex: 0))
-        run(12)
-        XCTAssertEqual(store.stall.menuStock[0], GameStore.selfServeStock)
-        XCTAssertEqual(store.stall.warehouse, 5)
     }
 
-    func test_selfServe_resumesOnceStockDropsBelowFiveAndItIsNeededAgain() {
+    func test_oneTap_portionLandsAfterFourSeconds() {
         emptyShelves()
-        store.stall.menuStock[0] = 4
-        XCTAssertEqual(store.tapDish(menuIndex: 0), .started)
-        run(4)
-        XCTAssertEqual(store.stall.menuStock[0], 5)
-        XCTAssertFalse(store.isManualCookRunning(menuIndex: 0))
-        _ = store.sellItem(menuIndex: 0)
-        XCTAssertFalse(store.isManualCookRunning(menuIndex: 0), "selling does not restart it by itself")
-        XCTAssertEqual(store.tapDish(menuIndex: 0), .started, "only a tap does")
-        run(4)
-        XCTAssertEqual(store.stall.menuStock[0], 5)
+        store.tapDish(menuIndex: 0)
+        run(3.5)
+        XCTAssertEqual(store.stall.menuStock[0], 0)
+        run(0.5)
+        XCTAssertEqual(store.stall.menuStock[0], 1)
     }
 
-    func test_selfServe_endsWhenTheWarehouseRunsDry() {
-        emptyShelves(warehouse: 2)
+    func test_hurryOvershoot_stillYieldsExactlyOnePortion() {
+        emptyShelves()
+        store.tapDish(menuIndex: 0)
+        run(3.5)   // 0.875 in: one hurry (+0.34) overshoots past 1
+        XCTAssertEqual(store.tapDish(menuIndex: 0), .hurried)
+        XCTAssertEqual(store.stall.menuStock[0], 1)
+        XCTAssertFalse(store.isManualCookRunning(menuIndex: 0), "the overshoot does not seed a second portion")
+        run(30)
+        XCTAssertEqual(store.stall.menuStock[0], 1)
+        XCTAssertEqual(store.stall.warehouse, 9)
+    }
+
+    func test_eachTapStocksOnePortion_upToTheShelfCap() {
+        emptyShelves(warehouse: 30)
+        let cap = EarningsSystem.maxStock(for: store.stall)
+        for portion in 1...cap {
+            XCTAssertEqual(store.tapDish(menuIndex: 0), .started)
+            run(4)
+            XCTAssertEqual(store.stall.menuStock[0], portion)
+        }
+        XCTAssertEqual(store.tapDish(menuIndex: 0), .blocked, "shelf full")
+    }
+
+    func test_tap_endsWithNoPortionWhenTheWarehouseRunsDryMidCook() {
+        emptyShelves(warehouse: 1)
         XCTAssertEqual(store.tapDish(menuIndex: 0), .started)
+        store.stall.warehouse = 0
         run(8)
-        XCTAssertEqual(store.stall.menuStock[0], 2)
-        XCTAssertEqual(store.stall.warehouse, 0)
+        XCTAssertEqual(store.stall.menuStock[0], 0)
         XCTAssertFalse(store.isManualCookRunning(menuIndex: 0))
     }
 
-    func test_tapAtOrAboveTheCap_stillMakesOnePortionThenStops() {
-        emptyShelves()
-        store.stall.menuStock[0] = GameStore.selfServeStock
-        XCTAssertEqual(store.tapDish(menuIndex: 0), .started, "a tap always yields a portion")
-        run(4)
-        XCTAssertEqual(store.stall.menuStock[0], GameStore.selfServeStock + 1)
-        XCTAssertFalse(store.isManualCookRunning(menuIndex: 0), "the cap only decides whether it carries on")
-    }
-
-    func test_waitingCustomer_doesNotStartASession() {
+    func test_waitingCustomer_doesNotStartACook() {
         emptyShelves()
         for _ in 0..<40 {
             XCTAssertNil(store.sellItem(menuIndex: 0), "the customer finds nothing")
@@ -82,20 +87,12 @@ final class CoreLoopV2Tests: DotWorldTestCase {
         XCTAssertEqual(store.stall.warehouse, 10)
     }
 
-    func test_tap_startsASessionThatRunsToTheSelfServeStock() {
-        emptyShelves()
-        XCTAssertEqual(store.tapDish(menuIndex: 0), .started)
-        run(60)
-        XCTAssertEqual(store.stall.menuStock[0], GameStore.selfServeStock)
-        XCTAssertEqual(store.stall.warehouse, 5)
-    }
-
     func test_hiredCook_cooksWithNoTap() {
         emptyShelves()
         store.stall.menuCooks = [1, 0, 0]
         run(8)
         XCTAssertGreaterThan(store.stall.menuStock[0], 0)
-        XCTAssertFalse(store.isManualCookRunning(menuIndex: 0), "no session, the cook does it")
+        XCTAssertFalse(store.isManualCookRunning(menuIndex: 0), "no manual cook, the cook does it")
     }
 
     func test_needsPlayerTap_onlyWhereNobodyCooksAndTheDishIsEmpty() {
@@ -104,7 +101,7 @@ final class CoreLoopV2Tests: DotWorldTestCase {
         XCTAssertTrue(store.needsPlayerTap(menuIndex: 0))
         XCTAssertFalse(store.needsPlayerTap(menuIndex: 2), "locked dish")
         store.tapDish(menuIndex: 0)
-        XCTAssertFalse(store.needsPlayerTap(menuIndex: 0), "a session is running")
+        XCTAssertFalse(store.needsPlayerTap(menuIndex: 0), "a portion is cooking")
         store.stall.menuCooks = [0, 1, 0]
         XCTAssertFalse(store.needsPlayerTap(menuIndex: 1), "a hired cook owns it")
         store.stall.menuCooks = [0, 0, 0]
@@ -161,8 +158,8 @@ final class CoreLoopV2Tests: DotWorldTestCase {
         XCTAssertLessThan(result.longestServedWait, 12)
     }
 
-    func test_firstMinute_aPlayerWhoTapsAfterSixSecondsLosesNobody() {
-        let result = firstMinute(tapDelay: 6)
+    func test_firstMinute_aPlayerWhoTapsAfterTwoSecondsLosesNobody() {
+        let result = firstMinute(tapDelay: 2)
         XCTAssertEqual(result.failed, 0)
         XCTAssertLessThan(result.longestServedWait, 12)
     }
@@ -181,10 +178,10 @@ final class CoreLoopV2Tests: DotWorldTestCase {
         XCTAssertFalse(store.isManualCookRunning(menuIndex: 0))
         run(200)
         XCTAssertEqual(store.stall.menuStock[0], EarningsSystem.maxStock(for: store.stall),
-                       "a cook is not held to the self-serve cap")
+                       "a hired cook fills to max stock")
     }
 
-    func test_hiringACook_endsARunningSession() {
+    func test_hiringACook_endsARunningManualCook() {
         emptyShelves()
         XCTAssertEqual(store.tapDish(menuIndex: 0), .started)
         store.stall.menuCooks = [1, 0, 0]
