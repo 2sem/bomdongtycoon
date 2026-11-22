@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""App Store header images: a panorama of the three locations with the title in the sky.
+"""App Store header images: a panorama of the three locations.
 
     python3 tools/screenshots/header.py   # -> fastlane/header/<locale>_<w>x<h>.png
 
 App Store Connect accepts 5244x2950 and 3840x1646. Both are drawn from the dot-art sprites at
 an integer scale, so nothing is resampled.
+
+No app title: the product page draws the header under the status bar and Dynamic Island,
+which hid it, and the page already shows the app name right below.
 """
 import sys
 from pathlib import Path
@@ -24,12 +27,11 @@ FONT = ROOT / "Resources" / "Fonts" / "Galmuri11-Bold.ttf"
 # (output size, device pixels per art pixel). The art canvas is the size divided by the scale,
 # rounded up; the last partial art pixel is cropped off the right and bottom edges.
 SIZES = [((3840, 1646), 6), ((5244, 2950), 10)]
-TITLES = {"ko": "봄동 타이쿤", "en-US": "Bomdong Tycoon"}
-# One signboard name per shop tier; the game writes the player's own shop name there.
+# One signboard name per shop tier and locale; the game writes the player's own shop name there.
 SIGNS = {"ko": ["봄동 포차", "봄동 식당", "봄동 전문점"], "en-US": ["Food Cart", "Diner", "Specialty"]}
 
 SECTION = 144                      # one backdrop / one shop, in art px
-BACKDROP_H, STREET_H, SHOP_H, YARD_H = 56, 32, 64, 30
+STREET_H, SHOP_H, YARD_H = 32, 64, 30
 LOCATIONS = ["alley", "market", "gangnam"]
 STAFF = [
     [("alba", "work_0"), None, None, None],
@@ -152,7 +154,7 @@ def world(width, height, f=None):
 
     image = Image.new("RGBA", scene.img.size, rgb_hex(SKY["noon"]) + (255,))
     image.alpha_composite(scene.img)
-    return image, street - BACKDROP_H, x0, shop_top
+    return image, x0, shop_top
 
 
 def signs(image, names, scale, x0, shop_top):
@@ -169,38 +171,14 @@ def signs(image, names, scale, x0, shop_top):
         draw.text((cx, cy), name, font=font, fill=rgb_hex(PALETTE["ink"]))
 
 
-def title(image, text, scale, sky_height):
-    """Mascot logo and title, centred in the sky above the skyline."""
-    logo = sprites.find("ui", "logo").to_image()
-    logo = logo.resize((logo.width * scale, logo.height * scale), Image.NEAREST)
-    # Galmuri11 sits on a 12 px em: 36 art px is its 3x size.
-    font = ImageFont.truetype(str(FONT), 36 * scale)
-    draw = ImageDraw.Draw(image)
-    left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
-    gap = 8 * scale
-    total = logo.width + gap + (right - left)
-    x = (image.width - total) // 2
-    centre = (sky_height * scale) // 2 + 6 * scale
-    image.alpha_composite(logo, (x, centre - logo.height // 2))
-    tx = x + logo.width + gap - left
-    ty = centre - (top + bottom) // 2
-    ink, paper = rgb_hex(PALETTE["ink"]), rgb_hex(PALETTE["paper"])
-    step = scale * 2
-    for dx in (-step, 0, step):
-        for dy in (-step, 0, step, step * 2):
-            draw.text((tx + dx, ty + dy), text, font=font, fill=ink)
-    draw.text((tx, ty), text, font=font, fill=paper)
-
-
 def main():
     sprites.load_all()
     OUT.mkdir(parents=True, exist_ok=True)
     for (width, height), scale in SIZES:
-        art, sky_height, x0, shop_top = world(-(-width // scale), -(-height // scale))
+        art, x0, shop_top = world(-(-width // scale), -(-height // scale))
         big = art.resize((art.width * scale, art.height * scale), Image.NEAREST).crop((0, 0, width, height))
-        for locale, text in TITLES.items():
+        for locale in SIGNS:
             image = big.copy()
-            title(image, text, scale, sky_height)
             signs(image, SIGNS[locale], scale, x0, shop_top)
             path = OUT / f"{locale}_{width}x{height}.png"
             image.convert("RGB").save(path, optimize=True)

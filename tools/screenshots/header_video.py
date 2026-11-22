@@ -16,16 +16,15 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import header  # noqa: E402
-from header import LOOP, OUT, ROOT, SIGNS, TITLES, sprites  # noqa: E402
+from header import LOOP, OUT, ROOT, SIGNS, sprites  # noqa: E402
 
 (WIDTH, HEIGHT), SCALE = header.SIZES[0]
 FPS = 30
 
 
-def lettering(locale, sky_height, x0, shop_top):
-    """Title and signboard names on a transparent layer; they sit still over the moving art."""
+def lettering(locale, x0, shop_top):
+    """Signboard names on a transparent layer; they sit still over the moving art."""
     layer = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
-    header.title(layer, TITLES[locale], SCALE, sky_height)
     header.signs(layer, SIGNS[locale], SCALE, x0, shop_top)
     return layer
 
@@ -64,12 +63,12 @@ def main():
     art_size = (-(-WIDTH // SCALE), -(-HEIGHT // SCALE))
     frames = []
     for f in range(LOOP):
-        art, sky_height, x0, shop_top = header.world(*art_size, f)
+        art, x0, shop_top = header.world(*art_size, f)
         frames.append(art.convert("RGB").tobytes())
     with tempfile.TemporaryDirectory() as scratch:
-        for locale in TITLES:
+        for locale in SIGNS:
             overlay = Path(scratch) / f"{locale}.png"
-            lettering(locale, sky_height, x0, shop_top).save(overlay)
+            lettering(locale, x0, shop_top).save(overlay)
             path = OUT / f"{locale}_{WIDTH}x{HEIGHT}.mp4"
             encode(frames, art_size, overlay, path)
             print(path.relative_to(ROOT))
