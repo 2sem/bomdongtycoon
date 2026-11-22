@@ -345,7 +345,7 @@ final class DotWorldScene: SKScene {
 
     /// One pointer at a time, only once both intro overlays are gone. A customer waiting on a dish
     /// nobody cooks comes first and is not one-time: with no ghost cooking, the tap is the only way
-    /// that dish gets made, so the pointer returns every time and leaves once a session or a cook starts.
+    /// that dish gets made, so the pointer returns every time and leaves once a portion is cooking or a cook starts.
     private func updateHint(_ store: GameStore, shop: ShopNode, farm: FarmNode) {
         guard let arrow = hintArrow else { return }
         var tip: CGPoint?

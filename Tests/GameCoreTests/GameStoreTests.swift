@@ -197,7 +197,7 @@ final class GameStoreTests: XCTestCase {
         store.tick(deltaTime: 4.0)
         XCTAssertEqual(store.stall.menuStock[1], stockBefore + 1)
         XCTAssertEqual(store.stall.warehouse, warehouseBefore - 1)
-        XCTAssertTrue(store.isManualCookRunning(menuIndex: 1), "self-serve carries on towards the cap")
+        XCTAssertFalse(store.isManualCookRunning(menuIndex: 1), "one tap, one portion")
     }
 
     func test_startManualCook_menuIndex1_tierLocked_refuses() {
@@ -218,7 +218,7 @@ final class GameStoreTests: XCTestCase {
         store.tick(deltaTime: 4.0)
         XCTAssertEqual(store.stall.menuStock[2], stockBefore + 1)
         XCTAssertEqual(store.stall.warehouse, warehouseBefore - 1)
-        XCTAssertTrue(store.isManualCookRunning(menuIndex: 2), "self-serve carries on towards the cap")
+        XCTAssertFalse(store.isManualCookRunning(menuIndex: 2), "one tap, one portion")
     }
 
     func test_startManualCook_menuIndex2_tierLocked_refuses() {
